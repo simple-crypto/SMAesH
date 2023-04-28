@@ -1,0 +1,39 @@
+% width of Ports IOs
+\def\arrowIOWidth{0.5mm}
+\def\xshIO{1.0cm}
+
+% Ports for basic IO port
+\newcommand{\portW}[4][]{
+    \node[xshift=-\xshIO,anchor=east,text=#4] (port) at (#2) {#3};
+    \draw [#1,line width=\arrowIOWidth] (port.east) -- (#2);
+}
+\newcommand{\portE}[4][]{
+    \node[xshift=\xshIO,anchor=west,text=#4] (port) at (#2) {#3};
+    \draw [#1,line width=\arrowIOWidth] (#2) -- (port);
+}
+\newcommand{\portN}[4][]{
+    \node[yshift=\xshIO,anchor=south,text=#4] (port) at (#2) {#3};
+    \draw [#1,line width=\arrowIOWidth] (port) -- (#2);
+}
+
+% Draw rectangle
+\rectangle[line width=0.5mm]{main}{(0,0)}{4}{6}{8}{8}{2}{0};
+% Add module name
+\draw (main/center) node {\topName};
+% Add ports inputs
+\portW[->]{main/W1}{\svrsInValid}{colorIN}
+\portW[<-]{main/W2}{\svrsInReady}{colorIN}
+\portW[->]{main/W3}{\svrsPlaintext[128d-1:0]}{colorIN}
+\portW[->]{main/W4}{\svrsKey[128d-1:0]}{colorIN}
+
+\portW[->]{main/W6}{\svrsSeedValid}{colorSEED}
+\portW[<-]{main/W7}{\svrsSeedReady}{colorSEED}
+\portW[->]{main/W8}{\svrsSeed[79:0]}{colorSEED}
+% Add ports outputs 
+\portE[->]{main/E1}{\svrsOutValid}{colorOUT}
+\portE[<-]{main/E2}{\svrsOutReady}{colorOUT}
+\portE[->]{main/E3}{\svrsCiphertext[128d-1:0]}{colorOUT}
+% Add port control
+\portN[->]{main/N1}{\clk}{black}
+\portN[->]{main/N2}{\rst}{black}
+

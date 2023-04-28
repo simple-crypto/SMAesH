@@ -1,0 +1,224 @@
+%% Bus encoding 
+% #1: style
+% #2: id
+% #3: loc (of first cell)
+% #4: length
+% #5: width elem
+\newcommand{\vecNode}[5][]{
+    % Draw rectangle
+    \coordinate (TL) at ($#3 + (-#5/2,#5/2)$);
+    \coordinate (BL) at ($#3 + (-#5/2,-#5/2)$);
+    \coordinate (TR) at ($(TL) + (#5*#4,0)$);
+    \coordinate (BR) at ($(BL) + (#5*#4,0)$);
+    \draw [#1] (TL) -- (TR) -- (BR) -- (BL) -- (TL);
+    \foreach \xi in {1,...,#4}{
+        \draw[#1] ($(TL) + (#5*\xi,0)$) -- ($(BL) + (#5*\xi,0)$);
+        \node at ($#3+(#5*\xi-#5,0)$) {\ifdebug N\xi \else \fi};
+        \node at ($#3+(#5*\xi-#5,0.5*#5)$) {\ifdebug o \else \fi};
+        \node at ($#3+(#5*\xi-#5,-0.5*#5)$) {\ifdebug o \else \fi};
+        \coordinate (#2/N\xi_N) at ($#3+(#5*\xi-#5,0.5*#5)$) {};
+        \coordinate (#2/N\xi_S) at ($#3+(#5*\xi-#5,-0.5*#5)$) {};
+        \coordinate (#2/N\xi) at ($#3+(#5*\xi-#5,0)$) {};
+    }
+    % Generate boundaries nodes
+    \coordinate (#2/TL) at (TL);
+    \coordinate (#2/BL) at (BL);
+    \coordinate (#2/TR) at (TR);
+    \coordinate (#2/BR) at (BR);
+    \coordinate (#2/top) at ($(TL) + (#4/2,0.75#5)$);
+    \coordinate (#2/left) at ($(TL) + (0,-#5/2)$);
+    % Debug
+    \node at (#2/top) {\ifdebug o \else \fi};
+    \node at (#2/left) {\ifdebug o \else \fi};
+}
+
+%% Encoded bus
+% #1: style
+% #2: id
+% #3: loc (of more left cell)
+% #4: width elem
+\newcommand{\sharedBus}[4][]{
+    \def\propB{0.33}
+    \def\offT{0.2}
+    \def\fsize{\small}
+    % Coordinate
+    \coordinate (dd) at #3;
+    \coordinate (d1) at ($(dd)+(6*#4,0)$);
+    \coordinate (d0) at ($(dd)+(10*#4,0)$);
+    % Draw the 3 vecNode
+    \vecNode[#1]{#2/dd}{(dd)}{4}{#4}
+    \vecNode[#1]{#2/d1}{(d1)}{4}{#4}
+    \vecNode[#1]{#2/d0}{(d0)}{4}{#4}
+    % Draw the dots
+    \node at ($(dd)+(4*#4,0)$) {$\dots$};
+    \node at ($(dd)+(4.5*#4,0)$) {$\dots$};
+    \node at ($(dd)+(5*#4,0)$) {$\dots$};
+    % Draw the vec bounds
+    \draw[#1] ($(#2/dd/TL) + (0,\propB*#4)$) -- ($(#2/dd/BL) - (0,\propB*#4)$);
+    \draw[#1] ($(#2/dd/TR) + (0,\propB*#4)$) -- ($(#2/dd/BR) - (0,\propB*#4)$);
+    \draw[#1] ($(#2/d1/TL) + (0,\propB*#4)$) -- ($(#2/d1/BL) - (0,\propB*#4)$);
+    \draw[#1] ($(#2/d1/TR) + (0,\propB*#4)$) -- ($(#2/d1/BR) - (0,\propB*#4)$);
+    \draw[#1] ($(#2/d0/TR) + (0,\propB*#4)$) -- ($(#2/d0/BR) - (0,\propB*#4)$);
+    % Draw the bit position
+    \node [anchor=east, rotate=90] at ($(#2/dd/BL) - (0,\propB*#4) - (0,\offT)$) {\fsize $dn$};
+    \node [anchor=east, rotate=90] at ($(#2/dd/BR) - (0,\propB*#4) - (0,\offT)$) {\fsize $\left(d-1\right)n$};
+
+    \node [anchor=east, rotate=90] at ($(#2/d1/BL) - (0,\propB*#4) - (0,\offT)$) {\fsize $2n$};
+    \node [anchor=east, rotate=90] at ($(#2/d1/BR) - (0,\propB*#4) - (0,\offT)$) {\fsize $n$};
+    \node [anchor=east, rotate=90] at ($(#2/d0/BR) - (0,\propB*#4) - (0,\offT)$) {\fsize $0$};
+    % Draw the bits values
+    \node at (#2/dd/N1) {$b_{n-1}^{d-1}$};
+    \node at (#2/dd/N2) {$\dots$};
+    \node at (#2/dd/N3) {$b_{1}^{d-1}$};
+    \node at (#2/dd/N4) {$b_{0}^{d-1}$};
+
+    \node at (#2/d1/N1) {$b_{n-1}^{1}$};
+    \node at (#2/d1/N2) {$\dots$};
+    \node at (#2/d1/N3) {$b_{1}^{1}$};
+    \node at (#2/d1/N4) {$b_{0}^{1}$};
+
+    \node at (#2/d0/N1) {$b_{n-1}^{0}$};
+    \node at (#2/d0/N2) {$\dots$};
+    \node at (#2/d0/N3) {$b_{1}^{0}$};
+    \node at (#2/d0/N4) {$b_{0}^{0}$};
+    % Coordinate
+    \coordinate (#2/left) at (#2/dd/left);
+}
+
+%% Shares figure
+% #1: style
+% #2: id
+% #3: loc (of more left cell)
+% #4: width elem
+\newcommand{\sharesBits}[4][]{
+    \def\propB{0.33}
+    \def\offT{0.2}
+    \def\fsize{\small}
+    % Coordinate
+    \coordinate (dd) at #3;
+    \coordinate (d1) at ($(dd)+(6*#4,0)$);
+    \coordinate (d0) at ($(dd)+(10*#4,0)$);
+    % Draw the 3 vecNode
+    \vecNode[#1]{#2/dd}{(dd)}{4}{#4}
+    \vecNode[#1]{#2/d1}{(d1)}{4}{#4}
+    \vecNode[#1]{#2/d0}{(d0)}{4}{#4}
+    % Draw the dots
+    \node at ($(dd)+(4*#4,0)$) {$\dots$};
+    \node at ($(dd)+(4.5*#4,0)$) {$\dots$};
+    \node at ($(dd)+(5*#4,0)$) {$\dots$};
+    % Draw the vec bounds
+    \draw[#1] ($(#2/dd/TL) + (0,\propB*#4)$) -- ($(#2/dd/BL) - (0,\propB*#4)$);
+    \draw[#1] ($(#2/dd/TR) + (0,\propB*#4)$) -- ($(#2/dd/BR) - (0,\propB*#4)$);
+    \draw[#1] ($(#2/d1/TL) + (0,\propB*#4)$) -- ($(#2/d1/BL) - (0,\propB*#4)$);
+    \draw[#1] ($(#2/d1/TR) + (0,\propB*#4)$) -- ($(#2/d1/BR) - (0,\propB*#4)$);
+    \draw[#1] ($(#2/d0/TR) + (0,\propB*#4)$) -- ($(#2/d0/BR) - (0,\propB*#4)$);
+    % Draw the bit position
+    \node [anchor=east, rotate=90]at ($(#2/dd/BL) - (0,\propB*#4) - (0,\offT)$) {\fsize $nd$};
+    \node [anchor=east, rotate=90]at ($(#2/dd/BR) - (0,\propB*#4) - (0,\offT)$) {\fsize $\left(n-1\right)d$};
+
+    \node [anchor=east, rotate=90]at ($(#2/d1/BL) - (0,\propB*#4) - (0,\offT)$) {\fsize $2d$};
+    \node [anchor=east, rotate=90]at ($(#2/d1/BR) - (0,\propB*#4) - (0,\offT)$) {\fsize $d$};
+    \node [anchor=east, rotate=90]at ($(#2/d0/BR) - (0,\propB*#4) - (0,\offT)$) {\fsize $0$};
+    %% Draw the bits values
+    \node at (#2/dd/N1) {$b_{n-1}^{d-1}$};
+    \node at (#2/dd/N2) {$\dots$};
+    \node at (#2/dd/N3) {$b_{n-1}^{1}$};
+    \node at (#2/dd/N4) {$b_{n-1}^{0}$};
+
+    \node at (#2/d1/N1) {$b_{1}^{d-1}$};
+    \node at (#2/d1/N2) {$\dots$};
+    \node at (#2/d1/N3) {$b_{1}^{1}$};
+    \node at (#2/d1/N4) {$b_{1}^{0}$};
+
+    \node at (#2/d0/N1) {$b_{0}^{d-1}$};
+    \node at (#2/d0/N2) {$\dots$};
+    \node at (#2/d0/N3) {$b_{0}^{1}$};
+    \node at (#2/d0/N4) {$b_{0}^{0}$};
+    % Coordinate
+    \coordinate (#2/left) at (#2/dd/left);
+}
+
+%% unshared bus
+% #1: style
+% #2: id
+% #3: loc (of more left cell)
+% #4: width elem
+\newcommand{\unshare}[4][]{
+    \def\propB{0.33}
+    \def\offT{0.2}
+    \def\fsize{\small}
+    % Draw the vecNode
+    \vecNode[#1]{#2/bus}{#3}{4}{#4}
+    % Draw he vec bounds
+    \draw[#1] ($(#2/bus/TL) + (0,\propB*#4)$) -- ($(#2/bus/BL) - (0,\propB*#4)$);
+    \draw[#1] ($(#2/bus/TR) + (0,\propB*#4)$) -- ($(#2/bus/BR) - (0,\propB*#4)$);
+    % Draw the bit position
+    \node [anchor=east, rotate=90] at ($(#2/bus/BL) - (0,\propB*#4)$) {$n$};
+    \node [anchor=east, rotate=90] at ($(#2/bus/BR) - (0,\propB*#4)$) {$0$};
+    % Draw bit values
+    \node at (#2/bus/N1) {$b_{n-1}$};
+    \node at (#2/bus/N2) {$\dots$};
+    \node at (#2/bus/N3) {$b_{1}$};
+    \node at (#2/bus/N4) {$b_{0}$};
+    % Coordinate
+    \coordinate (#2/left) at (#2/bus/left);
+}
+
+% Configuration
+\def\cellW{0.5mm}
+\def\arrW{0.3mm}
+\def\shT{0.1cm}
+
+% Draw basic vects
+\def\scaleW{1}
+\sharedBus[line width=\cellW]{shared_bus}{(0,0)}{\scaleW}
+\sharesBits[line width=\cellW]{shares_bits}{(0,6)}{\scaleW}
+\unshare[line width=\cellW]{unshared_bus}{(0,10)}{\scaleW}
+
+% Draw the connector
+\foreach \xi in {1,3,4} {
+    % Shared bus connectors
+    \coordinate (shared_bus/dd/N\xi_N_C) at ($(shared_bus/dd/N\xi_N)+(0,0.5*\scaleW)$);
+    \coordinate (shared_bus/d1/N\xi_N_C) at ($(shared_bus/d1/N\xi_N)+(0,0.5*\scaleW)$);
+    \coordinate (shared_bus/d0/N\xi_N_C) at ($(shared_bus/d0/N\xi_N)+(0,0.5*\scaleW)$);
+    \draw [<-, line width=\arrW] (shared_bus/dd/N\xi_N) -- (shared_bus/dd/N\xi_N_C);
+    \draw [<-, line width=\arrW] (shared_bus/d1/N\xi_N) -- (shared_bus/d1/N\xi_N_C);
+    \draw [<-, line width=\arrW] (shared_bus/d0/N\xi_N) -- (shared_bus/d0/N\xi_N_C);
+    % Shares bits connectors
+    \coordinate (shares_bits/dd/N\xi_S_C) at ($(shares_bits/dd/N\xi_S)-(0,2.5*\scaleW)$);
+    \coordinate (shares_bits/d1/N\xi_S_C) at ($(shares_bits/d1/N\xi_S)-(0,2.5*\scaleW)$);
+    \coordinate (shares_bits/d0/N\xi_S_C) at ($(shares_bits/d0/N\xi_S)-(0,2.5*\scaleW)$);
+    \draw [line width=\arrW] (shares_bits/dd/N\xi_S) -- (shares_bits/dd/N\xi_S_C);
+    \draw [line width=\arrW] (shares_bits/d1/N\xi_S) -- (shares_bits/d1/N\xi_S_C);
+    \draw [line width=\arrW] (shares_bits/d0/N\xi_S) -- (shares_bits/d0/N\xi_S_C);
+    % Unshared bus connector
+    \coordinate (unshared_bus/bus/N\xi_S_C) at ($(unshared_bus/bus/N\xi_S)+(0,-1*\scaleW)$);
+    \draw [line width=\arrW] (unshared_bus/bus/N\xi_S) -- (unshared_bus/bus/N\xi_S_C);
+}
+
+% Draw connextion between busses
+% First bit share
+\draw [line width=\arrW] (shares_bits/d0/N4_S_C) -- (shared_bus/d0/N4_N_C);
+\draw [line width=\arrW] (shares_bits/d0/N3_S_C) -- (shared_bus/d1/N4_N_C);
+\draw [line width=\arrW] (shares_bits/d0/N1_S_C) -- (shared_bus/dd/N4_N_C);
+% Second bit share
+\draw [line width=\arrW] (shares_bits/d1/N4_S_C) -- (shared_bus/d0/N3_N_C);
+\draw [line width=\arrW] (shares_bits/d1/N3_S_C) -- (shared_bus/d1/N3_N_C);
+\draw [line width=\arrW] (shares_bits/d1/N1_S_C) -- (shared_bus/dd/N3_N_C);
+% Last bit share
+\draw [line width=\arrW] (shares_bits/dd/N4_S_C) -- (shared_bus/d0/N1_N_C);
+\draw [line width=\arrW] (shares_bits/dd/N3_S_C) -- (shared_bus/d1/N1_N_C);
+\draw [line width=\arrW] (shares_bits/dd/N1_S_C) -- (shared_bus/dd/N1_N_C);
+% Draw unshared bus connector
+\draw [line width=\arrW] (unshared_bus/bus/N1_S_C) -- ($(shares_bits/dd/top) + (0,0.5)$) -- (shares_bits/dd/top);
+\draw [line width=\arrW] (unshared_bus/bus/N3_S_C) -- ($(shares_bits/d1/top) + (0,0.5)$) -- (shares_bits/d1/top);
+\draw [line width=\arrW] (unshared_bus/bus/N4_S_C) -- ($(shares_bits/d0/top) + (0,0.5)$) -- (shares_bits/d0/top);
+
+\draw [line width=\arrW,dashed] (shares_bits/dd/top) -- (shares_bits/dd/TL) (shares_bits/dd/top) -- (shares_bits/dd/TR);
+\draw [line width=\arrW,dashed] (shares_bits/d1/top) -- (shares_bits/d1/TL) (shares_bits/d1/top) -- (shares_bits/d1/TR);
+\draw [line width=\arrW,dashed] (shares_bits/d0/top) -- (shares_bits/d0/TL) (shares_bits/d0/top) -- (shares_bits/d0/TR);
+
+% Names of bus
+\node [anchor=east,xshift=-\shT] at (unshared_bus/left) {$\texttt{data}\left[ n-1:0\right]$};
+\node [anchor=east,xshift=-\shT] at (shares_bits/left) {$\texttt{shares\_bits}\left[ dn-1:0\right]$};
+\node [anchor=east,xshift=-\shT] at (shared_bus/left) {$\texttt{shares\_data}\left[ dn-1:0\right]$};

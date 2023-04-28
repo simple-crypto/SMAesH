@@ -1,0 +1,170 @@
+[*]
+[*] GTKWave Analyzer v3.3.103 (w)1999-2019 BSI
+[*] Fri Dec 17 15:10:27 2021
+[*]
+[dumpfile] "work/log-tb_wrap_mskaes.vcd"
+[dumpfile_mtime] "Fri Dec 17 15:06:37 2021"
+[dumpfile_size] 21486085
+[savefile] "waves-tb_wrap_mskaes.gtkw"
+[timestart] 24480000
+[size] 1848 1136
+[pos] -1 -1
+*-22.044798 38600000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] tb_wrap_mskaes.
+[treeopen] tb_wrap_mskaes.dut.
+[treeopen] tb_wrap_mskaes.dut.aes_core.
+[treeopen] tb_wrap_mskaes.dut.aes_core.wm.
+[treeopen] tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[10].
+[treeopen] tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[11].
+[treeopen] tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[12].
+[treeopen] tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[13].
+[treeopen] tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[14].
+[treeopen] tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[15].
+[treeopen] tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[2].
+[treeopen] tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[3].
+[treeopen] tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[4].
+[treeopen] tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[5].
+[treeopen] tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[6].
+[treeopen] tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[7].
+[treeopen] tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[8].
+[treeopen] tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[9].
+[treeopen] tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[0].
+[treeopen] tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[1].
+[treeopen] tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[2].
+[treeopen] tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[3].
+[sst_width] 349
+[signals_width] 313
+[sst_expanded] 1
+[sst_vpaned_height] 331
+@28
+tb_wrap_mskaes.dut.aes_core.wm.clk
+@20000
+-
+@28
+tb_wrap_mskaes.dut.aes_core.wm.valid_in
+tb_wrap_mskaes.dut.aes_core.wm.ready
+tb_wrap_mskaes.dut.aes_core.wm.fsm_unit.cipher_valid
+tb_wrap_mskaes.dut.aes_core.wm.fsm_unit.in_reset_KH
+tb_wrap_mskaes.dut.aes_core.wm.fsm_unit.KH_enable
+tb_wrap_mskaes.dut.aes_core.wm.fsm_unit.state_enable
+@20000
+-
+-
+@22
+tb_wrap_mskaes.dut.aes_core.wm.cst_pt2reg[127:0]
+tb_wrap_mskaes.dut.aes_core.wm.gated_sh_key[255:0]
+tb_wrap_mskaes.dut.aes_core.wm.key_holder.sh_key[255:0]
+@20000
+-
+-
+@200
+-key
+@22
+tb_wrap_mskaes.dut.aes_core.wm.key_holder.kff_byte0.out_q[63:0]
+@23
+tb_wrap_mskaes.dut.aes_core.wm.key_holder.kff_byte1.out_q[63:0]
+@22
+tb_wrap_mskaes.dut.aes_core.wm.key_holder.kff_byte2.out_q[63:0]
+tb_wrap_mskaes.dut.aes_core.wm.key_holder.kff_byte3.out_q[63:0]
+@20000
+-
+-
+-
+@200
+-state
+@22
+tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[15].sff_byte.out_q[15:0]
+tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[11].sff_byte.out_q[15:0]
+tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[7].sff_byte.out_q[15:0]
+tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[3].sff_byte.out_q[15:0]
+@20000
+-
+@22
+tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[14].sff_byte.out_q[15:0]
+tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[10].sff_byte.out_q[15:0]
+tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[6].sff_byte.out_q[15:0]
+tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[2].sff_byte.out_q[15:0]
+@20000
+-
+@22
+tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[13].sff_byte.out_q[15:0]
+tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[9].sff_byte.out_q[15:0]
+tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[5].sff_byte.out_q[15:0]
+tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[1].sff_byte.out_q[15:0]
+@20000
+-
+@22
+tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[12].sff_byte.out_q[15:0]
+tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[8].sff_byte.out_q[15:0]
+tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[4].sff_byte.out_q[15:0]
+tb_wrap_mskaes.dut.aes_core.wm.core_data.scanff_state[0].sff_byte.out_q[15:0]
+@20000
+-
+-
+@200
+-sbox
+@28
+tb_wrap_mskaes.dut.aes_core.wm.pre_need_rnd_bus0
+tb_wrap_mskaes.dut.aes_core.wm.fsm_unit.fake_need_rnd
+tb_wrap_mskaes.dut.aes_core.wm.fsm_unit.mask_pre_enable
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[0].sbox_unit.enable
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[0].sbox_unit.valid_in
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[0].sbox_unit.valid_out
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[0].sbox_unit.i0[1:0]
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[0].sbox_unit.i1[1:0]
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[0].sbox_unit.i2[1:0]
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[0].sbox_unit.i3[1:0]
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[0].sbox_unit.i4[1:0]
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[0].sbox_unit.i5[1:0]
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[0].sbox_unit.i6[1:0]
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[0].sbox_unit.i7[1:0]
+@20000
+-
+@28
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[0].sbox_unit.o0[1:0]
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[0].sbox_unit.o1[1:0]
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[0].sbox_unit.o2[1:0]
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[0].sbox_unit.o3[1:0]
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[0].sbox_unit.o4[1:0]
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[0].sbox_unit.o5[1:0]
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[0].sbox_unit.o6[1:0]
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[0].sbox_unit.o7[1:0]
+@20000
+-
+@22
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[0].sbox_unit.rnd_bus0[8:0]
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[1].sbox_unit.rnd_bus0[8:0]
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[2].sbox_unit.rnd_bus0[8:0]
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[3].sbox_unit.rnd_bus0[8:0]
+@20000
+-
+@22
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[0].sbox_unit.rnd_bus2[2:0]
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[1].sbox_unit.rnd_bus2[2:0]
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[2].sbox_unit.rnd_bus2[2:0]
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[3].sbox_unit.rnd_bus2[2:0]
+@20000
+-
+@22
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[0].sbox_unit.rnd_bus3[3:0]
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[1].sbox_unit.rnd_bus3[3:0]
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[2].sbox_unit.rnd_bus3[3:0]
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[3].sbox_unit.rnd_bus3[3:0]
+@20000
+-
+@22
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[0].sbox_unit.rnd_bus4[17:0]
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[1].sbox_unit.rnd_bus4[17:0]
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[2].sbox_unit.rnd_bus4[17:0]
+tb_wrap_mskaes.dut.aes_core.wm.sbox_isnt[3].sbox_unit.rnd_bus4[17:0]
+@20000
+-
+-
+-
+-
+-
+-
+-
+-
+[pattern_trace] 1
+[pattern_trace] 0

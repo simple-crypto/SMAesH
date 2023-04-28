@@ -1,0 +1,239 @@
+
+% Global config
+\def\fsIO{\Large}
+\def\fontS{\Large}
+\def\sizeB{0.9mm}
+
+%\debugtrue
+
+\def\Rad{5pt}
+
+\tikzset{
+dot/.style = {circle, fill, minimum size=#1,
+              inner sep=0pt, outer sep=0pt},
+dot/.default = 6pt % size of the circle diameter 
+}
+
+% W internal port macro with annotation
+% #1 style
+% #2 id
+% #3 loc
+% #4 text
+\def\yshw{3mm}
+\def\xshw{2mm}
+\newcommand{\portW}[4][]{
+    \node [dot=\Rad] (ncirc) at (#3) {};
+    \node [#1,anchor=west,yshift=\yshw] at (#3) {#4};
+    \coordinate (#2) at (ncirc.west);
+    \coordinate (#2/m) at (ncirc.east);
+}
+% E internal port macro with annotation
+% #1 style
+% #2 id
+% #3 loc
+% #4 text
+\newcommand{\portE}[4][]{
+    \node [dot=\Rad] (ncirc) at (#3) {};
+    \node [#1,anchor=east,yshift=\yshw] at (#3) {#4};
+    \coordinate (#2) at (ncirc.east);
+    \coordinate (#2/m) at (ncirc.west);
+}
+% S internal port macro with annotation
+% #1 style
+% #2 id
+% #3 loc
+% #4 text
+\newcommand{\portS}[4][]{
+    \node [dot=\Rad] (ncirc) at (#3) {};
+    \node [#1,anchor=east,xshift=\yshw,rotate=270] at (#3) {#4};
+    \coordinate (#2) at (ncirc.south);
+    \coordinate (#2/m) at (ncirc.north);
+}
+%%%%%% TOP arrow
+\def\awidth{0.4mm}
+\def\xarr{2cm}
+% W arrow port macro
+% #1 port connected
+\newcommand{\arrW}[2][]{
+    \draw [#1,line width = \awidth] ($(#2)+(-\xarr,0)$) -- (#2);
+}
+% E arrow port macro
+% #1 port connected
+\newcommand{\arrE}[2][]{
+    \draw [#1,line width = \awidth] (#2) -- ++(\xarr,0);
+}
+
+% AES bloc
+% #1: id
+% #2: pos center
+\newcommand{\blocAES}[2]{
+    %% Draw the rectangle
+    \rectangle[line width = 0.6mm]{box}{#2}{7}{9}{6}{6}{1}{2};
+    \draw node[rectangle,draw,line width=0.6mm,anchor=north west] at (box/TL) {\fontS \topModAES};
+    %% Draw the IO ports
+    % Draw W
+    \portW{#1/in_valid}{box/W1}{\fontS \portAESInValid}
+    \portW{#1/in_ready}{box/W2}{\fontS \portAESInReady}
+    \portW{#1/in_plaintext}{box/W3}{\fontS \portAESInPlaintext}
+    \portW{#1/in_key}{box/W4}{\fontS \portAESInKey}
+    \portW{#1/busy}{box/W5}{\fontS \portAESbusy}
+    % Draw E
+    \portE{#1/out_valid}{box/E1}{\fontS \portAESOutValid}
+    \portE{#1/out_ready}{box/E2}{\fontS \portAESOutReady}
+    \portE{#1/out_ciphertext}{box/E3}{\fontS \portAESOutCipher}
+    % Draw S
+    \portS{#1/rnd_ready}{box/S1}{\fontS \portAESRndReady}
+    \portS{#1/rnd}{box/S2}{\fontS \portAESRnd}
+    % Generate coordinate
+    \coordinate (#1/center) at #2;
+}
+
+% PRNG bloc
+% #1: id
+% #2: pos center
+\newcommand{\blocPRNG}[2]{
+    %% Draw the rectangle
+    \rectangle[line width = 0.6mm]{box}{#2}{7}{4}{4}{4}{1}{1};
+    \draw node[rectangle,draw,line width=0.6mm,anchor=north west] at (box/TL) {\fontS \topModPRNG};
+    %% Draw the IO ports
+    % Draw W 
+    \portW{#1/start_reseed}{box/W2}{\fontS \portPrngStartReseed}
+    \portW{#1/in_seed}{box/W3}{\fontS \portPrngSeed}
+    \portW{#1/busy}{box/W4}{\fontS \portPrngBusy}
+    % Draw E
+    \portE{#1/out_valid}{box/E2}{\fontS \portPrngOutValid}
+    \portE{#1/out_ready}{box/E3}{\fontS \portPrngOutReady}
+    \portE{#1/out_rnd}{box/E4}{\fontS \portPrngOutRnd [68d(d-1)-1:0]}
+}
+
+%%% Draw AES block
+\blocAES{aesModule}{(0,0)}
+
+%%% Draw PRNG
+\blocPRNG{prngMod}{(-7,-8)}
+
+%%% Draw output ports
+\node[draw,line width=0.2mm,rectangle,xshift=0.5cm,anchor=west] (shares2sh_cipher) at (aesModule/out_ciphertext) {\fontS \texttt{shares2shbus}};
+\coordinate (svrs_out_ciphertext) at ($(shares2sh_cipher.east)+(1,0)$);
+\draw let \p1=(svrs_out_ciphertext), \p2=(aesModule/out_valid) in coordinate (svrs_out_valid) at (\x1,\y2);
+\draw let \p1=(svrs_out_ciphertext), \p2=(aesModule/out_ready) in coordinate (svrs_out_ready) at (\x1,\y2);
+
+\debugN[svrs\_out\_ciphertext]{(svrs_out_ciphertext)}
+\debugN[svrs\_out\_valid]{(svrs_out_valid)}
+\debugN[svrs\_out\_ready]{(svrs_out_ready)}
+
+%%% Draw the logical ANDs for svrs
+\node [and port,anchor=out,xshift=-4cm] (and_aes_valid_in) at (aesModule/in_valid) {};
+\node [and port,anchor=in 2,xshift=-3cm,rotate=180](and_aes_ready_in) at (aesModule/in_ready){};
+
+%%% Draw encoder for inputs
+\def\xshIn{10cm}
+\node[draw,line width=0.2mm,rectangle,xshift=-\xshIn,anchor=east] (shares2sh_plain) at (aesModule/in_plaintext) {\fontS \texttt{shbus2shares}};
+\node[draw,line width=0.2mm,rectangle,xshift=-\xshIn,anchor=east] (shares2sh_key) at (aesModule/in_key) {\fontS \texttt{shbus2shares}};
+
+%%% Draw and3 for PRNG
+\node[and port, anchor=out,number inputs=3,xshift=-2cm](and3_start) at (prngMod/start_reseed){};
+\node at (and3_start.bin 1) [ocirc, left]{} ;
+\node at (and3_start.bin 2) [ocirc, left]{} ;
+
+%%% Draw the in_seed_ready mechanism
+%% AND2
+\node [and port,anchor=in 2,xshift=-3cm,yshift=-1.5cm](and_seed_ready) at (prngMod/busy){};
+\node at (and_seed_ready.bin 1) [ocirc, left]{} ;
+\DFF{dff_prev_prng_busy}{($(and_seed_ready.in 2)+(-2,0)$)}{1}{2}
+
+%%% Draw basic internal connexions
+% prnd busy
+\draw (dff_prev_prng_busy/Q) -- (and_seed_ready.bin 2);
+\draw [<-] (dff_prev_prng_busy/D) -- ($(dff_prev_prng_busy/D)+(-0.5,0)$) |- (prngMod/busy);
+\draw [<-] (and_seed_ready.in 1) -- ($(and_seed_ready.in 1)+(-0.5,0)$) |- (prngMod/busy);
+
+% in interface with AES
+\draw [->] (and_aes_valid_in.out) -- (aesModule/in_valid);
+\draw [->] (aesModule/in_ready) -- (and_aes_ready_in.in 2);
+\draw [->, line width=\sizeB] (shares2sh_plain.east) -- (aesModule/in_plaintext);
+\draw [->, line width=\sizeB] (shares2sh_key.east) -- (aesModule/in_key);
+
+% AND3 
+\draw [->] (and3_start.out) -- (prngMod/start_reseed);
+\draw [<-] (and3_start.in 1) -- ++(-0.5,0) |- (aesModule/busy);
+
+% PRNG
+\draw [->] (prngMod/out_valid) -| ++(0.5,2.5) -| ($(and_aes_ready_in.in 1)+(0.5,0)$) -- (and_aes_ready_in.in 1); 
+\draw [->] (prngMod/out_valid) -| ++(0.5,2.5) -| ($(and_aes_valid_in.in 1)-(0.5,0)$) -- (and_aes_valid_in.in 1); 
+\draw [->] (aesModule/rnd_ready) |- (prngMod/out_ready);
+\draw [->, line width=\sizeB] (prngMod/out_rnd) -| (aesModule/rnd);
+
+% Out
+\draw [line width=\sizeB] (aesModule/out_ciphertext) -- (shares2sh_cipher.west);
+\draw [->, line width=\sizeB] (shares2sh_cipher.east) -- (svrs_out_ciphertext);
+\draw [->] (svrs_out_ready) -- (aesModule/out_ready);
+\draw [->] (aesModule/out_valid) -- (svrs_out_valid);
+
+% Input data
+\def\xshInPort{2}
+\coordinate (svrs_in_plain) at ($(shares2sh_plain.west)+(-\xshInPort,0)$);
+\draw let \p1=(svrs_in_plain),\p2=(and_aes_ready_in.out) in coordinate (svrs_in_ready) at (\x1,\y2);
+\draw let \p1=(svrs_in_plain),\p2=(and_aes_valid_in.in 2) in coordinate (svrs_in_valid) at (\x1,\y2);
+\draw let \p1=(svrs_in_plain),\p2=(shares2sh_key.west) in coordinate (svrs_in_key) at (\x1,\y2);
+
+\draw let \p1=(svrs_in_plain),\p2=(prngMod/start_reseed) in coordinate (svrs_in_seed_valid) at (\x1,\y2);
+\draw let \p1=(svrs_in_plain),\p2=(prngMod/in_seed) in coordinate (svrs_in_seed) at (\x1,\y2);
+\draw let \p1=(svrs_in_plain),\p2=(prngMod/busy) in coordinate (svrs_in_seed_ready) at (\x1,\y2);
+
+\debugN[svrs\_in\_plain]{(svrs_in_plain)}
+\debugN[svrs\_in\_ready]{(svrs_in_ready)}
+\debugN[svrs\_in\_valid]{(svrs_in_valid)}
+\debugN[svrs\_in\_key]{(svrs_in_key)}
+\debugN[svrs\_in\_seed\_valid]{(svrs_in_seed_valid)}
+\debugN[svrs\_in\_seed]{(svrs_in_seed)}
+\debugN[svrs\_in\_seed\_ready]{(svrs_in_seed_ready)}
+
+%%% Ports
+\draw [->] (svrs_in_valid) -- (and_aes_valid_in.in 2);
+\draw [->] (and_aes_ready_in.out) -- (svrs_in_ready);
+\draw [->, line width=\sizeB] (svrs_in_plain) -- (shares2sh_plain.west);
+\draw [->, line width=\sizeB] (svrs_in_key) -- (shares2sh_key.west);
+
+\draw [->] (svrs_in_seed_valid) -- ++(\xshInPort /2,0) |- (and3_start.in 3);
+\draw [->, line width=\sizeB] (svrs_in_seed) -- (prngMod/in_seed);
+
+\draw [->] (and_seed_ready) -| ++(\xshInPort /2,-2) -| ($(svrs_in_seed_ready)+(1,0)$) -- (svrs_in_seed_ready);
+
+\draw [<-] (and3_start.in 2) -| ++(-\xshInPort,\xshInPort) -| ($(svrs_in_valid)+(\xshInPort /2,0)$) -- (svrs_in_valid); 
+
+%%% Draw main ports
+\portE[text=colorIN]{psvrs_in_plaintext}{svrs_in_plain}{\fsIO\svrsPlaintext[128d-1:0]}
+\portE[text=colorIN]{psvrs_in_key}{svrs_in_key}{\fsIO\svrsKey}
+\portE[text=colorIN]{psvrs_in_valid}{svrs_in_valid}{\fsIO\svrsInValid}
+\portE[text=colorIN]{psvrs_in_ready}{svrs_in_ready}{\fsIO\svrsInReady}
+
+\portE[text=colorSEED]{psvrs_in_seed_valid}{svrs_in_seed_valid}{\fsIO\svrsSeedValid}
+\portE[text=colorSEED]{psvrs_in_seed}{svrs_in_seed}{\fsIO\svrsSeed[79:0]}
+\portE[text=colorSEED]{psvrs_in_seed_ready}{svrs_in_seed_ready}{\fsIO\svrsSeedReady}
+
+\portW[text=colorOUT]{psvrs_out_valid}{svrs_out_valid}{\fsIO\svrsOutValid}
+\portW[text=colorOUT]{psvrs_out_ready}{svrs_out_ready}{\fsIO\svrsOutReady}
+\portW[text=colorOUT]{psvrs_out_ciphertext}{svrs_out_ciphertext}{\fsIO\svrsCiphertext[128d-1:0]}
+
+\arrW[->]{psvrs_in_plaintext/m}
+\arrW[->]{psvrs_in_key/m}
+\arrW[->]{psvrs_in_valid/m}
+\arrW[<-]{psvrs_in_ready/m}
+
+\arrW[->]{psvrs_in_seed_valid/m}
+\arrW[->]{psvrs_in_seed/m}
+\arrW[<-]{psvrs_in_seed_ready/m}
+
+\arrE[->]{psvrs_out_valid/m}
+\arrE[<-]{psvrs_out_ready/m}
+\arrE[->]{psvrs_out_ciphertext/m}
+
+%%% Draw big rectangle
+\coordinate (mainTR) at ($(svrs_out_valid)+(0,2)$);
+\coordinate (mainBL) at ($(svrs_in_seed_ready)+(0,-4)$);
+
+\debugN[TR]{(mainTR)}
+\debugN[BL]{(mainBL)}
+
+\rectangleC[line width=0.7mm]{mainrec}{(mainTR)}{(mainBL)}{0}{0}{0}{0};

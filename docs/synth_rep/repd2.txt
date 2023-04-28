@@ -1,0 +1,46 @@
++--------------------------------------------+------+-------+------------+-----------+-------+
+|                  Site Type                 | Used | Fixed | Prohibited | Available | Util% |
++--------------------------------------------+------+-------+------------+-----------+-------+
+| Slice                                      |  842 |     0 |          0 |     15850 |  5.31 |
+|   SLICEL                                   |  653 |     0 |            |           |       |
+|   SLICEM                                   |  189 |     0 |            |           |       |
+| LUT as Logic                               | 2557 |     0 |          0 |     63400 |  4.03 |
+|   using O5 output only                     |    0 |       |            |           |       |
+|   using O6 output only                     | 1827 |       |            |           |       |
+|   using O5 and O6                          |  730 |       |            |           |       |
+| LUT as Memory                              |  144 |     0 |          0 |     19000 |  0.76 |
+|   LUT as Distributed RAM                   |    0 |     0 |            |           |       |
+|   LUT as Shift Register                    |  144 |     0 |            |           |       |
+|     using O5 output only                   |    0 |       |            |           |       |
+|     using O6 output only                   |  144 |       |            |           |       |
+|     using O5 and O6                        |    0 |       |            |           |       |
+| Slice Registers                            | 3089 |     0 |          0 |    126800 |  2.44 |
+|   Register driven from within the Slice    | 2312 |       |            |           |       |
+|   Register driven from outside the Slice   |  777 |       |            |           |       |
+|     LUT in front of the register is unused |  231 |       |            |           |       |
+|     LUT in front of the register is used   |  546 |       |            |           |       |
+| Unique Control Sets                        |   83 |       |          0 |     15850 |  0.52 |
++--------------------------------------------+------+-------+------------+-----------+-------+
+
++----------+------+---------------------+
+| Ref Name | Used | Functional Category |
++----------+------+---------------------+
+| FDRE     | 3080 |        Flop & Latch |
+| LUT2     |  966 |                 LUT |
+| LUT6     |  859 |                 LUT |
+| LUT4     |  636 |                 LUT |
+| LUT5     |  569 |                 LUT |
+| LUT3     |  254 |                 LUT |
+| SRL16E   |  144 |  Distributed Memory |
+| FDSE     |    9 |        Flop & Latch |
+| LUT1     |    3 |                 LUT |
++----------+------+---------------------+
+
++-------------------+--------+------------+------------+---------+------+------+--------+--------+------------+
+|      Instance     | Module | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
++-------------------+--------+------------+------------+---------+------+------+--------+--------+------------+
+| aes_enc128_32bits_hpc2 |  (top) |       2701 |       2557 |       0 |  144 | 3089 |      0 |      0 |          0 |
++-------------------+--------+------------+------------+---------+------+------+--------+--------+------------+
+
+PERIOD: 10ns
+WNS: +3.542ns

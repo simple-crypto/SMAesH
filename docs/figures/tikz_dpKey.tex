@@ -1,0 +1,195 @@
+% define a mux
+\tikzset{mux2/.style={muxdemux,muxdemux def={Lh=4, NL=2, Rh=3,NB=1,w=1}}}
+
+%% CONFIG
+% Size of DFF instance
+\def\widthDFF{1.5}
+\def\heightDFF{3}
+% Spacing between DFF instance
+\def\spacexDFF{7.5}
+\def\spaceyDFF{8}
+% Y space for last column loop
+\def\spaceyLoop{3.5}
+% X space for last column input
+\def\spacexInLastCol{1}
+% Y space for for mux last column
+\def\spaceyMuxInLastCol{0.5}
+
+\def\fontS{\Large}
+\def\fontCtrl{}
+
+% Line width of DFF
+\def\lwModule{0.7mm}
+\def\lwWire{0.5mm}
+\def\scaleCTIKZ{0.4}
+
+
+%\debugtrue;
+
+%% Macro for the ctrl signals of the mux2
+% 1: mux_id
+% 2: control sig
+% 3: top value
+% 4: bottom value
+\newcommand{\muxCtrl}[4]{
+    \node[anchor=west,rotate=270] at (#1.bpin 1) {\fontCtrl #2};
+    \node at (#1.center up) {\fontCtrl #3};
+    \node at (#1.center down) {\fontCtrl #4};
+}
+
+
+% Macro for a bloc with Register with mux input
+% #1: style
+% #2: id
+% #3: loc (center DFF)
+\newcommand{\DFFMUX}[3][]{
+    % draw DFF
+    \DFF[line width=\lwModule]{dffinst}{#3}{\widthDFF}{\heightDFF}
+    % draw mux
+    \node[line width=\scaleCTIKZ*\lwModule,mux2,anchor=rpin 1, xshift=-0.5cm] (#2/mux) at (dffinst/D) {}; 
+    % Connector
+    \draw[line width=\lwWire] (#2/mux.rpin 1) -- (dffinst/D);
+    % draw small port at Q
+    \coordinate (#2/out) at ($(dffinst/Q)+(1,0)$);
+    \draw [line width=\lwWire] (dffinst/Q) -- (#2/out);
+    % Generate remaining instance coordinate
+    \coordinate (#2/text) at (dffinst/center);
+    \coordinate (#2/in1) at (#2/mux.lpin 1);
+    \coordinate (#2/in2) at (#2/mux.lpin 2);
+    \coordinate (#2/north) at (dffinst/north);
+    \coordinate (#2/ctrl) at (#2/mux.bpin 1);
+    % Debug node
+    \debugN[out]{(#2/out)}
+    \debugN[in1]{(#2/in1)}
+    \debugN[in2]{(#2/in2)}
+    \debugN[text]{(#2/text)}
+    \debugN[ctrl]{(#2/ctrl)}
+}
+
+
+%%%%% MAIN DRAWING %%%%%%%%%%%%%
+\coordinate (D00) at (0,0);
+
+% Draw all the DFFMUX instances
+\foreach \xi in {0,...,3} {
+    \foreach \yi in {0,...,3} {
+        \pgfmathsetmacro\xshDFF{\spacexDFF*\xi}
+        \pgfmathsetmacro\yshDFF{\spaceyDFF*\yi}
+        \pgfmathsetmacro\DFFindex{int(12-4*\xi+\yi)}
+        \DFFMUX{D\DFFindex}{($(D00)+(\xshDFF,-\yshDFF)$)}
+        % Compute byte index
+        \node at (D\DFFindex/text) {\Large $\DFFindex$};
+        % Add the text to the DFF input
+        \pgfmathsetmacro\mBound{int(8*\DFFindex)}
+        \pgfmathsetmacro\MBound{int(8*(1+\DFFindex))}
+    }
+}
+
+%%% Generate the input construction at the last column 
+% Also generate the feedback loop and the byte to SBox
+\foreach \xi in {12,...,15}{
+    % Draw the input mux
+    \path let \p1=(D\xi/in1), \p2=(D\xi/north) in coordinate (locm) at ($(\x1,\y2)+(-0.3,\spaceyMuxInLastCol)$);
+    \node[mux2,line width=\scaleCTIKZ*\lwModule,anchor=rpin 1] (MI\xi) at (locm) {};
+    \draw [line width=\lwWire] (MI\xi.rpin 1) |- (D\xi/in1);
+    % Create control signal for MUXin
+    \muxCtrl{D\xi/mux}{$\dpKeyCtrlRouteScan$}{1}{0}
+    \muxCtrl{MI\xi}{$\dpKeyCtrlRouteLoop$}{0}{1}
+    % XOR
+    \XOR{xor\xi}{($(D\xi/in2)+(-2,0)$)}{0.3}
+    \draw [line width=\lwWire] (xor\xi/east) -- (D\xi/in2);
+    % Mux at the input of the XOR
+    \node[mux2,line width=\scaleCTIKZ*\lwModule,anchor=rpin 1,xshift=-0.5cm] (MX\xi) at (xor\xi/west) {};
+    \draw [line width=\lwWire] (MX\xi.rpin 1) -- (xor\xi/west);
+    % Draw the ctrl of the mux
+    \muxCtrl{MX\xi}{$\dpKeyCtrlRouteFromSB$}{1}{0}
+    % Draw the feedback from the register
+    \draw [->, line width=\lwWire] (D\xi/out) -- ++(0,-\spaceyLoop) -| ($(MX\xi.lpin 2)+(-0.3,0)$) -- (MX\xi.lpin 2);
+    %% Generate feedback port 
+    \draw [->,line width=\lwWire] (xor\xi/north) |- (MI\xi.lpin 2);
+    \draw [->,line width=\lwWire] (MI\xi.lpin 2) -| (xor\xi/north);
+    % Generate the coordinate of the ports
+    \path let \p1=(MI\xi.lpin 2), \p2=(xor\xi/north) in coordinate (FB\xi) at (\x2,\y1);
+    \debugN[FB\xi]{(FB\xi)}
+    %% Generate key input
+    \path let \p1=(MX\xi.lpin 1), \p2=(MI\xi.lpin 1) in coordinate (inKey\xi) at (\x1,\y2);
+    \debugN[inKey\xi]{(inKey\xi)}
+    \draw [->,line width=\lwWire] (inKey\xi) -- (MI\xi.lpin 1);
+    %% Generate Sbox input
+    \coordinate (fromSB\xi) at (MX\xi.lpin 1); 
+    \debugN[fromSB\xi]{(fromSB\xi)}
+    %% Generate feedback loop
+    \pgfmathsetmacro\rIdx{int(\xi-12)}
+    \path let \p1=(inKey\xi), \p2=(D\rIdx/out) in coordinate (tmp) at (\x2,\y1);
+    \coordinate (tmp1) at ($(tmp)+(0,1)$);
+    \draw [line width=\lwWire] (D\rIdx/out) -- (tmp1) -| (FB\xi);
+    %% Draw input nodes
+    % to Sbox
+    \coordinate (toSB\xi) at ($(D\xi/out)+(1,-\spaceyLoop)$);
+    \debugN[toSB\xi]{(toSB\xi)}
+    % to AK
+    \pgfmathsetmacro\idxAK{int(\xi-12)}
+    \coordinate (toAK\idxAK) at ($(D\idxAK/out)+(1,-\spaceyLoop+1)$);
+    \debugN[toAK\idxAK]{(toAK\idxAK)}
+    % Key in 
+    \pgfmathsetmacro\mB{int((\xi)*8))}
+    \pgfmathsetmacro\MB{int((\xi+1)*8)}
+    \node [anchor=east] at (inKey\xi) {\fontS $\AESdpKeyKey[\MB d-1: \mB d]$};
+
+}
+
+%% Draw the port to SB
+\node [anchor=west] at (toSB12) {\fontS $\AESdpKeyToSB[32d-1:24d]$};
+\node [anchor=west] at (toSB13) {\fontS $\AESdpKeyToSB[8d-1:0d]$};
+\node [anchor=west] at (toSB14) {\fontS $\AESdpKeyToSB[16d-1:8d]$};
+\node [anchor=west] at (toSB15) {\fontS $\AESdpKeyToSB[24d-1:16d]$};
+\draw [->,line width=\lwWire] (D12/out) |- (toSB12);
+\draw [->,line width=\lwWire] (D13/out) |- (toSB13);
+\draw [->,line width=\lwWire] (D14/out) |- (toSB14);
+\draw [->,line width=\lwWire] (D15/out) |- (toSB15);
+
+%%% Generate the inport port for columns other than last ones
+%%% Generate also input connexions for the DFF units
+\foreach \xi in {0,...,3}{
+    \foreach \yi in {0,...,2}{
+        % Fetch y coordinate of the input mux of last column
+        \pgfmathsetmacro\refIdx{int(12+\xi)}
+        \pgfmathsetmacro\DIdx{int(\xi+4*\yi)}
+        \coordinate (refP) at (MI\refIdx.lpin 1);
+        \path let \p1=(refP), \p2=(D\DIdx/in1) in coordinate (inKey\DIdx) at ($(\x2,\y1) + (-0.5,0)$);  
+        \debugN[inKey\DIdx]{(inKey\DIdx)}
+        \draw [->,line width=\lwWire] (inKey\DIdx) -- ++(0.2,0) |- (D\DIdx/in1);
+        %% Input connexion
+        \pgfmathsetmacro\DIdxp{int(\xi+4*(\yi+1))}
+        \draw [->,line width=\lwWire] (D\DIdxp/out) -- ++(0.5,0) |- (D\DIdx/in2);
+        %% Draw input port
+        \pgfmathsetmacro\mB{int(8*\DIdx)}
+        \pgfmathsetmacro\MB{int(8*(\DIdx+1))}
+        \node [anchor=east] at (inKey\DIdx) {\fontS $\AESdpKeyKey[\MB d-1:\mB d]$};
+        %% Draw mux ctrl
+        \muxCtrl{D\DIdx/mux}{$\dpKeyCtrlRouteInit$}{1}{0}
+    }
+}
+
+%%% Generate input for the last column
+\node [line width=\lwModule,rectangle,draw,anchor=east] (RCON) at ($(fromSB12)+(-\spacexInLastCol,0)$) {RCON};
+\node [anchor=east,xshift=-0.5cm] (fSB12) at (RCON.west) {\fontS $\AESdpKeyFromSB[8d-1:0d]$};
+\draw [line width=\lwWire] (RCON.east) -- (fromSB12) (fSB12.east) -- (RCON.west);
+
+\node [anchor=east,xshift=-0.5cm] (fSB13) at (fromSB13) {\fontS $\AESdpKeyFromSB[16d-1:8d]$};
+\node [anchor=east,xshift=-0.5cm] (fSB14) at (fromSB14) {\fontS $\AESdpKeyFromSB[24d-1:16d]$};
+\node [anchor=east,xshift=-0.5cm] (fSB15) at (fromSB15) {\fontS $\AESdpKeyFromSB[32d-1:24d]$};
+
+\foreach \xi in {13,14,15}{
+    \draw [line width=\lwWire] (fSB\xi) -- (fromSB\xi);
+}
+
+%%% Generate out for bytes_to_AK
+\foreach \xi in {0,...,3}{
+    \pgfmathsetmacro\idxStart{int(5*\xi)}
+    \pgfmathsetmacro\mB{int(8*\xi)}
+    \pgfmathsetmacro\MB{int(8*(\xi+1))}
+    \node [anchor=west] at (toAK\xi) {\fontS $\AESdpKeyToAK[\MB d-1:\mB d]$};
+    \draw [->, line width=\lwWire] (D\idxStart/out) |- (toAK\xi);
+}
+

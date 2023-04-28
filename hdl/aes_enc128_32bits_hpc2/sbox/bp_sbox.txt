@@ -1,0 +1,174 @@
+// Inputs
+
+i0 = input(d,data)
+i1 = input(d,data)
+i2 = input(d,data)
+i3 = input(d,data)
+i4 = input(d,data)
+i5 = input(d,data)
+i6 = input(d,data)
+i7 = input(d,data)
+
+u0 = i7
+u1 = i6
+u2 = i5
+u3 = i4
+u4 = i3
+u5 = i2
+u6 = i1
+u7 = i0
+
+// Top linear transform 
+
+t1 = u0 + u3 
+t2 = u0 + u5 
+t3 = u0 + u6 
+t4 = u3 + u5
+t5 = u4 + u6
+t6 = t1 + t5
+t7 = u1 + u2
+
+t8 = u7 + t6
+t9 = u7 + t7
+t10 = t6 + t7
+t11 = u1 + u5
+t12 = u2 + u5
+t13 = t3 + t4
+t14 = t6 + t11  
+
+t15 = t5 + t11
+t16 = t5 + t12 
+t17 = t9 + t16
+t18 = u3 + u7
+t19 = t7 + t18
+t20 = t1 + t19
+t21 = u6 + u7
+
+t22 = t7 + t21 
+t23 = t2 + t22
+t24 = t2 + t10 
+t25 = t20 + t17
+t26 = t3 + t16
+t27 = t1 + t12
+
+// Shared part of the aes s-box 
+ds = u7
+m1 = t13 & t6
+m2 = t23 & t8 
+m3 = t14 + m1
+m4 = t19 & ds
+m5 = m4 + m1
+m6 = t3 & t16
+m7 = t22 & t9
+m8 = t26 + m6
+m9 = t20 & t17
+m10 = m9 + m6
+m11 = t1 & t15
+m12 = t4 & t27
+m13 = m12 + m11
+m14 = t2 & t10
+m15 = m14 + m11
+m16 = m3 + m2
+
+m17 = m5 + t24 
+m18 = m8 + m7
+m19 = m10 + m15
+m20 = m16 + m13
+m21 = m17 + m15
+m22 = m18 + m13
+m23 = m19 + t25
+m24 = m22 + m23
+m25 = m22 & m20
+m26 = m21 + m25
+m27 = m20 + m21
+m28 = m23 + m25
+m29 = m28 & m27
+m30 = m26 & m24
+m31 = m20 & m23
+m32 = m27 & m31
+
+m33 = m27 + m25
+m34 = m21 & m22
+m35 = m24 & m34 
+m36 = m24 + m25
+m37 = m21 + m29
+m38 = m32 + m33
+m39 = m23 + m30
+m40 = m35 + m36
+m41 = m38 + m40
+m42 = m37 + m39
+m43 = m37 + m38
+m44 = m39 + m40
+m45 = m42 + m41
+m46 = m44 & t6
+m47 = m40 & t8
+m48 = m39 & ds
+
+m49 = m43 & t16
+m50 = m38 & t9
+m51 = m37 & t17
+m52 = m42 & t15
+m53 = m45 & t27 
+m54 = m41 & t10
+m55 = m44 & t13
+m56 = m40 & t23
+m57 = m39 & t19
+m58 = m43 & t3
+m59 = m38 & t22
+m60 = m37 & t20
+m61 = m42 & t1
+m62 = m45 & t4
+m63 = m41 & t2
+
+// Bottom linear transform
+l0 = m61 + m62
+l1 = m50 + m56
+l2 = m46 + m48 
+l3 = m47 + m55
+l4 = m54 + m58
+l5 = m49 + m61
+l6 = m62 + l5
+l7 = m46 + l3
+l8 = m51 + m59
+l9 = m52 + m53
+
+l10 = m53 + l4
+l11 = m60 + l2
+l12 = m48 + m51 
+l13 = m50 + l0
+l14 = m52 + m61
+l15 = m55 + l1
+l16 = m56 + l0
+l17 = m57 + l1
+l18 = m58 + l8
+l19 = m63 + l4
+
+l20 = l0 + l1
+l21 = l1 + l7
+l22 = l3 + l12
+l23 = l18 + l2
+l24 = l15 + l9
+l25 = l6 + l10
+l26 = l7 + l9
+l27 = l8 + l10
+l28 = l11 + l14
+l29 = l11 + l17
+
+s0 = l6 + l24
+s1 = l16 # l26
+s2 = l19 # l28
+s3 = l6 + l21
+s4 = l20 + l22
+s5 = l25 + l29
+s6 = l13 # l27
+s7 = l6 # l23
+
+o0 = output(s7) 
+o1 = output(s6)
+o2 = output(s5)
+o3 = output(s4)
+o4 = output(s3)
+o5 = output(s2)
+o6 = output(s1)
+o7 = output(s0)
+

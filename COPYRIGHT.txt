@@ -1,0 +1,16 @@
+SMAesH is Copyright (c) 2020 - 2023
+
+- SIMPLE-Crypto
+- UCLouvain
+- Lamarr Security Research
+
+The individual authors or the implementation are
+
+- Charles Momin
+- Gaëtan Cassiers
+
+SMAesH is provided to you under the conditions given in <LICENSE.txt> included
+in the source distribution and available at
+<https://github.com/simple-crypto/SMAesH>.
+
+For an licensing or copyright enquiries, please contact <info@simple-crypto.dev>.

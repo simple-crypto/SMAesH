@@ -1,0 +1,43 @@
+\begin{tikztimingtable}
+        \texttt{clk} & L18{HL}\\
+        \\
+        \timeCnrExecCycles & D{88}2D{89}2D{90}2D{91}2D{92}2D{93}2D{94}2D{95}2D{96}2D{97}2D{98}2D{99}2D{100}2D{101}2D{102}2D{103}2D{104}2D{105}2D{106} \\
+        \timeCnrRound & D2{DD}{8} 10{DD}{9} 6{DD}{A} \\
+        \timeCnrCycle & D{7} 2D{8} 2D{9} 2D{0}2D{1}2D{2}2D{3}2D{4}2D{5}2D{6}2D{7}2D{8}2D{9}2D{0}2D{1}2D{2}2D{3}4D{4} \\
+        \\ 
+        {\color{red} \topModAES} \\
+        \portAESbusy & H 16{HH} 2{LL}\\
+        \portAESOutValid & L 16{LL} 2{HH}\\
+        \\
+        \AESFetchIn & L18{LL}\\
+        \AESsboxFeedKey & L2L 2H 9{LL} 2H 6{LL}\\
+        \AESsboxValidIn & L2L 5{HH} 12{LL} \\
+        \AESsboxValidOut & H2{HH} 5{LL} 5{HH} 6{LL}\\
+        \portAESOutValid & L16{LL} 2{HH}\\
+        \\
+        {\color{red} \modAESdpState}  \\
+        \dpStateCtrlEnable & H7{HH}1{LL}8{HH}2{LL} \\
+        \dpStateCtrlRouteIn & L16{LL}2{HH} \\
+        \dpStateCtrlRouteLoop & L2{LL} 4{HH} 6{LL} 4{HH} 2{LL}\\
+        \dpStateCtrlRouteMC & H2{HH}16{LL} \\
+        \\
+        {\color{red} \modAESdpKey} \\
+        \dpKeyCtrlEnable & H1{HH}1{LL} 4{HH} 1{LL} 4{HH} 1{LL} 6{HH}\\
+        \dpKeyCtrlRouteInit & L16{LL}2{HH} \\
+        \dpKeyCtrlRouteLoop & L2{LL} 4{HH} 6{LL}4{HH}2{LL} \\
+        \dpKeyCtrlRouteFromSB & L2{LL} 5{LL} 2H 10{LL}\\
+        \extracode
+        \makeatletter
+        \begin{pgfonlayer}{background}
+            % Draw cycles
+            \begin{scope}[gray,semitransparent,semithick]
+                \foreach \x in {1,3,...,35}{
+                    \draw (\x,1.5) -- (\x,-50.5);
+                }
+            \end{scope}
+            % Draw round
+            \foreach \x in {5,25}{
+                \draw [thick] (\x,2) -- (\x,-51);
+            }
+        \end{pgfonlayer}
+\end{tikztimingtable}

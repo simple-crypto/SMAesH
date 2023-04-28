@@ -1,0 +1,83 @@
+% define a mux
+\tikzset{mux2/.style={muxdemux,muxdemux def={Lh=4, NL=2, Rh=3,NB=1,w=1}}}
+
+%% CONFIG
+% Size of DFF instance
+\def\widthDFF{1.5}
+\def\heightDFF{3}
+
+\def\yshz{1cm}
+
+\def\fontS{\Large}
+
+%\debugtrue
+
+%% Macro for a Trivium update function
+% 1: style
+% 2: id
+% 3: loc
+\newcommand{\tupd}[3][]{
+    \def\scaleTriv{0.6}
+    % Draw Cloud shape
+    \node[cloud,draw,aspect=1.5,anchor=west,scale=\scaleTriv] (stage) at #3 {\fontS $\texttt{Trivium}$ $\texttt{update}$};
+    % Draw node z
+    \node at ($(stage.south)+(0,0.2)$) {$z$};
+    \node[circle,draw,fill,scale=0.75*\scaleTriv] at (stage.south) {};
+    % Draw nodes west east
+    \node[circle,draw,fill,scale=0.75*\scaleTriv] at (stage.west) {};
+    \node[circle,draw,fill,scale=0.75*\scaleTriv] at (stage.east) {};
+    \node[anchor=east, scale=2*\scaleTriv] at ($(stage.west)+(0.5,0.2)$) {$\texttt{in}$};
+    \node[anchor=west, scale=2*\scaleTriv] at ($(stage.east)+(-0.5,0.2)$) {$\texttt{out}$};
+    % Generate coordinate
+    \coordinate (#2/in) at (stage.west);
+    \coordinate (#2/out) at (stage.east);
+    \coordinate (#2/z) at (stage.south);
+}
+
+% Draw the main register 
+\DFF{dff_state}{(0,0)}{\widthDFF}{\heightDFF}
+% Draw muxes 
+\node[mux2,xshift=-0.5cm,anchor=rpin 1] (muxI0) at (dff_state/D) {};
+\draw (muxI0.rpin 1) -- (dff_state/D);
+% Draw the instance of combinatorial stage
+\tupd{st0}{($(dff_state/Q)+(1.5,0)$)}
+\tupd{st1}{($(st0/out)+(1,0)$)}
+\tupd{st2}{($(st1/out)+(3,0)$)}
+
+% Connector between logic stages
+\draw (dff_state/Q) -- (st0/in) (st0/out) -- (st1/in);
+\draw [dashed] ($(st1/out)!0.25!(st2/in)$) -- ($(st1/out)!0.75!(st2/in)$);
+
+% Draw ports
+\node [anchor=north,yshift=-\yshz] (z0) at (st0/z) {\fontS $\texttt{z}_1$}; 
+\node [anchor=north,yshift=-\yshz] (z1) at (st1/z) {\fontS $\texttt{z}_2$}; 
+\node [anchor=north,yshift=-\yshz] (z2) at (st2/z) {\fontS $\texttt{z}_{\UNROLL}$}; 
+
+% Draw seed port
+\node [anchor=east,xshift=-0.3cm] (seed_port) at (muxI0.lpin 2) {\fontS $\triviumInState$};
+\draw [->] (seed_port.east) -- (muxI0.lpin 2);
+
+%%% Draw feedback
+\coordinate (ref) at ($(seed_port.west)+(-0.2,0)$);
+% Generate anchor point
+\path let \p1=(ref), \p2=(muxI0.lpin 1) in coordinate (ap0FB) at (\x1,\y2);
+\draw [->] (st2/out) -| ++(1,2.5) -| (ap0FB) -- (muxI0.lpin 1);
+
+% Draw randomness bus to reg out
+\coordinate (anchorMerge) at ($(st0/in)!0.33!(st2/out) + (0,-4)$);
+\debugN[X]{(anchorMerge)}
+\foreach \xi in {0,...,2}{
+    % Draw first path
+    \draw [->] (st\xi/z) -- (z\xi.north);
+    % Draw the connections to merge point
+    \draw (z\xi.south) -- ++(0,-0.3);
+    \draw [dashed] ($(z\xi.south) + (0,-0.3)$) -- ($(anchorMerge)+(0,0.3)$);
+    \draw ($(anchorMerge)+(0,0.3)$) -- (anchorMerge);
+}
+
+% Draw output reg
+\DFF{dff_out}{($(anchorMerge)+(1.5*\widthDFF,-0.75*\heightDFF)$)}{\widthDFF}{\heightDFF}
+\draw [->] (anchorMerge) |- (dff_out/D);
+\draw [->] (dff_out/Q) -- ++(1,0) node [anchor=west] {\fontS $\triviumOut[\UNROLL-1:0]$};
+
+

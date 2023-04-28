@@ -1,0 +1,817 @@
+\documentclass{scrartcl}
+
+\usepackage{todonotes}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{float}
+\usepackage{siunitx}
+
+\usepackage{booktabs}
+\usepackage{threeparttable}
+\usepackage{xspace}
+\usepackage{multirow}
+\usepackage{makecell}
+\usepackage{tabularx}
+
+\usepackage{tablefootnote}
+
+\usepackage{listings}
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  mathescape
+}
+
+%\usepackage[left=3cm, right=3cm, bottom=3cm, top=3cm]{geometry}
+
+\usepackage{dirtree}
+\usepackage{tikz}
+\usepackage{figures/tikz-timing}
+\usepackage{circuitikz}
+\usepackage{xcolor}
+\usetikzlibrary{shapes.symbols}
+
+\input{macros}
+\input{figures/tikzset_cfg.tex}
+
+\title{SMAesH: technical documentation}
+\subtitle{Masked Hardware AES-128 Encryption with HPC2}
+\author{SIMPLE-Crypto}
+\date{}
+
+\begin{document}
+\input{figures/tikz_color}
+
+\maketitle
+
+\tableofcontents
+
+\section{Overview}
+\label{section:overview}
+This document describes SIMPLE-Crypto's Masked AES in Hardware (SMAesH),
+implemented in the $\topName$ hardware IP. 
+
+\section{History}
+
+\begin{description}
+    \item[1.0.0 (2023-05-01)] Initial release.
+\end{description}
+
+\section{Features}
+The \core module is a masked hardware implementation of the AES-128 encryption
+algorithm as specified in \cite{nist197}. 
+
+\begin{itemize}
+\item{The core implements the AES-128 encrypt function.}
+\item{The implementation is protected against side-channel attacks using the HPC2 masking scheme~\cite{DBLP:journals/tc/CassiersGLS21}.}
+\item{The amount of shares $d\ge 2$ can be chosen at synthesis time.}
+\item{The randomness required for the masking scheme is internally generated using an embedded PRNG.}
+\item{The core is controlled through three simple valid-ready stream interfaces (input data/key, output data and PRNG seed.}
+\item{The core has an encryption latency of 105~clock cycles and a throughput of one 128-bit block of data per 105~clock cycles.}
+\item{There is no latency penalty for key change.}
+\item{The state of the core is automatically cleared when encryption finishes.}
+\end{itemize}
+
+\section{Core User Guide} 
+\label{section:svrs_usage}
+
+A top-level view of the core is shown in
+Figure~\ref{fig:top_module_view} and a detailed list of the ports is given in
+Table~\ref{table:ports}.
+The interface is composed of three independent interfaces: the input
+composed of the plaintext and the key (in red), the ciphertext output (in blue)
+and the PRNG seed (in green).
+The key (\svrsKey), plaintext (\svrsPlaintext) and ciphertext (\svrsCiphertext)
+are all 128-bit masked values.
+The internal PRNG seed (\svrsSeed) is 80-bit wide.
+
+\begin{figure}
+    \centering
+    \resizebox{\textwidth}{!}{
+        \small
+        \begin{tikzpicture}
+            \input{figures/tikz_fig_top_module}
+        \end{tikzpicture}
+    }
+    \caption{Top level view of module $\topName$.}
+    \label{fig:top_module_view}
+\end{figure}
+
+\input{figures/table_ports.tex}
+
+In this section we next detail the operation of the Synchronous Valid-Ready
+Stream (SVRS) protocol for the data interfaces, the operation of the $\topName$
+core, and the masked data encoding.
+
+\subsection{SVRS protocol}
+
+\begin{figure}
+    \centering
+    \begin{tikztimingtable}
+        \texttt{clock} & L 6{HL} \\
+        \texttt{data} & X XX{} 3{DD}{}XXXX \\
+        \texttt{valid} & L LL 3{HH} LLLL \\
+        \texttt{ready} & L 3{LL} HH LLLL \\
+        \extracode
+        \makeatletter
+        \begin{pgfonlayer}{background}
+            \begin{scope}[gray,semitransparent,semithick]
+                \foreach \x in {1,3,...,11}
+                \draw (\x,1.5) -- (\x,-6.5);
+            \end{scope}
+        \end{pgfonlayer}
+    \end{tikztimingtable}
+    \caption{SVRS transaction (don't care (X) signals are represented with a flat red solid line).}
+    \label{fig:basic_svrs}
+\end{figure}
+
+
+\begin{figure}
+    \centering
+    \begin{tikztimingtable}
+        \texttt{clock} & L 13{HL} \\
+        \texttt{data} & X 1{XX}{} 2{DD}{} 1{DD}{} 1{XX} {} 3{DD}{} 3{XX} DD XX \\ 
+        \texttt{valid} & L 1{LL} 3{HH} 1{LL} 3{HH} 1{LL} 2{LL} 1{HH} LL\\
+        \texttt{ready} & L 2{LL} 3{HH} 2{LL} 1{HH} 1{LL} 3{HH} 1{LL}\\
+        \extracode
+        \makeatletter
+        \begin{pgfonlayer}{background}
+            \begin{scope}[gray,semitransparent,semithick]
+                \foreach \x in {1,3,...,25}
+                \draw (\x,1.5) -- (\x,-6.5);
+            \end{scope}
+        \end{pgfonlayer}
+    \end{tikztimingtable}
+    \caption{Multiple SVRS transactions.}
+    \label{fig:seq_svrs}
+\end{figure}
+
+The Synchronous Valid-Ready Stream (SVRS) protocol operates between a sender and a receiver.
+The bus is composed of the two control signals \texttt{valid} and \texttt{ready}, as well as any number of \texttt{data} wires.
+The \texttt{valid} and \texttt{data} signals are outputs (resp. inputs) of the
+sender (resp. receiver), while the \texttt{ready} signal is an input (resp.
+output) of the sender (resp. receiver).
+
+The bus operates synchronously with an event source shared by the sender and
+the receiver (here, the positive edges of the clock).
+At each event, a transaction occurs if both \texttt{valid} and \texttt{ready}
+are asserted (i.e. set to logical~1). The transmitted data of the transaction is
+the value of the \texttt{data} signals at the event.
+
+Once \texttt{valid} is asserted, it cannot be de-asserted (i.e., sticky signal), nor can the value of
+\texttt{data} be changed until a transaction occurs.
+To prevent deadlocks, a sender must not wait until the assertion of
+\texttt{ready} before asserting \texttt{valid}.
+To prevent combinational logic loops, the \texttt{valid} signal may not
+combinationally depend on the \texttt{ready} signal.
+
+Examples of protocol use are given in Figures~\ref{fig:basic_svrs} and~\ref{fig:seq_svrs}.
+
+
+\subsection{Core Usage}
+
+\paragraph{Encryption}
+An encryption is started by executing a transaction on the \texttt{in} interface.
+The encryption is executed using the shared key and plaintext provided in the
+transaction, then the \texttt{out} interface becomes valid, with the shared
+ciphertext as data.
+
+The core can only perform one execution at a time and will not start a new
+encryption before the ciphertext of the current encryption has been consumed from
+the \texttt{out} interface.
+Figure~\ref{fig:ex2runs} illustrates the interface signal for two consecutive encryptions.
+
+\emph{Security:}
+The $\svrsCiphertext$ is gated to not expose any confidential value when
+$\svrsOutValid$ is not asserted.
+
+\emph{Initialization:}
+After reset, the core will not start an encryption before it is reseeded.
+
+\emph{Latency and throughput:}
+The AES implementation has a latency of 105~clock cycles. To achieve the
+maximum throughput of one encrypted block per 105~cycles, there must be no
+back-pressure (i.e., $\portAESOutReady$ must be high at the clock cycle where
+$\portAESOutValid$ becomes asserted) and the input must be valid
+($\portAESInValid$ asserted) at least one cycle before $\portAESOutValid$ is
+asserted.
+
+\begin{figure}
+    \centering
+    \begin{tikztimingtable}
+        \texttt{clk} & L4{HL}SS5{HL}SS5{HL}\\
+        \texttt{syn\_rst} & L16{LL} \\
+        \\
+        \svrsPlaintext & X 2{DD}{$p_0$}{}7{DD}{$p_1$} 1{XX} 6{XX}\\
+        \svrsKey & X 2{DD}{$k_0$}{}7{DD}{$k_1$} 1{XX} 6{XX} \\
+        \svrsInValid & L 4{HH} 4H 6H 1{LL} 6{LL}\\
+        \svrsInReady & L LL 1{HH} 2{LL} 4L 4L 2H 2L 3{LL} 3{HH}\\
+        \\
+        \svrsSeed & X 4{XX} 6X 6X 6{XX}\\
+        \svrsSeedValid & {}L 4{LL} 6L 6L 6{LL}\\
+        \svrsSeedReady & {}L 4{LL} 6L 6L 6{LL}\\
+        \\
+        \svrsCiphertext & D 4{DD}4D{0} 4D{$c_0$} 4{DD}{0} 1{DD}{$c_1$} 3{DD}{0}\\
+        \svrsOutValid & L 4{LL} 4L 4H 4L 4L 2H 3{LL}\\
+        \svrsOutReady & L 4{LL} 4L 2L2H 4L 2L 4H 3{LL}\\
+        \extracode
+        \makeatletter
+        \begin{pgfonlayer}{background}
+            \node[draw=none] at (10,0.5) {\dots};
+            \node[draw=none] at (22,0.5) {\dots};
+            \begin{scope}[gray,semitransparent,semithick]
+                \foreach \x in {1,3,...,7}
+                \draw (\x,1.5) -- (\x,-28.5);
+                \foreach \x in {11,13,...,19}
+                \draw (\x,1.5) -- (\x,-28.5);
+                \foreach \x in {23,25,...,31}
+                \draw (\x,1.5) -- (\x,-28.5);
+            \end{scope}
+        \end{pgfonlayer}
+    \end{tikztimingtable}
+    \caption{Exemplary interface view for two executions.}
+    \label{fig:ex2runs}
+\end{figure}
+
+\paragraph{(Re-)seeding}
+
+The \texttt{seed} interface is used to reseed the internal PRNG (this
+PRNG generates the internal masking randomness, see
+Section~\ref{subsection:PRNG} for details).
+A reseed is executed by means of a transaction on the \texttt{seed} interface,
+as shown in Figure~\ref{fig:exreseed}.
+During this transaction, the provided seed data \texttt{must} be uniform
+randomness (i.e. all the bits must be fresh, uniform and independent).
+After a reseed transaction, the reseeding procedure lasts for a few cycles (the
+duration depends on the core configuration, it is typically less than a dozen
+cycles). 
+
+\emph{Interactions with encryption.}
+\begin{itemize}
+    \item After a reset, the core does not start any encryption before being reseeded once.
+    \item The core will not accept a reseed transaction while it is encrypting.
+    \item The core will not start an encryption while it is reseeding.
+    \item Starting a new encryption takes precedence over starting a reseed,
+        hence if reseeding if needed, no new valid input should be asserted
+        before a reseed transaction happens.
+\end{itemize}
+
+\begin{figure}
+    \centering
+    \begin{tikztimingtable}
+        \texttt{clk} & L4{HL}SS3{HL}SS4{HL}\\
+        \texttt{syn\_rst} & L13{LL} \\
+        \\
+        \svrsPlaintext & X 2{DD}{$p_0$}{}5{DD}{$p_1$} 6{DD}{$p_2$}\\
+        \svrsKey & X 2{DD}{$k_0$}{}5{DD}{$k_1$} 6{DD}{$k_3$} \\
+        \svrsInValid & L 4{HH} 3{HH} 6{LL} \\
+        \svrsInReady & L LL 1{HH} 4{LL} 1{HH} 6{LL}\\
+        \\
+        \svrsSeed & X 2{XX} 10{DD}{$s_0$} XX\\
+        \svrsSeedValid & {}L 2{LL} 10{HH} LL\\
+        \svrsSeedReady & {}L 11{LL} HH LL \\
+        \\
+        \svrsCiphertext & D 5{DD}{0} 1{DD}{$c_0$} 3{DD}{0} 1{DD}{$c_1$} 3{DD}{0}\\
+        \svrsOutValid & L 5{LL} HH 3{LL} HH 3{LL}\\
+        \svrsOutReady & L 2{LL} 11{HH}\\
+        \extracode
+        \makeatletter
+        \begin{pgfonlayer}{background}
+            \node[draw=none] at (10,0.5) {\dots};
+            \node[draw=none] at (18,0.5) {\dots};
+            \begin{scope}[gray,semitransparent,semithick]
+                \foreach \x in {1,3,...,7}
+                \draw (\x,1.5) -- (\x,-28.5);
+                \foreach \x in {11,13,...,15}
+                \draw (\x,1.5) -- (\x,-28.5);
+                \foreach \x in {19,21,...,25}
+                \draw (\x,1.5) -- (\x,-28.5);
+            \end{scope}
+        \end{pgfonlayer}
+    \end{tikztimingtable}
+    \caption{Exemplary reseeding procedure.}
+    \label{fig:exreseed}
+\end{figure}
+
+\subsection{Sharing encoding}
+\label{sec:share_encoding}
+
+The busses $\svrsPlaintext$, $\svrsKey$ and
+$\svrsCiphertext$ contain respectively the shared representation of the
+plaintext, the key and the ciphertext.
+
+A sharing (or shared representation) of a bit $b$ is a tuple of $d$ shares
+$\left(b^0, b^1, \dots, b^{d-1} \right)$ such that $\bigoplus_{m,0\leq m<d} b^m = b$.
+The sharing of a $n$-bit bus
+$\texttt{data}\left[ n-1:0\right]$ where $\texttt{data}[i]=b_i$
+is
+$\texttt{shares\_data}\left[ nd-1:0 \right]$ where
+$\texttt{shares\_data}\left[ ni+j\right] = b_i^j$ and
+$\left(b_i^0, \dots, b_i^{d-1}\right)$ is a sharing of $b_i$.
+This representation is illustrated in Figure~\ref{fig:encoding}.
+
+\begin{figure}
+    \centering
+    \resizebox{\textwidth}{!}{
+        \begin{tikzpicture}
+            \input{figures/tikz_bus_encoding}
+        \end{tikzpicture}
+    }
+    \caption{Encoding of a shared $n$-bit wide data with $d$ shares.}
+    \label{fig:encoding}
+\end{figure}
+
+The key and the plaintext must be fed as uniform sharings (i.e. the sharing is
+selected uniformly at random among possible sharings that represent the correct
+value). The output ciphertext sharing is guaranteed to be uniform.
+
+\section{Core Architecture}
+\label{section:architecture}
+
+The top-level architecture of $\topName$ is depicted in Figure~\ref{fig:top_module_view}:
+its main components are the encryption unit $\topModAES$ and the PRNG. Some additional logic
+is used to handle the encrypt/reseed interlocking, as well as units to shuffle
+the shares of the masked busses.
+
+\paragraph{Core}
+The module $\topModAES$ implements a masked version of the AES encryption
+algorithm by serially processing 32-bits parts of the state. It runs a single
+AES execution at a time and the ciphertext produced ($\portAESOutCipher$) has
+to be fetched before a new execution can start.
+The shared plaintext ($\portAESInPlaintext$) and the shared
+key ($\portAESInKey$) are fetched at the beginning of a new execution by
+performing a simple transaction at the input interface (with
+$\portAESInValid$ and $\portAESInReady$).
+Similarly, the shared ciphertext ($\portAESOutCipher$) is output from the core
+with a dedicated interface (with $\portAESOutValid$ and
+$\portAESOutReady$). The signal $\portAESbusy$ is asserted when 
+an execution is ongoing inside the core.
+
+\paragraph{PRNG}
+The module $\topModPRNG$ is generating the randomness required by the 
+masking scheme. It is the producer on the randomness bus, while $\topModAES$ is
+the receiver.
+
+When not reseeding, it takes only a single cycle to generate the fresh randomness, therefore
+at the next cycle after a randomness transaction, new randomness is already available (i.e.,
+$\portAESRnd$ carries fresh randomness, and $\portPrngOutValid$ is asserted).
+During an encryption, $\topModAES$ needs randomness at all clock cycles, hence
+it keeps $\portPrngOutReady$ asserted, and thanks to the high-throughput
+capability of the PRNG, a transaction happens on the randomness bus at every
+clock cycles ($\portPrngOutValid$ stays asserted).
+
+This high throughput capability is actually relied upon by $\topModAES$: it
+needs randomness for security at every cycle during the encryption
+and cannot stall once encryption is started.
+The signal $\portPrngOutValid$ is de-asserted only when the PRNG has not been
+seeded after a reset, or while it is reseeding.
+To ensure that fresh randomness is always available when encrypting, the
+interlocking logic prevents the $\topModAES$ from starting an encryption if
+$\portPrngOutValid$ is de-asserted, while it prevents $\topModPRNG$ from
+starting a reseed when an encryption is ongoing.
+If no encryption is ongoing and $\svrsSeedValid$ is asserted, then a reseed is
+initiated and a transaction on the \texttt{seed} bus occurs at the next cycle
+(this is to avoid a combinational dependency $\svrsSeedValid \rightarrow
+\svrsSeedReady$, and is achieved by detecting a rising edge on the PRNG
+$\portPrngBusy$ signal).
+
+\paragraph{Share shuffling}
+The modules $\texttt{shares2shbus}$ and $\texttt{shbus2shares}$ are simple wire
+shufflings that ``transpose'' the encoding of the shared data.
+More precisely, the encoding of a sharing inside $\topModAES$
+is $\texttt{shares\_data\_inner}\left[ ni+j\right] = b_j^i$ unlike the more
+intuitive external representation $\texttt{shares\_data}\left[ ni+j\right] =
+b_i^j$ described in Section~\ref{sec:share_encoding}.
+This internal representation is more convenient for the implementation, as it
+makes it easier to describe the extraction of masked bits from a masked bus
+using Verilog operators.
+
+\begin{figure}
+    \centering
+    \resizebox{\textwidth}{!}{
+        \begin{tikzpicture}
+            \input{figures/tikz_fig_global_arch}
+        \end{tikzpicture}
+    }
+    \caption{Global architecture of the module \topName.}
+    \label{fig:top_module_view}
+\end{figure}
+
+\subsection{Masked AES Core Architecture} 
+
+\begin{figure}
+    \centering
+    \resizebox{\textwidth}{!}{
+        \begin{tikzpicture}
+            \input{figures/tikz_aes_glob_arch}
+        \end{tikzpicture}
+    }
+    \caption{Datapath architecture of the module \topModAES. Wires not in bold are $32d$ bits wide (apart from muxes control signals).}
+    \label{fig:aes_glob_arch}
+\end{figure}
+
+The module $\topModAES$ is almost identical to the 32-bit masked AES implementation
+presented in~\cite{DBLP:conf/cosade/MominCS22}. As shown in
+Figure~\ref{fig:aes_glob_arch}, the module is organized around two datapath
+blocks performing the operations dedicated to the round computation (denoted
+\modAESdpState) and the key scheduling (denoted $\modAESdpKey$). The module
+$\modAESsbox$ is shared between the two datapath blocks and implements the $\SB$
+layer for 4 masked bytes. In particular, it is composed of 4~parallel instances
+of masked S-boxes that follow an optimized architecture based
+on the S-box representation presented in~\cite{DBLP:conf/sec/BoyarP12}.
+A single S-box is organized as a pipeline of 6 stages with 34 HPC2 AND gadgets
+each requiring $d(d-2)/2$ bits of randomness per execution.
+The bus
+$\portAESRnd$ is used to provide the fresh randomness to the 4~S-boxes
+instances (randomness is not used anywhere else in $\topModAES$).
+
+\subsection{Architecture of the $\modAESdpState$ module}
+\label{sec:architecture}
+
+\begin{figure}
+    \centering
+    \resizebox{\textwidth}{!}{
+        \begin{tikzpicture}
+            \input{figures/tikz_dpState}
+        \end{tikzpicture}
+    }
+    \caption{Global architecture of the \modAESdpState module. The value held by the DFF at index $i$ is depicted by the signal $\dpStateDFF{i}$ in the HDL.}
+    \label{fig:aes_dpState}
+\end{figure}
+
+Figure~\ref{fig:aes_dpState} shows the detailed architecture of the
+module $\modAESdpState$. It is organized as a shift register where each
+register unit holds a masked state byte (the numbers on the figure
+indicate the byte index in the unmasked state).
+The module operates on 32-bit parts of the state and is also implementing the
+logic that computes the $\AK$, $\SR$ and $\MC$ layers.
+In particular, these are implemented in purely
+combinational logic.
+Addition gadgets (i.e., XORs) are used to perform the key addition with key
+bytes coming from the round
+key (denoted $\AESdpStateFromKey$).
+The module $\dpStateModMC$ computes the
+result of the $\MC$ operation for a masked column (i.e., 4~masked bytes). The
+$\SR$ layer is free, being implemented as a specific
+routing at the input of the $\SB$ layer.
+In particular, the ordering of the bytes routed to the
+S-boxes (denoted $\AESdpStateToSB$) is selected such that the rotations over
+the rows are applied. Dedicated MUXes (controlled by $\dpStateCtrlRouteMC$) are
+used in order to bypass the $\MC$ logic block when executing the last round.
+Other MUXes (controlled by $\dpStateCtrlRouteLoop$) are used during the
+last key addition in order to bypass the $\SR$, $\SB$ and $\MC$ layers.
+When a new execution starts, the masked plaintext bytes are loaded in the register through the 
+MUXes controlled by $\dpStateCtrlRouteIn$.
+Then, the $\AK$ and $\SR$ layers are executed by propagating the data 
+across the pipeline to the S-boxes.
+The $\MC$ operation is performed when the result of the $\SB$ layer is coming back to the 
+core by asserting the signal $\dpStateCtrlRouteMC$. 
+
+\subsection{Architecture of the $\modAESdpKey$ module}
+
+\begin{figure}
+    \centering
+    \resizebox{\textwidth}{!}{
+        \begin{tikzpicture}
+            \input{figures/tikz_dpKey}
+        \end{tikzpicture}
+    }
+    \caption{Global architecture of the module $\modAESdpKey$. The value held by the DFF at index $i$ is depicted by the signal $\dpKeyDFF{i}$ in the HDL.}
+    \label{fig:aes_dpKey}
+\end{figure}
+
+The module $\modAESdpKey$ is shown in Figure~\ref{fig:aes_dpKey}. It is
+organized as a shift register where each register unit holds a masked byte of
+the key (the numbers on the Figure indicate the byte index in the unmasked
+key).  The module is split in 4~independent parts, each taking care of the key
+scheduling operation on a single row. The sharing of the 128-bit key is routed from the input with the 
+control signal $\dpKeyCtrlInit$.
+
+Concretely, the key scheduling starts by sending the last column of the key
+(i.e., byte indexes 12, 13, 14 and 15) to the S-boxes.  The $\texttt{RotWord}$
+operation is performed by the routing that sends the key bytes to the S-boxes.
+Once computed, the result of the $\SB$ layer is routed back to the core through
+the MUX controlled by the signal $\dpKeyCtrlRouteFromSB$.  At the same time,
+the round constant is applied and the first column (i.e., byte indexes 0,1,2
+and 3) of the new key is computed by adding its value to the column coming back
+from the S-boxes.  The remaining three columns (i.e., byte indexes [4,5,6,7],
+[8,9,10,11] and [12,13,14,15] are then updated sequentially by XORing each
+bytes with the value of the last byte updated in the same row. The signal
+$\dpKeyCtrlLoop$ is used to make the key shares loop across the key pipeline.
+This is required to keep the key material after the $\AK$ operations while the
+$\SB$ results of the key scheduling is still under computation. 
+
+\subsection{Internal operation}
+
+Let us first introduce notations for the intermediate states in the AES algorithm with
+pseudo-code in Figure~\ref{fig:code_round} and Figure~\ref{fig:code_key}.
+Each variable denotes a state or subkey byte at a given step of the algorithm.
+In particular, the plaintext (resp. key, ciphertext) byte at index $0\leq i<16$
+is denoted \pP{i} (resp. $\pK{i}$, $\pCt{i}$), and the value $\pS{i}{r}$ (resp.
+$\pRK{i}{r}$) denotes the byte at index $i$ of the state (resp. round key)
+starting the $r$-th round.
+When no index is given, the full 128-bit state is considered instead.
+
+\begin{figure}
+    \begin{lstlisting}[frame=single]
+    %%% First key addition
+    for $0\leq i <16$ do
+        $\pS{i}{0} = \pP{i} \oplus \pK{i}$;
+    done
+    
+    %%% Perform the rounds
+    for $0\leq r < 9$ do 
+        % Operation for a single round
+        $\pSR{}{r} = \SR(\pS{}{r})$;
+        $\pSB{}{r} = \SB(\pSR{}{r})$;
+        $\pMC{}{r} = \MC(\pSB{}{r})$;
+        $\pAK{}{r} = \AK(\pMC{}{r},\pRK{}{r})$;
+        $\pS{}{r+1} = \pAK{}{r}$;
+    done
+    
+    %%% Last round
+    $\pSR{}{9}=\SR(\pS{}{9})$;
+    $\pSB{}{9}=\SB(\pSR{}{9})$;
+    $\pAK{}{9}=\AK(\pSB{}{9})$;
+    $\pCt{} = \pAK{}{9}$;
+    \end{lstlisting}
+    \caption{Pseudo-code of the AES encryption.}
+    \label{fig:code_round}
+\end{figure}
+
+
+\begin{figure}
+    \begin{lstlisting}[frame=single]
+    %%% Key evolution for each round key 
+    for $0\leq r < 10$ do
+        % Fetch value on which operate
+        if $r==0$ then
+            $t^r = \pK{}$; 
+        else 
+            $t^r = \pRK{}{r-1}$;
+        end
+
+        % Perform the last column rotation
+        $[\pR{0}{r},\pR{1}{r},\pR{2}{r},\pR{3}{r}] = [t_{13}^{r},t_{14}^{r},t_{15}^{r},t_{12}^{r}]$; 
+
+        % Perform SubWord on the rotated column
+        $[\pRSB{0}{r},\pRSB{1}{r},\pRSB{2}{r},\pRSB{3}{r}] = [\SW{\pR{0}{r}},\SW{\pR{1}{r}},\SW{\pR{2}{r}},\SW{\pR{3}{r}}]$
+
+        % Compute the first column of the next round key
+        $\pRK{0}{r} = \pRSB{0}{r} \oplus t_{0}^{r} \oplus \RCON{r}$;
+        $\pRK{1}{r} = \pRSB{1}{r} \oplus t_{1}^{r}$;
+        $\pRK{2}{r} = \pRSB{2}{r} \oplus t_{2}^{r}$;
+        $\pRK{3}{r} = \pRSB{3}{r} \oplus t_{3}^{r}$;
+
+        % Generate the three remaining columns
+        for $1\leq i <4$ do
+            for $0\leq j <4$ do
+                $\pRK{4i+j}{r} = \pRK{4(i-1)+j}{r} \oplus t_{4i+j}^{r}$;
+            done
+        done
+    done
+    \end{lstlisting}
+    \caption{Pseudo-code for the AES key evolution.}
+    \label{fig:code_key}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \input{figures/tikz_time_pipe_sbox}
+    \caption{Data going into / coming from the S-boxes during a round.}
+    \label{fig:pipe_sbox}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \input{figures/tikz_time_pipe_dpkey}
+    \caption{Data going into / coming from the key scheduling datapath during a round.}
+    \label{fig:pipe_dpkey}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \input{figures/tikz_time_pipe_dpstate}
+    \caption{Data going into / coming from the round function datapath during a round.}
+    \label{fig:pipe_dpstate}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \input{figures/tikz_time_first_round} 
+    \caption{Data routing when a new execution starts.}
+    \label{fig:time_first_round}
+\end{figure}
+
+Using these notations, Figures~\ref{fig:pipe_sbox}, \ref{fig:pipe_dpkey}
+and~\ref{fig:pipe_dpstate} describe the evolution of the AES states stored in
+the architecture over the computation of one round.
+Next, Figures~\ref{fig:time_first_round}, \ref{fig:time_regime}
+and~\ref{fig:time_last_round} depict the control signals that drive the
+datapath for the first round, middle rounds, and last round.
+In particular, for the first round (Figure~\ref{fig:time_first_round}), the
+data is fetched by the module when the signal $\portAESInValid$ is asserted if
+the core is not busy, there is no ciphertext stored in the core and randomness
+is available.
+At the next clock cycle, the
+internal FSM counters $\timeCnrRound$ and $\timeCnrCycle$ are reset and the
+execution begins. The round function and the key scheduling algorithm are
+executed in parallel by interleaving the S-boxes usage appropriately. In
+particular, the first cycle of the execution is used to start the key
+scheduling algorithm by asserting $\AESsboxFeedKey$ and $\AESsboxValidIn$.
+During this cycle, both the module $\modAESdpState$ and $\modAESdpKey$ are
+disabled.
+
+\begin{figure}
+    \centering
+    \input{figures/tikz_time_regime} 
+    \caption{In regime data routing.}
+    \label{fig:time_regime}
+\end{figure}
+
+Then, the core enters into a nominal regime that computes a round in 9~cycles,
+as depicted in Figure~\ref{fig:time_regime}.
+A typical round starts with 4~clock cycles during which data is read from the
+state registers, XORed with the subkey and fed to the S-boxes, which performs
+the $\AK$, $\SR$ and $\SB$ layers for the full state (one column per cycle).
+During these cycles, $\AESsboxValidIn$ is asserted and data (state and subkey)
+loops over the shift registers.
+At the fifth cycle of a round (i.e., when $\timeCnrCycle=4$), the module
+$\modAESdpKey$ is disabled in order to wait one cycle for the S-box results.
+At the same cycle, the S-boxes output the column of the new subkey value, which is
+processed by enabling the module $\modAESdpKey$ and asserting
+$\dpKeyCtrlRouteFromSB$ for one cycle.
+Next, during the last 4~cycles of a round, the
+S-boxes output the 4~columns of the state, on which the $\MC$ layer is directly
+applied, and the result is stored in the state registers.
+At the same time, the subkey update is finalized, such that a new subkey is
+ready at the last cycle of a round (i.e., $\timeCnrCycle=9$).
+During this last cycle, the next key schedule round is started, and a new state
+round starts at the following cycle. 
+
+\begin{figure}
+    \centering
+    \input{figures/tikz_time_last_round} 
+    \caption{Data routing during last rounds.}
+    \label{fig:time_last_round}
+\end{figure}
+
+Finally, the last round is very similar to the regime mode except that the
+module $\dpStateModMC$is bypassed. In particular, the signal
+$\dpStateCtrlRouteMC$ is de-asserted and the shift registers are configured to
+make the data loop. No new key scheduling round is started during this last
+cycle.
+At the end of the last round, once the ciphertext has been fetched from the
+output, a new encryption starts immediately (if $\portAESInValid$ is asserted),
+or the state register is cleared by asserting the control signal
+$\dpStateCtrlRouteIn$.
+This ensures that the core is completely clear of any key- or
+plaintext-dependent data.
+
+\subsection{Randomness Generation} 
+
+\begin{figure}
+    \centering
+    \resizebox{\textwidth}{!}{
+        \begin{tikzpicture}
+            \input{figures/tikz_prng}
+        \end{tikzpicture}
+    }
+    \caption{Datapath Architecture of a unrolled Trivium module}
+    \label{fig:prng}
+\end{figure}
+
+
+\label{subsection:PRNG}
+
+The module $\topModPRNG$ is a PRNG generating $\NRNDBITS = 4\cdot 34 \cdot \MULHPCRND
+ = 4\cdot 34 \cdot [d(d-1)/2]$ pseudo-random bits per clock cycle.  It is based on
+one or multiple instances of the Trivium stream
+cipher~\cite{DBLP:series/lncs/CanniereP08} from which the key stream is used as
+the PRNG output.  As shown in Figure~\ref{fig:prng}, a Trivium instance is
+implemented using a 288-bit state register and $\UNROLL$ cascaded combinational
+layers that each implement one state update step and produce one keystream bit.
+Moreover, the state register is either taken from a reseed value (to initiate a
+reseed), or from the output of the final update step (during normal operation).
+At the output, the keystream is stored in a register to avoid the propagation
+of glitches that could reduce the security of the masked circuit.
+
+The use of multiple Trivium instances allows us to adjust the area-latency
+trade-off: with more Trivium instances, $\UNROLL$ can be reduced, leading to a
+lower combinational logic depth.  The top-level $\MAXUNROLL$ parameter is used
+for this purpose: the number of instances is $\NTRIVIUMS = \lceil \NRNDBITS /
+\MAXUNROLL \rceil$, and $\UNROLL = \lceil \NRNDBITS / \NTRIVIUMS \rceil$, which
+ensures that $\UNROLL \le \MAXUNROLL$.
+
+The reseeding follows the initialization of Trivium. Concretely, the state is
+first set to
+$\texttt{1}^3|\texttt{0}^{112}|\texttt{IV}|\texttt{0}^{13}|\texttt{KEY}$, where
+the \texttt{KEY} is set to the 80-bit externally provided seed (it is
+the same for all Trivium instances), while the \texttt{IV} is a constant, which
+is distinct for each Trivium instance.  Then, the update function is applied at
+least $4\cdot 288$ times, i.e., the PRNG is executed while feeding back its
+state for $4\cdot 288 / \UNROLL$ cycles.  During the reseed, the signal
+$\portPrngBusy$ is asserted and $\portPrngOutValid$ is not. Once finished, the
+signal $\portPrngOutValid$ is asserted.  After a reset, the core requires will
+not output valid data (i.e., $\portPrngOutValid$ will stay de-asserted) until
+the completion of a reseed.
+  
+\section{Core Performances}
+
+
+\begin{table}
+    \centering
+    \setlength{\tabcolsep}{1ex}
+    \begin{threeparttable}
+        \sisetup{
+            table-alignment-mode = format,
+            table-number-alignment = center,
+            }
+        \begin{tabular}
+            {lc
+            S[table-format = 4.0]
+            S[table-format = 4.0]
+            S[table-format = 5.0]
+            S[table-format = 3.0]
+            S[table-format = 3.0]
+            S[table-format = 3.1]
+            S[table-format = 3.1]
+            }
+            \toprule
+            {\thead{Part}} & {\thead{Shares ($d$)}} & {\thead{Slices}} & {\thead{LUTs}} & {\thead{Regs}} & {\thead{SRLs}} & {\thead{Latency}} & {\thead{Freq.}} & {\thead{TP}} \\
+                         &  &   &  &  & & {\thead{[cycle]}} & {\thead{[MHz]}} & {\thead{[Mbit/s]}} \\
+            \midrule
+            xc7a100tftg256-2 & 2 & 1495 & 4664 & 3502 & 0 & 105 & 68.6 & 83.6 \\
+            (opt. disabled$^1$) & 3 & 3069 & 9960 & 7157 & 0 & 105 & 66.2 & 80.7 \\
+                             & 4 & 4829 & 16527 & 12189 & 0 & 105 & 66.5 & 81.0 \\
+            xc7a100tftg256-2 & 2 & 910 & 2950 & 3145 & 144 & 105 & 159 & 193 \\
+                             & 3 & 1868 & 6071 & 6620 & 216 & 105 & 137.9  & 168.1 \\
+                             & 4 & 3244 & 10759 & 11474 & 288 & 105 & 128.76 & 156.96 \\
+            \bottomrule
+        \end{tabular}
+        \caption{Artix-7 FPGA synthesis results (\texttt{out\_of\_context}, post-implementation, $\MAXUNROLL=128$).}
+        \begin{tablenotes}
+        \item[1] Optimizations might impact the side-channel security of the implementation, see section~\ref{section:verif}.
+        \end{tablenotes}
+        \label{table:synth}
+    \end{threeparttable}
+\end{table}
+
+Following the architecture described section~\ref{sec:architecture}, the latency is
+$105$ cycles per execution. Table~\ref{table:synth} contains performance metrics
+for two implementations on a Xilinx Series~7 FPGA: one with the optimisations
+disabled at every steps of the toolflow and one with the optimisation enabled.
+
+\section{Core Verification}
+\label{section:verif}
+\paragraph{Functionality}
+In order to ensure the proper functionality of the AES core, the Known-Answer
+Tests of the NIST ``Advanced Encryption Standard Algorithm Validation List'' is
+verified with the provided
+testbench\footnote{https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program/block-ciphers}.
+
+In particular, all the testvectors related to the
+encryption algorithm from the files \texttt{ECBGFSbox128.rsp},
+\texttt{ECBKeySbox128.rsp}, \texttt{ECBVarKey128.rsp} and
+\texttt{ECBVarTxt128.rsp} are tested at the RTL level. The
+testbench follows a randomized regression testing strategy to assess the
+functionality of the module. In particular, the execution related to each
+testvector cases is started sequentially by performing a transaction
+at the input interface.  To simulate the behavior that may happen due to the
+integration of the core in a more complex system, a random amount of clock
+cycles is waited before initializing a transaction (i.e., before asserting the
+$\svrsInValid$ signal). Similarly, in order to simulate (hard) back-pressure conditions that may occur
+in practice, the output interface is simulated with random
+assertion of the $\svrsOutReady$ signal. Besides, in
+parallel to the behavioral known-answer tests, the reseeding procedure is
+tested by issuing reseed requests at regular interval. This is achieved by 
+waiting a random amount of clock cycles before asserting the signal
+$\svrsSeedValid$ and waiting until a transaction at the seed interface occurs.
+
+Additionally, a practical implementation on an Artix7 FPGA (xc7a100tftg256-2)
+has been tested with random known-test vectors (i.e., random key, plaintext and seed).  
+
+\paragraph{Side-channel security}
+This core has been formally verified for security in the glitch+transition
+robust probing model using the \texttt{fullVerif}%
+tool~\cite{DBLP:journals/tc/CassiersGLS21,DBLP:journals/tches/CassiersS21}\footnote{\url{https://github.com/cassiersg/fullverif}}.
+The scripts for this verification are provided along with the implementation.
+The implementation has also been empirically evaluated on an FPGA (with
+synthesis optimizations disabled), the evaluation report is available at
+\url{https://simple-crypto.org/outputs}. Note that this evaluation is
+device-specific, and should be performed on every instantiation of this device.
+
+\section{Copyright}
+
+This document is Copyright (c) SIMPLE-Crypto contributors (see \url{https://github.com/simple-crypto/SMAesH}).
+
+Permission is granted to copy, distribute and/or modify this document under the
+terms of the GNU Free Documentation License, Version 1.3 or any later version
+published by the Free Software Foundation; with no Invariant Sections, no
+Front-Cover Texts, and no Back-Cover Texts.
+A copy of the license is available with the sources of the implementation and
+at \url{https://www.gnu.org/licenses/fdl-1.3.txt}.
+
+\bibliographystyle{alpha}
+\bibliography{refs}
+
+\end{document}

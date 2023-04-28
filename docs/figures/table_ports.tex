@@ -1,0 +1,43 @@
+\begin{table}
+    \centering
+    \begin{threeparttable}
+        \footnotesize
+        \setlength{\tabcolsep}{1ex}
+        \begin{tabularx}{\textwidth}{@{}ccccX@{}}
+            \toprule
+            \multicolumn{5}{c}{\textbf{Module Generics}} \\
+            \thead{Parameter} & & \thead{Value Type} & & \thead{Description} \\
+            \midrule
+            $d$ & & integer & & Amount of shares \\
+            $\MAXUNROLL$ & & integer & & Maximum unrolling for the embedded PRNG. \\
+            \midrule
+            \multicolumn{5}{c}{\textbf{Module Ports}} \\
+            \thead{Ports Name} & \thead{Type} & \thead{Direction} & \thead{Width [bits]} & \thead{Description} \\
+            \midrule
+             %&  &  &  &  \\
+             \texttt{clk} & clock & input & $1$ & Clock (all the logic is synchronized on the positive edge). \\
+             \texttt{syn\_rst} & control & input & $1$ & Active high synchronous reset. Keep asserted for at least one cycle. \\
+             \addlinespace[2ex]
+             \multicolumn{5}{c}{\color{colorIN} SVRS Input interface} \\
+             \svrsPlaintext & data & input & $128d$ & Shared plaintext (SVRS \texttt{data} signal). \\
+             \svrsKey & data & input & $128d$ & Shared key (SVRS \texttt{data} signal). \\
+             $\svrsInValid$ & control & input & $1$ & SVRS \texttt{valid} signal. \\
+             \svrsInReady & control & output & $1$ & SVRS \texttt{ready} signal. \\
+             \addlinespace[2ex]
+             \multicolumn{5}{c}{\color{colorSEED} SVRS Seed interface} \\
+             \svrsSeed & data & input & $80$ & Fresh randomness used as a seed by the embedded PRNG (SVRS \texttt{data} signal). \\
+             \svrsSeedValid & control & input & $1$ & SVRS \texttt{valid} signal. \\
+             \svrsSeedReady & control & output & $1$ & SVRS \texttt{ready} signal. \\
+             \addlinespace[2ex]
+             \multicolumn{5}{c}{\color{colorOUT} SVRS Output interface} \\
+             \svrsCiphertext & data & output & $128d$ & Shared ciphertext (SVRS \texttt{data} signal). \\
+             \svrsOutValid & control & output & $1$ & SVRS \texttt{valid} signal. \\
+             \svrsOutReady & control & input & $1$ & SVRS \texttt{valid} signal. \\
+            \bottomrule
+        \end{tabularx}
+        \caption{$\topName$ port description.}%
+        \label{table:ports} 
+    \end{threeparttable}
+\end{table}
+
+% & & & &  \\

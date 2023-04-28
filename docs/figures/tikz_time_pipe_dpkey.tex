@@ -1,0 +1,44 @@
+\begin{tikztimingtable}
+\texttt{clk} & L15{HL}\\
+\\
+\timeCnrRound & D2{DD}{$i-1$} 10{DD}{$i$} 2{DD}{$i+1$} \\
+\timeCnrCycle & D{7} 2D{8} 2D{9} 2D{0}2D{1}2D{2}2D{3}2D{4}2D{5}2D{6}2D{7}2D{8}2D{9}2D{0}2D{1} \\
+\\
+\dpKeyDFF{0} & \timeLinedpKeyI{0}{4}{8}{12} \\ 
+\dpKeyDFF{1} & \timeLinedpKeyI{1}{5}{9}{13} \\ 
+\dpKeyDFF{2} & \timeLinedpKeyI{2}{6}{10}{14} \\ 
+\dpKeyDFF{3} & \timeLinedpKeyI{3}{7}{11}{15} \\ 
+\\
+\dpKeyDFF{4} & \timeLinedpKeyII{4}{8}{12}{0}  \\
+\dpKeyDFF{5} & \timeLinedpKeyII{5}{9}{13}{1}  \\
+\dpKeyDFF{6} & \timeLinedpKeyII{6}{10}{14}{2} \\
+\dpKeyDFF{7} & \timeLinedpKeyII{7}{11}{15}{3} \\
+\\
+\dpKeyDFF{8} & \timeLinedpKeyIII{8}{12}{0}{4} \\
+\dpKeyDFF{9} & \timeLinedpKeyIII{9}{13}{1}{5} \\
+\dpKeyDFF{10} & \timeLinedpKeyIII{10}{14}{2}{6} \\
+\dpKeyDFF{11} & \timeLinedpKeyIII{11}{15}{3}{7} \\
+\\
+\dpKeyDFF{12} & \timeLinedpKeyIIII{12}{0}{4}{8}  \\
+\dpKeyDFF{13} & \timeLinedpKeyIIII{13}{1}{5}{9}  \\
+\dpKeyDFF{14} & \timeLinedpKeyIIII{14}{2}{6}{10} \\
+\dpKeyDFF{15} & \timeLinedpKeyIIII{15}{3}{7}{11} \\
+\extracode
+\makeatletter
+\begin{pgfonlayer}{background}
+    % Draw cycles
+    \begin{scope}[gray,semitransparent,semithick]
+        \foreach \x in {1,3,...,27}{
+            \draw (\x,1.5) -- (\x,-46.5);
+        }
+    \end{scope}
+    % Draw round
+    \foreach \x in {5,25}{
+        \draw [thick] (\x,2) -- (\x,-9);
+        \draw [thick] (\x,-16) -- (\x,-19);
+        \draw [thick] (\x,-26) -- (\x,-29);
+        \draw [thick] (\x,-36) -- (\x,-39);
+        \draw [thick] (\x,-46) -- (\x,-47);
+    }
+\end{pgfonlayer}
+\end{tikztimingtable}
