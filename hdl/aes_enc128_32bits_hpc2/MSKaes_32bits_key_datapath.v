@@ -87,6 +87,16 @@ for(i=0;i<16;i=i+1) begin: byte_key_in
 end
 endgenerate
 
+// Apply the initial permutation 
+// (required because of the new architecture, in regime the position of 
+// the key byte are located 1 stage before when the last column is taken) 
+wire [8*d-1:0] sh_m_key_in_perm[15:0];
+generate
+for(i=0;i<16;i=i+1) begin: byte_key_in_perm
+    assign sh_m_key_in_perm[i] = sh_m_key_in[(i+12)%16];
+end
+endgenerate
+
 // Byte matrix representation of the holded round key
 (* verime = "key_byte" *)
 wire [8*d-1:0] sh_m_key[15:0];
@@ -105,7 +115,7 @@ for(i=0;i<16;i=i+1) begin: byte_key
 end
 endgenerate
 
-// Mux at the input of sh_m_key[0:11]
+// Mux at the input of sh_m_key[4:15]
 genvar j;
 generate
 for(i=0;i<4;i=i+1) begin: row_min
@@ -113,15 +123,15 @@ for(i=0;i<4;i=i+1) begin: row_min
         MSKmux #(.d(d),.count(8))
         mux_scan(
             .sel(init),
-            .in_true(sh_m_key_in[4*j+i]),
-            .in_false(sh_m_key[4*(j+1)+i]),
-            .out(to_sh_m_key[4*j+i])
+            .in_true(sh_m_key_in_perm[4*(j+1)+i]),
+            .in_false(sh_m_key[(4*(j+2)+i) % 16]),
+            .out(to_sh_m_key[4*(j+1)+i])
         );        
     end
 end
 endgenerate
 
-// Input structure for the input of sh_m_key[12:15]
+// Input structure for the input of sh_m_key[0:4]
 generate
 for(i=0;i<4;i=i+1) begin: row_lc_in
     // Mux from SB 
@@ -130,7 +140,7 @@ for(i=0;i<4;i=i+1) begin: row_lc_in
     inst_mux_add_from_SB(
         .sel(add_from_sb),
         .in_true(sh_4bytes_from_SB_rot_rcon[i*8*d +: 8*d]),
-        .in_false(sh_m_key[12+i]),
+        .in_false(sh_m_key[i]),
         .out(mux_add_from_SB)
     );
     // XOR for key update 
@@ -138,7 +148,7 @@ for(i=0;i<4;i=i+1) begin: row_lc_in
     MSKxor #(.d(d),.count(8))
     inst_xor_xor_update(
         .ina(mux_add_from_SB),
-        .inb(sh_m_key[i]),
+        .inb(sh_m_key[4+i]),
         .out(xor_update)
     );
     // Mux for loop
@@ -146,8 +156,8 @@ for(i=0;i<4;i=i+1) begin: row_lc_in
     MSKmux #(.d(d),.count(8))
     inst_mux_loop(
         .sel(loop),
-        .in_true(sh_m_key[i]),
-        .in_false(sh_m_key_in[12+i]),
+        .in_true(sh_m_key[4+i]),
+        .in_false(sh_m_key_in_perm[i]),
         .out(mux_loop)
     );
     // Mux input of reg
@@ -156,16 +166,16 @@ for(i=0;i<4;i=i+1) begin: row_lc_in
         .sel(init || loop),
         .in_true(mux_loop),
         .in_false(xor_update),
-        .out(to_sh_m_key[12+i])
+        .out(to_sh_m_key[i])
     );
 end
 endgenerate
 
 // Output assign 
-assign sh_4bytes_rot_to_SB[0 +: 8*d] = sh_m_key[13];
-assign sh_4bytes_rot_to_SB[8*d +: 8*d] = sh_m_key[14];
-assign sh_4bytes_rot_to_SB[16*d +: 8*d] = sh_m_key[15];
-assign sh_4bytes_rot_to_SB[24*d +: 8*d] = sh_m_key[12];
+assign sh_4bytes_rot_to_SB[0 +: 8*d] = sh_m_key[1];
+assign sh_4bytes_rot_to_SB[8*d +: 8*d] = sh_m_key[2];
+assign sh_4bytes_rot_to_SB[16*d +: 8*d] = sh_m_key[3];
+assign sh_4bytes_rot_to_SB[24*d +: 8*d] = sh_m_key[0];
 
 assign sh_4bytes_to_AK = {sh_m_key[15],sh_m_key[10],sh_m_key[5],sh_m_key[0]};
 

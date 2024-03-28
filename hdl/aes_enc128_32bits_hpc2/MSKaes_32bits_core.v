@@ -14,11 +14,14 @@
 
 // Full 32-bit arbitrary-order masked implementation of the AES (no inverse).
 // This is the complete AES that can be verified with fullVerif.
+`ifndef DEFAULTSHARES
+`define DEFAULTSHARES 2
+`endif
 (* fv_prop = "PINI", fv_strat = "composite", fv_order=d *)
 module MSKaes_32bits_core
 #
 (
-    parameter d=2
+    parameter d=`DEFAULTSHARES
 )
 (
     clk,
@@ -45,14 +48,16 @@ module MSKaes_32bits_core
     // Randomness busses (required for the Sboxes). These busses must contain
     // fresh randomness for every cycle where the core is computing, which is
     // signaled by a HIGH value on in_ready_rnd.
-    rnd_bus0,
-    rnd_bus2,
-    rnd_bus3,
-    rnd_bus4,
+    rnd_bus0w,
+    rnd_bus1w,
+    rnd_bus2w,
+`ifdef CANRIGHT_SBOX
+    rnd_bus3w,
+`endif
     in_ready_rnd
 );
 
-`include "MSKand_HPC2.vh"
+`include "design.vh"
 
 // IOs Ports
 (* fv_type="control" *)
@@ -74,17 +79,20 @@ input out_ready;
 input [128*d-1:0] sh_plaintext;
 (* fv_type="sharing", fv_latency=0, fv_count=128 *)
 input [128*d-1:0] sh_key;
-(* fv_type="sharing", fv_latency=106, fv_count=128 *)
+// TODO change latency
+(* fv_type="sharing", fv_latency=86, fv_count=128 *)
 output [128*d-1:0] sh_ciphertext;
 
-(* fv_type="random", fv_count=0, fv_rnd_count_0=4*9*and_pini_nrnd *)
-input [4*9*and_pini_nrnd-1:0] rnd_bus0;
-(* fv_type="random", fv_count=0, fv_rnd_count_0=4*3*and_pini_nrnd *)
-input [4*3*and_pini_nrnd-1:0] rnd_bus2;
-(* fv_type="random", fv_count=0, fv_rnd_count_0=4*4*and_pini_nrnd *)
-input [4*4*and_pini_nrnd-1:0] rnd_bus3;
-(* fv_type="random", fv_count=0, fv_rnd_count_0=4*18*and_pini_nrnd *)
-input [4*18*and_pini_nrnd-1:0] rnd_bus4;
+(* fv_type="random", fv_count=0, fv_rnd_count_0=4*rnd_bus0 *)
+input [4*rnd_bus0-1:0] rnd_bus0w;
+(* fv_type="random", fv_count=0, fv_rnd_count_0=4*rnd_bus1 *)
+input [4*rnd_bus1-1:0] rnd_bus1w;
+(* fv_type="random", fv_count=0, fv_rnd_count_0=4*rnd_bus2 *)
+input [4*rnd_bus2-1:0] rnd_bus2w;
+`ifdef CANRIGHT_SBOX
+(* fv_type="random", fv_count=0, fv_rnd_count_0=4*rnd_bus3 *)
+input [4*rnd_bus3-1:0] rnd_bus3w;
+`endif
 
 (* fv_type="control" *)
 output in_ready_rnd;
@@ -212,7 +220,7 @@ wire sbox_valid_in;
 genvar i;
 generate
 for(i=0;i<4;i=i+1) begin: sbox_isnt
-    bp_aes_sbox_msk_noctrl_noenable #(.d(d))
+    gen_bp_sbox #(.d(d))
     sbox_unit(
         .clk(clk),
         .i0(bytes_to_SB[i][0*d +: d]),
@@ -223,10 +231,12 @@ for(i=0;i<4;i=i+1) begin: sbox_isnt
         .i5(bytes_to_SB[i][5*d +: d]),
         .i6(bytes_to_SB[i][6*d +: d]),
         .i7(bytes_to_SB[i][7*d +: d]),
-        .rnd_bus0(rnd_bus0[i*9*and_pini_nrnd +: 9*and_pini_nrnd]),
-        .rnd_bus2(rnd_bus2[i*3*and_pini_nrnd +: 3*and_pini_nrnd]),
-        .rnd_bus3(rnd_bus3[i*4*and_pini_nrnd +: 4*and_pini_nrnd]),
-        .rnd_bus4(rnd_bus4[i*18*and_pini_nrnd +: 18*and_pini_nrnd]),
+        .rnd_bus0w(rnd_bus0w[i*rnd_bus0 +: rnd_bus0]),
+        .rnd_bus1w(rnd_bus1w[i*rnd_bus1 +: rnd_bus1]),
+        .rnd_bus2w(rnd_bus2w[i*rnd_bus2 +: rnd_bus2]),
+`ifdef CANRIGHT_SBOX
+        .rnd_bus3w(rnd_bus3w[i*rnd_bus3 +: rnd_bus3]),
+`endif
         .o0(bytes_from_SB[i][0*d +: d]),
         .o1(bytes_from_SB[i][1*d +: d]),
         .o2(bytes_from_SB[i][2*d +: d]),

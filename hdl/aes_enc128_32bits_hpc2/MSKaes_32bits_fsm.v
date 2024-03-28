@@ -79,7 +79,7 @@ output reg enable_key_add;
 
 // Generation parameters
 localparam SERIAL_LAT=4;
-localparam SBOX_LAT=6;
+localparam SBOX_LAT=4;
 localparam FIRST_KEXP_CYCLE=SBOX_LAT-1;
 
 
@@ -107,6 +107,8 @@ wire last_round_cycle = cnt_fsm == SBOX_LAT+SERIAL_LAT-1;
 wire last_FAK_cycle = cnt_fsm == SERIAL_LAT-1;
 
 wire in_AKSB = cnt_fsm<SERIAL_LAT;
+wire in_AKSB_except_last = cnt_fsm < SERIAL_LAT-1;
+
 wire in_KEXP_FIRST = cnt_fsm==FIRST_KEXP_CYCLE;
 wire in_KEXP = (cnt_fsm>=FIRST_KEXP_CYCLE) & (cnt_fsm<(FIRST_KEXP_CYCLE+SERIAL_LAT));
 
@@ -341,8 +343,9 @@ always@(*) begin
     // during the final key addition or
     // if no execution starts and the output is fetched (to empty the core).
     KH_enable = (
+        in_first_SBK |
         in_fetch |
-        ((in_round | in_last_round) & (in_AKSB | in_KEXP)) |
+        ((in_round | in_last_round) & ((in_AKSB_except_last | last_round_cycle) | in_KEXP)) |
         in_AKfinal |
         in_reset_KH 
     );
@@ -352,11 +355,13 @@ always@(*) begin
     //
     // The result of the sbox is added to the key column during
     // the first cycle of the key expension.
-    if((in_round | in_last_round) & in_AKSB) begin
+    if((in_round | in_last_round) & (in_AKSB_except_last | last_round_cycle)) begin
         KH_loop = 1;
     end else if((in_round | in_last_round) & in_KEXP_FIRST) begin
         KH_add_from_sb = 1;
     end else if(in_AKfinal) begin
+        KH_loop = 1;
+    end else if(in_first_SBK) begin
         KH_loop = 1;
     end
 end

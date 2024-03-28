@@ -11,13 +11,16 @@
 // on this source, You must where practicable maintain the Source Location
 // visible on the external case of any product you make using this source.
 
-// Masked AES implementation using HPC2 masking scheme and 32-bit
+// Masked AES implementation using HPC masking scheme and 32-bit
 // architecture.
-module aes_enc128_32bits_hpc2
+`ifndef DEFAULTSHARES
+`define DEFAULTSHARES 2
+`endif
+module aes_enc128_32bits_hpc
 #
 (
-    parameter d = 2,
-    parameter PRNG_MAX_UNROLL = 128 
+    parameter d = `DEFAULTSHARES,
+    parameter PRNG_MAX_UNROLL = 512
 )
 (
     clk,
@@ -60,8 +63,7 @@ output [128*d-1:0] out_shares_ciphertext;
 output out_valid;
 input out_ready;
 
-
-`include "MSKand_HPC2.vh" 
+`include "design.vh" 
 
 /* =========== Aes core =========== */
 wire aes_busy;
@@ -69,10 +71,13 @@ wire aes_valid_in;
 wire aes_ready_in;
 wire aes_cipher_valid;
 wire aes_out_ready;
-wire [4*9*and_pini_nrnd-1:0] rnd_bus0;    
-wire [4*3*and_pini_nrnd-1:0] rnd_bus2;
-wire [4*4*and_pini_nrnd-1:0] rnd_bus3;
-wire [4*18*and_pini_nrnd-1:0] rnd_bus4;
+wire [4*rnd_bus0-1:0] rnd_bus0w;
+wire [4*rnd_bus1-1:0] rnd_bus1w;
+wire [4*rnd_bus2-1:0] rnd_bus2w;
+`ifdef CANRIGHT_SBOX
+wire [4*rnd_bus3-1:0] rnd_bus3w;
+
+`endif
 wire aes_in_ready_rnd;
 
 // Modify shares encoding to sequential shared bit instead of 
@@ -116,16 +121,22 @@ aes_core(
     .sh_plaintext(sh_plaintext),
     .sh_key(sh_key),
     .sh_ciphertext(sh_ciphertext),
-    .rnd_bus0(rnd_bus0),
-    .rnd_bus2(rnd_bus2),
-    .rnd_bus3(rnd_bus3),
-    .rnd_bus4(rnd_bus4),
+    .rnd_bus0w(rnd_bus0w),
+    .rnd_bus1w(rnd_bus1w),
+    .rnd_bus2w(rnd_bus2w),
+`ifdef CANRIGHT_SBOX
+    .rnd_bus3w(rnd_bus3w),
+`endif
     .in_ready_rnd(aes_in_ready_rnd)
 );
 
 /* =========== PRNG =========== */
 localparam NINIT=4*288;
-localparam RND_AM = 4*34*and_pini_nrnd;
+`ifdef CANRIGHT_SBOX
+localparam RND_AM = 4*(rnd_bus0+rnd_bus1+rnd_bus2+rnd_bus3);
+`else
+localparam RND_AM = 4*(rnd_bus0+rnd_bus1+rnd_bus2);
+`endif
 wire [RND_AM-1:0] rnd; 
 
 wire prng_start_reseed;
@@ -143,10 +154,12 @@ prng_unit(
     .busy(prng_busy)
 );
 
-assign rnd_bus0 = rnd[0 +: 4*9*and_pini_nrnd];
-assign rnd_bus2 = rnd[4*9*and_pini_nrnd +: 4*3*and_pini_nrnd];
-assign rnd_bus3 = rnd[4*12*and_pini_nrnd +: 4*4*and_pini_nrnd];
-assign rnd_bus4 = rnd[4*16*and_pini_nrnd +: 4*18*and_pini_nrnd];
+assign rnd_bus0w = rnd[0 +: 4*rnd_bus0];
+assign rnd_bus1w = rnd[4*rnd_bus0 +: 4*rnd_bus1];
+assign rnd_bus2w = rnd[4*(rnd_bus0+rnd_bus1) +: 4*rnd_bus2];
+`ifdef CANRIGHT_SBOX
+assign rnd_bus3w = rnd[4*(rnd_bus0+rnd_bus1+rnd_bus2) +: 4*rnd_bus3];
+`endif
 
 // SVRS interfaces handling.
 // Stall input interface if PRNG output is not valid.
