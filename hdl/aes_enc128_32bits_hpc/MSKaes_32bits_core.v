@@ -48,9 +48,7 @@ module MSKaes_32bits_core
     rnd_bus0w,
     rnd_bus1w,
     rnd_bus2w,
-`ifdef CANRIGHT_SBOX
     rnd_bus3w,
-`endif
     in_ready_rnd
 );
 
@@ -86,10 +84,8 @@ input [4*rnd_bus0-1:0] rnd_bus0w;
 input [4*rnd_bus1-1:0] rnd_bus1w;
 (* fv_type="random", fv_count=0, fv_rnd_count_0=4*rnd_bus2 *)
 input [4*rnd_bus2-1:0] rnd_bus2w;
-`ifdef CANRIGHT_SBOX
 (* fv_type="random", fv_count=0, fv_rnd_count_0=4*rnd_bus3 *)
 input [4*rnd_bus3-1:0] rnd_bus3w;
-`endif
 
 (* fv_type="control" *)
 output in_ready_rnd;
@@ -231,9 +227,7 @@ for(i=0;i<4;i=i+1) begin: sbox_isnt
         .rnd_bus0w(rnd_bus0w[i*rnd_bus0 +: rnd_bus0]),
         .rnd_bus1w(rnd_bus1w[i*rnd_bus1 +: rnd_bus1]),
         .rnd_bus2w(rnd_bus2w[i*rnd_bus2 +: rnd_bus2]),
-`ifdef CANRIGHT_SBOX
         .rnd_bus3w(rnd_bus3w[i*rnd_bus3 +: rnd_bus3]),
-`endif
         .o0(bytes_from_SB[i][0*d +: d]),
         .o1(bytes_from_SB[i][1*d +: d]),
         .o2(bytes_from_SB[i][2*d +: d]),
