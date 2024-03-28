@@ -49,7 +49,8 @@ simu-build:
 	    -D TV_OUT=\"${TVOUT}\" \
 	    $(TB_FILE) \
 	    -o work/simu-exec-$(TB_TARGET) \
-	    -D DUMPFILE=\"work/log-$(TB_TARGET).vcd\" 
+	    -D DUMPFILE=\"work/log-$(TB_TARGET).vcd\" \
+	    -D behavioral
 
 clean:
 	rm -rf work
