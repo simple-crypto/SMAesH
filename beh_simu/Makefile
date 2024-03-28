@@ -17,7 +17,12 @@ KATIN=${TV_DIR}/${TV_FILE_PREF}.rsp
 TVIN=${DIR_GENERATED}/TV_${TV_FILE_PREF}_in.rsp
 TVOUT=${DIR_GENERATED}/TV_${TV_FILE_PREF}_out.rsp
 
-all: simu
+help:
+	@echo "Behavioral simulation of the masked core."
+	@echo "make simu: run the simulation."
+	@echo "make wave: open gtkwave."
+	@echo "makefile parameter TB_TARGET: name of the tb module."
+	@echo "makefile parameter TV_FILE_PREF: name of the KAT file to use for testvector (without extension)."
 
 ${TVIN}:
 	mkdir -p ${DIR_GENERATED}
@@ -50,11 +55,5 @@ clean:
 	rm -rf work
 	rm -rf tvs/generated
 
-help:
-	@echo "Behavioral simulation of the masked core."
-	@echo "make simu: run the simulation."
-	@echo "make wave: open gtkwave."
-	@echo "makefile parameter TB_TARGET: name of the tb module."
-	@echo "makefile parameter TV_FILE_PREF: name of the KAT file to use for testvector (without extension)."
 
 .PHONY: clean help wave simu-build simu tv
