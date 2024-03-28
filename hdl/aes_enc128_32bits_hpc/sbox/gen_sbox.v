@@ -1,5 +1,5 @@
 (* fv_strat="flatten" *)
-module gen_bp_sbox
+module gen_sbox
 #
 (
     parameter d=2

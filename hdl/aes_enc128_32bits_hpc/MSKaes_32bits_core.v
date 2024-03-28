@@ -213,7 +213,7 @@ wire sbox_valid_in;
 genvar i;
 generate
 for(i=0;i<4;i=i+1) begin: sbox_isnt
-    gen_bp_sbox #(.d(d))
+    gen_sbox #(.d(d))
     sbox_unit(
         .clk(clk),
         .i0(bytes_to_SB[i][0*d +: d]),
