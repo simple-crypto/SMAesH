@@ -53,6 +53,7 @@ implemented in the $\topName$ hardware IP.
 \section{History}
 
 \begin{description}
+    \item[2.0.0 (2024-??-??)] 4 cycles Canright Sbox (new optimised architecture) \todo{FIXME}.
     \item[1.0.1 (2023-06-15)] Fix latency in Section 5.4 (documentation change only).
     \item[1.0.0 (2023-05-01)] Initial release.
 \end{description}
@@ -410,6 +411,9 @@ using Verilog operators.
     \label{fig:aes_glob_arch}
 \end{figure}
 
+\todo{FIXME: verify Boyar Peralta Sbox reference}
+\todo{FIXME: check latency in architecture Figures}
+
 The module $\topModAES$ is almost identical to the 32-bit masked AES implementation
 presented in~\cite{DBLP:conf/cosade/MominCS22}. As shown in
 Figure~\ref{fig:aes_glob_arch}, the module is organized around two datapath
@@ -482,10 +486,17 @@ core by asserting the signal $\dpStateCtrlRouteMC$.
 
 The module $\modAESdpKey$ is shown in Figure~\ref{fig:aes_dpKey}. It is
 organized as a shift register where each register unit holds a masked byte of
-the key (the numbers on the Figure indicate the byte index in the unmasked
-key).  The module is split in 4~independent parts, each taking care of the key
-scheduling operation on a single row. The sharing of the 128-bit key is routed from the input with the 
-control signal $\dpKeyCtrlInit$.
+the key. The module is split in 4~independent parts, each taking care of the
+key scheduling operation on a single row. The sharing of the 128-bit key is
+routed from the input with the control signal $\dpKeyCtrlInit$. Two relevant
+bytes ordering are depicted on the Figure and both refers to the byte index in
+the unmasked key. First, the number on the top depict the byte ordering at the
+beginning of a round when the key addition occurs. Second, the bottom number
+(between parentheses) depict the byte ordering when a fresh execution starts,
+at the last cycle of a round or when the $\SB$ layer results of the key
+scheduling are fetch back from the S-boxes, as detailed next. In practice, the
+second ordering corresponds to the first one with a rotation of 1 column to the
+left.
 
 Concretely, the key scheduling starts by sending the last column of the key
 (i.e., byte indexes 12, 13, 14 and 15) to the S-boxes.  The $\texttt{RotWord}$
@@ -619,9 +630,9 @@ execution begins. The round function and the key scheduling algorithm are
 executed in parallel by interleaving the S-boxes usage appropriately. In
 particular, the first cycle of the execution is used to start the key
 scheduling algorithm by asserting $\AESsboxFeedKey$ and $\AESsboxValidIn$.
-During this cycle, both the module $\modAESdpState$ and $\modAESdpKey$ are
-disabled.
-
+During this cycle, the module $\modAESdpKey$ is enabled and the
+$\dpKeyCtrlLoop$ (rotating then the columns), while the module $\modAESdpState$
+is disabled.
 \begin{figure}
     \centering
     \input{figures/tikz_time_regime} 
@@ -636,18 +647,15 @@ state registers, XORed with the subkey and fed to the S-boxes, which performs
 the $\AK$, $\SR$ and $\SB$ layers for the full state (one column per cycle).
 During these cycles, $\AESsboxValidIn$ is asserted and data (state and subkey)
 loops over the shift registers.
-At the fifth cycle of a round (i.e., when $\timeCnrCycle=4$), the module
-$\modAESdpKey$ is disabled in order to wait one cycle for the S-box results.
-At the same cycle, the S-boxes output the column of the new subkey value, which is
-processed by enabling the module $\modAESdpKey$ and asserting
-$\dpKeyCtrlRouteFromSB$ for one cycle.
-Next, during the last 4~cycles of a round, the
-S-boxes output the 4~columns of the state, on which the $\MC$ layer is directly
-applied, and the result is stored in the state registers.
-At the same time, the subkey update is finalized, such that a new subkey is
-ready at the last cycle of a round (i.e., $\timeCnrCycle=9$).
-During this last cycle, the next key schedule round is started, and a new state
-round starts at the following cycle. 
+An exception occurs at the fourth cycle (i.e., 
+when $\timeCnrCycle=3$): at this cycle, the S-boxes output the column of the
+new subkey value, which is processed by deasserting $\dpKeyCtrlLoop$.  Next,
+during the last 4~cycles of a round, the S-boxes output the 4~columns of the
+state, on which the $\MC$ layer is directly applied, and the result is stored
+in the state registers. At the same time, the subkey update is finalized, such
+that a new subkey is ready at the last cycle of a round (i.e.,
+$\timeCnrCycle=7$). During this last cycle, the next key schedule round is
+started, and a new state round starts at the following cycle.
 
 \begin{figure}
     \centering
@@ -669,6 +677,8 @@ This ensures that the core is completely clear of any key- or
 plaintext-dependent data.
 
 \subsection{Randomness Generation} 
+
+\todo{FIXME: update with canright}
 
 \begin{figure}
     \centering
@@ -756,6 +766,8 @@ the completion of a reseed.
         \label{table:synth}
     \end{threeparttable}
 \end{table}
+
+\todo{FIXME: Fix area Table}
 
 Following the architecture described section~\ref{sec:architecture}, the latency is
 $105$ cycles per execution. Table~\ref{table:synth} contains performance metrics

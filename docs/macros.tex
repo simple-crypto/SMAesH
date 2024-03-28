@@ -122,20 +122,20 @@
 %% Pipeline dp Key
 \newcommand{\dpKeyDFF}[1]{\ensuremath{\texttt{sh\_m\_key[#1]}}}
 
-\newcommand{\timeStartdpKey}[1]{D{}\cDP{\pRK{#1}{i-2}}}
-\newcommand{\timeFivedpKey}[4]{\NcDP{\pRK{#1}{i-1}}{2}\cDP{\pRK{#2}{i-1}}\cDP{\pRK{#3}{i-1}}\cDP{\pRK{#4}{i-1}}\NcDP{\pRK{#1}{i-1}}{2}}
+\newcommand{\timeStartdpKey}[1]{D{}\cDP{\pRK{#1}{i-1}}}
+\newcommand{\timeFivedpKey}[4]{\NcDP{\pRK{#1}{i-1}}{1}\cDP{\pRK{#2}{i-1}}\cDP{\pRK{#3}{i-1}}\cDP{\pRK{#4}{i-1}}}
 \newcommand{\timePartdpKey}[4]{\cDP{\pRK{#2}{i-1}}\cDP{\pRK{#3}{i-1}}\cDP{\pRK{#4}{i-1}}}
-\newcommand{\timeStopdpKey}[2]{\NcDP{\pRK{#1}{i}}{2}\cDP{\pRK{#2}{i}}}
+\newcommand{\timeStopdpKey}[2]{\NcDP{\pRK{#1}{i}}{1}\cDP{\pRK{#2}{i}}}
 
-\newcommand{\timeMidIdpKey}[3]{\cDP{\pRK{#1}{i-1}}\cDP{\pRK{#2}{i-1}}\cDP{\pRK{#3}{i-1}}}
-\newcommand{\timeMidIIdpKey}[3]{\cDP{\pRK{#1}{i-1}}\cDP{\pRK{#2}{i-1}}\cDP{\pRK{#3}{i}}}
-\newcommand{\timeMidIIIdpKey}[3]{\cDP{\pRK{#1}{i-1}}\cDP{\pRK{#2}{i}}\cDP{\pRK{#3}{i}}}
-\newcommand{\timeMidIIIIdpKey}[3]{\cDP{\pRK{#1}{i}}\cDP{\pRK{#2}{i}}\cDP{\pRK{#3}{i}}}
+\newcommand{\timeMidIdpKey}[4]{\NcDP{\pRK{#1}{i}}{1}\cDP{\pRK{#2}{i}}\cDP{\pRK{#3}{i}}\cDP{\pRK{#4}{i}}}
+\newcommand{\timeMidIIdpKey}[4]{\NcDP{\pRK{#1}{i-1}}{1}\cDP{\pRK{#2}{i-1}}\cDP{\pRK{#3}{i-1}}\cDP{\pRK{#4}{i}}}
+\newcommand{\timeMidIIIdpKey}[4]{\NcDP{\pRK{#1}{i-1}}{1}\cDP{\pRK{#2}{i-1}}\cDP{\pRK{#3}{i}}\cDP{\pRK{#4}{i}}}
+\newcommand{\timeMidIIIIdpKey}[4]{\NcDP{\pRK{#1}{i-1}}{1}\cDP{\pRK{#2}{i}}\cDP{\pRK{#3}{i}}\cDP{\pRK{#4}{i}}}
 
-\newcommand{\timeLinedpKeyI}[4]{\timeStartdpKey{#4}\timeFivedpKey{#1}{#2}{#3}{#4}\timeMidIdpKey{#2}{#3}{#4}\timeStopdpKey{#1}{#2}}
-\newcommand{\timeLinedpKeyII}[4]{\timeStartdpKey{#4}\timeFivedpKey{#1}{#2}{#3}{#4}\timeMidIIdpKey{#2}{#3}{#4}\timeStopdpKey{#1}{#2}}
-\newcommand{\timeLinedpKeyIII}[4]{\timeStartdpKey{#4}\timeFivedpKey{#1}{#2}{#3}{#4}\timeMidIIIdpKey{#2}{#3}{#4}\timeStopdpKey{#1}{#2}}
-\newcommand{\timeLinedpKeyIIII}[4]{\timeStartdpKey{#4}\timeFivedpKey{#1}{#2}{#3}{#4}\timeMidIIIIdpKey{#2}{#3}{#4}\timeStopdpKey{#1}{#2}}
+\newcommand{\timeLinedpKeyI}[4]{\timeStartdpKey{#4}\timeFivedpKey{#1}{#2}{#3}{#4}\timeMidIdpKey{#1}{#2}{#3}{#4}\timeStopdpKey{#1}{#2}}
+\newcommand{\timeLinedpKeyII}[4]{\timeStartdpKey{#4}\timeFivedpKey{#1}{#2}{#3}{#4}\timeMidIIdpKey{#1}{#2}{#3}{#4}\timeStopdpKey{#1}{#2}}
+\newcommand{\timeLinedpKeyIII}[4]{\timeStartdpKey{#4}\timeFivedpKey{#1}{#2}{#3}{#4}\timeMidIIIdpKey{#1}{#2}{#3}{#4}\timeStopdpKey{#1}{#2}}
+\newcommand{\timeLinedpKeyIIII}[4]{\timeStartdpKey{#4}\timeFivedpKey{#1}{#2}{#3}{#4}\timeMidIIIIdpKey{#1}{#2}{#3}{#4}\timeStopdpKey{#1}{#2}}
 
 %% Pipeline dp State
 \newcommand{\dpStateDFF}[1]{\ensuremath{\texttt{sh\_reg\_out[#1]}}}
@@ -162,17 +162,17 @@
 \newcommand{\timeStInterndpStateZ}[4]{D{}\cDP{\pS{#3}{i-1}}\cDP{\pS{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pMC{#2}{i-1}}\cDP{\pMC{#3}{i-1}}\cDP{\pMC{#4}{i-1}}\cDP{\pS{#1}{i}}}
 
 % End 
-\newcommand{\timeEndInterndpStateXII}[4]{2{XX}\cDP{\pMC{#2}{i}}\cDP{\pMC{#3}{i}}\cDP{\pMC{#4}{i}}\cDP{\pMC{#1}{i}}\cDP{\pS{#2}{i+1}}}
-\newcommand{\timeEndInterndpStateXIII}[4]{2{XX}\cDP{\pMC{#2}{i}}\cDP{\pMC{#3}{i}}\cDP{\pMC{#4}{i}}\cDP{\pMC{#1}{i}}\cDP{\pMC{#2}{i}}}
+\newcommand{\timeEndInterndpStateXII}[4]{\cDP{\pMC{#2}{i}}\cDP{\pMC{#3}{i}}\cDP{\pMC{#4}{i}}\cDP{\pMC{#1}{i}}\cDP{\pS{#2}{i+1}}}
+\newcommand{\timeEndInterndpStateXIII}[4]{\cDP{\pMC{#2}{i}}\cDP{\pMC{#3}{i}}\cDP{\pMC{#4}{i}}\cDP{\pMC{#1}{i}}\cDP{\pMC{#2}{i}}}
 
-\newcommand{\timeEndInterndpStateXI}[4]{\NcDP{\pS{#2}{i}}{2}1{XX}\cDP{\pMC{#3}{i}}\cDP{\pMC{#4}{i}}\cDP{\pMC{#1}{i}}\cDP{\pS{#2}{i+1}}}
-\newcommand{\timeEndInterndpStateX}[4]{\NcDP{\pS{#2}{i}}{2}1{XX}\cDP{\pMC{#3}{i}}\cDP{\pMC{#4}{i}}\cDP{\pMC{#1}{i}}\cDP{\pMC{#2}{i}}}
+\newcommand{\timeEndInterndpStateXI}[4]{\NcDP{\pS{#2}{i}}{1}\cDP{\pMC{#3}{i}}\cDP{\pMC{#4}{i}}\cDP{\pMC{#1}{i}}\cDP{\pS{#2}{i+1}}}
+\newcommand{\timeEndInterndpStateX}[4]{\NcDP{\pS{#2}{i}}{1}\cDP{\pMC{#3}{i}}\cDP{\pMC{#4}{i}}\cDP{\pMC{#1}{i}}\cDP{\pMC{#2}{i}}}
 
-\newcommand{\timeEndInterndpStateVII}[4]{\NcDP{\pS{#2}{i}}{2}\cDP{\pS{#3}{i}}1{XX}\cDP{\pMC{#4}{i}}\cDP{\pMC{#1}{i}}\cDP{\pMC{#2}{i}}}
-\newcommand{\timeEndInterndpStateVI}[4]{\NcDP{\pS{#2}{i}}{2}\cDP{\pS{#3}{i}}1{XX}\cDP{\pMC{#4}{i}}\cDP{\pMC{#1}{i}}\cDP{\pS{#2}{i+1}}}
+\newcommand{\timeEndInterndpStateVII}[4]{\NcDP{\pS{#2}{i}}{1}\cDP{\pS{#3}{i}}\cDP{\pMC{#4}{i}}\cDP{\pMC{#1}{i}}\cDP{\pMC{#2}{i}}}
+\newcommand{\timeEndInterndpStateVI}[4]{\NcDP{\pS{#2}{i}}{1}\cDP{\pS{#3}{i}}\cDP{\pMC{#4}{i}}\cDP{\pMC{#1}{i}}\cDP{\pS{#2}{i+1}}}
 
-\newcommand{\timeEndInterndpStateIII}[4]{\NcDP{\pS{#2}{i}}{2}\cDP{\pS{#3}{i}}\cDP{\pS{#4}{i}}1{XX}\cDP{\pMC{#1}{i}}\cDP{\pMC{#2}{i}}}
-\newcommand{\timeEndInterndpStateI}[4]{\NcDP{\pS{#2}{i}}{2}\cDP{\pS{#3}{i}}\cDP{\pS{#4}{i}}1{XX}\cDP{\pMC{#1}{i}}\cDP{\pS{#2}{i+1}}}
+\newcommand{\timeEndInterndpStateIII}[4]{\NcDP{\pS{#2}{i}}{1}\cDP{\pS{#3}{i}}\cDP{\pS{#4}{i}}\cDP{\pMC{#1}{i}}\cDP{\pMC{#2}{i}}}
+\newcommand{\timeEndInterndpStateI}[4]{\NcDP{\pS{#2}{i}}{1}\cDP{\pS{#3}{i}}\cDP{\pS{#4}{i}}\cDP{\pMC{#1}{i}}\cDP{\pS{#2}{i+1}}}
 
 % Full line
 \newcommand{\timeLinedpStateXII}[4]{\timeStInterndpStateXII{#1}{#2}{#3}{#4}\timeEndInterndpStateXII{#1}{#2}{#3}{#4}}

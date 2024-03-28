@@ -1,40 +1,40 @@
 \begin{tikztimingtable}
-        \texttt{clk} & L14{HL}\\
+        \texttt{clk} & L12{HL}\\
         \\
-        \timeCnrExecCycles & D{38}2D{39}2D{40}2D{41}2D{42}2D{43}2D{44}2D{45}2D{46}2D{47}2D{48}2D{49}2D{50}2D{51}2D{52} \\
-        \timeCnrRound & D2{DD}{3} 10{DD}{4} 2{DD}{5} \\
-        \timeCnrCycle & D{7} 2D{8} 2D{9} 2D{0}2D{1}2D{2}2D{3}2D{4}2D{5}2D{6}2D{7}2D{8}2D{9}2D{0}2D{1} \\
+        \timeCnrExecCycles & D{30}2D{31}2D{32}2D{33}2D{34}2D{35}2D{36}2D{37}2D{38}2D{39}2D{40}2D{41}2D{42} \\
+        \timeCnrRound & D2{DD}{3} 8{DD}{4} 2{DD}{5} \\
+        \timeCnrCycle & D{5} 2D{6} 2D{7} 2D{0}2D{1}2D{2}2D{3}2D{4}2D{5}2D{6}2D{7}2D{0}2D{1} \\
         \\ 
         {\color{red} \topModAES} \\
-        \AESFetchIn & L14{LL}\\
-        \AESsboxFeedKey & L2L 2H 9{LL} 2H 2{LL}\\
-        \AESsboxValidIn & L2L 5{HH} 5{LL} 3{HH}\\
-        \AESsboxValidOut & H2{HH} 5{LL} 5{HH} 2{LL}\\
-        \portAESOutValid & L14{LL}\\
+        \AESFetchIn & L12{LL}\\
+        \AESsboxFeedKey & L2L 2H 7{LL} 2H 2{LL}\\
+        \AESsboxValidIn & L2L 5{HH} 3{LL} 3{HH}\\
+        \AESsboxValidOut & H2{HH} 3{LL} 5{HH} 2{LL}\\
+        \portAESOutValid & L12{LL}\\
         \\
         {\color{red} \modAESdpState}  \\
-        \dpStateCtrlEnable & H7{HH}1{LL}6{HH} \\
-        \dpStateCtrlRouteIn & L14{LL} \\
-        \dpStateCtrlRouteLoop & L2{LL} 4{HH} 6{LL} 2{HH}\\
-        \dpStateCtrlRouteMC & H14{HH} \\
+        \dpStateCtrlEnable & H5{HH}1{LL}6{HH} \\
+        \dpStateCtrlRouteIn & L12{LL} \\
+        \dpStateCtrlRouteLoop & L2{LL} 4{HH} 4{LL} 2{HH}\\
+        \dpStateCtrlRouteMC & H12{HH} \\
         \\
         {\color{red} \modAESdpKey} \\
-        \dpKeyCtrlEnable & H1{HH}1{LL} 4{HH} 1{LL} 4{HH} 1{LL} 2{HH}\\
-        \dpKeyCtrlRouteInit & L14{LL} \\
-        \dpKeyCtrlRouteLoop & L2{LL} 4{HH} 8{LL} \\
-        \dpKeyCtrlRouteFromSB & L2{LL} 5{LL} 2H 6{LL}\\
+        \dpKeyCtrlEnable & H1{HH}1{HH} 4{HH} 1{HH} 4{HH} 1{HH}\\
+        \dpKeyCtrlRouteInit & L12{LL} \\
+        \dpKeyCtrlRouteLoop & L1{LL} 4{HH} 4{LL} 3{HH} \\
+        \dpKeyCtrlRouteFromSB & L2{LL} 3{LL} 2H 6{LL}\\
         \extracode
         \makeatletter
         \begin{pgfonlayer}{background}
             % Draw cycles
             \begin{scope}[gray,semitransparent,semithick]
-                \foreach \x in {1,3,...,27}{
-                    \draw (\x,1.5) -- (\x,-44.5);
+                \foreach \x in {1,3,...,23}{
+                    \draw (\x,1.5) -- (\x,-46.5);
                 }
             \end{scope}
             % Draw round
-            \foreach \x in {5,25}{
-                \draw [thick] (\x,2) -- (\x,-45);
+            \foreach \x in {5,21}{
+                \draw [thick] (\x,2) -- (\x,-47);
             }
         \end{pgfonlayer}
 \end{tikztimingtable}

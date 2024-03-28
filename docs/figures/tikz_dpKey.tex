@@ -6,14 +6,16 @@
 \def\widthDFF{1.5}
 \def\heightDFF{3}
 % Spacing between DFF instance
-\def\spacexDFF{7.5}
-\def\spaceyDFF{8}
+\def\spacexDFF{9.5}
+\def\spaceyDFF{11}
 % Y space for last column loop
-\def\spaceyLoop{3.5}
-% X space for last column input
+\def\spaceyLoop{7}
+% X space for last column input FIXME: modify to InFirstCol
 \def\spacexInLastCol{1}
 % Y space for for mux last column
-\def\spaceyMuxInLastCol{0.5}
+\def\spaceyMuxInLastCol{0}
+% Y-offset for XOR at the input for the  first column
+\def\offsetyXorInFirstCol{3}
 
 \def\fontS{\Large}
 \def\fontCtrl{}
@@ -78,26 +80,26 @@
         \pgfmathsetmacro\DFFindex{int(12-4*\xi+\yi)}
         \DFFMUX{D\DFFindex}{($(D00)+(\xshDFF,-\yshDFF)$)}
         % Compute byte index
-        \node at (D\DFFindex/text) {\Large $\DFFindex$};
+        \pgfmathsetmacro\DFFinitIndex{int(mod(16+\DFFindex-4,16))}
+        \node [text width=1cm, align=center] at (D\DFFindex/text) {\Large $\DFFindex$ \\ \hfill \\ $(\DFFinitIndex)$};
         % Add the text to the DFF input
         \pgfmathsetmacro\mBound{int(8*\DFFindex)}
         \pgfmathsetmacro\MBound{int(8*(1+\DFFindex))}
     }
 }
 
-%%% Generate the input construction at the last column 
-% Also generate the feedback loop and the byte to SBox
-\foreach \xi in {12,...,15}{
+%%%% Generate the input construction at the first column 
+\foreach \xi in {0,...,3}{
     % Draw the input mux
-    \path let \p1=(D\xi/in1), \p2=(D\xi/north) in coordinate (locm) at ($(\x1,\y2)+(-0.3,\spaceyMuxInLastCol)$);
+    \path let \p1=(D\xi/in1), \p2=(D\xi/north) in coordinate (locm) at ($(\x1,\y1)+(-1,\spaceyMuxInLastCol)$);
     \node[mux2,line width=\scaleCTIKZ*\lwModule,anchor=rpin 1] (MI\xi) at (locm) {};
     \draw [line width=\lwWire] (MI\xi.rpin 1) |- (D\xi/in1);
     % Create control signal for MUXin
     \muxCtrl{D\xi/mux}{$\dpKeyCtrlRouteScan$}{1}{0}
     \muxCtrl{MI\xi}{$\dpKeyCtrlRouteLoop$}{0}{1}
     % XOR
-    \XOR{xor\xi}{($(D\xi/in2)+(-2,0)$)}{0.3}
-    \draw [line width=\lwWire] (xor\xi/east) -- (D\xi/in2);
+    \XOR{xor\xi}{($(D\xi/in2)+(-3,-\offsetyXorInFirstCol)$)}{0.3}
+    \draw [line width=\lwWire] (xor\xi/east) -| (D\xi/in2);
     % Mux at the input of the XOR
     \node[mux2,line width=\scaleCTIKZ*\lwModule,anchor=rpin 1,xshift=-0.5cm] (MX\xi) at (xor\xi/west) {};
     \draw [line width=\lwWire] (MX\xi.rpin 1) -- (xor\xi/west);
@@ -112,48 +114,47 @@
     \path let \p1=(MI\xi.lpin 2), \p2=(xor\xi/north) in coordinate (FB\xi) at (\x2,\y1);
     \debugN[FB\xi]{(FB\xi)}
     %% Generate key input
-    \path let \p1=(MX\xi.lpin 1), \p2=(MI\xi.lpin 1) in coordinate (inKey\xi) at (\x1,\y2);
+    \path let \p1=(MX\xi.lpin 1), \p2=(MI\xi.lpin 1) in coordinate (inKey\xi) at ($(\x1,\y2)+(0,1.5)$);
     \debugN[inKey\xi]{(inKey\xi)}
-    \draw [->,line width=\lwWire] (inKey\xi) -- (MI\xi.lpin 1);
+    \draw [->,line width=\lwWire] (inKey\xi) -- ++(1,0) |- (MI\xi.lpin 1);
     %% Generate Sbox input
     \coordinate (fromSB\xi) at (MX\xi.lpin 1); 
     \debugN[fromSB\xi]{(fromSB\xi)}
     %% Generate feedback loop
-    \pgfmathsetmacro\rIdx{int(\xi-12)}
-    \path let \p1=(inKey\xi), \p2=(D\rIdx/out) in coordinate (tmp) at (\x2,\y1);
-    \coordinate (tmp1) at ($(tmp)+(0,1)$);
-    \draw [line width=\lwWire] (D\rIdx/out) -- (tmp1) -| (FB\xi);
+    \pgfmathsetmacro\rIdx{int(\xi+4)}
+    \draw [line width=\lwWire] (D\rIdx/out) -- (FB\xi);
     %% Draw input nodes
     % to Sbox
-    \coordinate (toSB\xi) at ($(D\xi/out)+(1,-\spaceyLoop)$);
+    \coordinate (toSB\xi) at ($(D\xi/out)+(1,0)$);
     \debugN[toSB\xi]{(toSB\xi)}
     % to AK
-    \pgfmathsetmacro\idxAK{int(\xi-12)}
-    \coordinate (toAK\idxAK) at ($(D\idxAK/out)+(1,-\spaceyLoop+1)$);
+    \pgfmathsetmacro\idxAK{int(\xi)}
+    \path let \p1=(D\idxAK/out), \p2=(MI\xi.lpin 1) in coordinate (LocToAK\idxAK) at ($(\x1,\y2)+(0.5,1)$);
+    \coordinate (toAK\idxAK) at (LocToAK\idxAK);
     \debugN[toAK\idxAK]{(toAK\idxAK)}
     % Key in 
-    \pgfmathsetmacro\mB{int((\xi)*8))}
-    \pgfmathsetmacro\MB{int((\xi+1)*8)}
+    \pgfmathsetmacro\corrXI{int(mod(\xi+12,16))}
+    \pgfmathsetmacro\mB{int((\corrXI)*8))}
+    \pgfmathsetmacro\MB{int((\corrXI+1)*8)}
     \node [anchor=east] at (inKey\xi) {\fontS $\AESdpKeyKey[\MB d-1: \mB d]$};
-
 }
 
 %% Draw the port to SB
-\node [anchor=west] at (toSB12) {\fontS $\AESdpKeyToSB[32d-1:24d]$};
-\node [anchor=west] at (toSB13) {\fontS $\AESdpKeyToSB[8d-1:0d]$};
-\node [anchor=west] at (toSB14) {\fontS $\AESdpKeyToSB[16d-1:8d]$};
-\node [anchor=west] at (toSB15) {\fontS $\AESdpKeyToSB[24d-1:16d]$};
-\draw [->,line width=\lwWire] (D12/out) |- (toSB12);
-\draw [->,line width=\lwWire] (D13/out) |- (toSB13);
-\draw [->,line width=\lwWire] (D14/out) |- (toSB14);
-\draw [->,line width=\lwWire] (D15/out) |- (toSB15);
+\node [anchor=west] at (toSB0) {\fontS $\AESdpKeyToSB[32d-1:24d]$};
+\node [anchor=west] at (toSB1) {\fontS $\AESdpKeyToSB[8d-1:0d]$};
+\node [anchor=west] at (toSB2) {\fontS $\AESdpKeyToSB[16d-1:8d]$};
+\node [anchor=west] at (toSB3) {\fontS $\AESdpKeyToSB[24d-1:16d]$};
+\draw [->,line width=\lwWire] (D0/out) |- (toSB0);
+\draw [->,line width=\lwWire] (D1/out) |- (toSB1);
+\draw [->,line width=\lwWire] (D2/out) |- (toSB2);
+\draw [->,line width=\lwWire] (D3/out) |- (toSB3);
 
-%%% Generate the inport port for columns other than last ones
+%%% Generate the inport port for columns other than first ones
 %%% Generate also input connexions for the DFF units
 \foreach \xi in {0,...,3}{
-    \foreach \yi in {0,...,2}{
-        % Fetch y coordinate of the input mux of last column
-        \pgfmathsetmacro\refIdx{int(12+\xi)}
+    \foreach \yi in {1,...,2}{
+        % Fetch y coordinate of the input mux of first column
+        \pgfmathsetmacro\refIdx{int(\xi)}
         \pgfmathsetmacro\DIdx{int(\xi+4*\yi)}
         \coordinate (refP) at (MI\refIdx.lpin 1);
         \path let \p1=(refP), \p2=(D\DIdx/in1) in coordinate (inKey\DIdx) at ($(\x2,\y1) + (-0.5,0)$);  
@@ -163,24 +164,25 @@
         \pgfmathsetmacro\DIdxp{int(\xi+4*(\yi+1))}
         \draw [->,line width=\lwWire] (D\DIdxp/out) -- ++(0.5,0) |- (D\DIdx/in2);
         %% Draw input port
-        \pgfmathsetmacro\mB{int(8*\DIdx)}
-        \pgfmathsetmacro\MB{int(8*(\DIdx+1))}
+        \pgfmathsetmacro\corrDIdx{int(mod(12+\DIdx,16))}
+        \pgfmathsetmacro\mB{int(8*\corrDIdx)}
+        \pgfmathsetmacro\MB{int(8*(\corrDIdx+1))}
         \node [anchor=east] at (inKey\DIdx) {\fontS $\AESdpKeyKey[\MB d-1:\mB d]$};
         %% Draw mux ctrl
         \muxCtrl{D\DIdx/mux}{$\dpKeyCtrlRouteInit$}{1}{0}
     }
 }
 
-%%% Generate input for the last column
-\node [line width=\lwModule,rectangle,draw,anchor=east] (RCON) at ($(fromSB12)+(-\spacexInLastCol,0)$) {RCON};
-\node [anchor=east,xshift=-0.5cm] (fSB12) at (RCON.west) {\fontS $\AESdpKeyFromSB[8d-1:0d]$};
-\draw [line width=\lwWire] (RCON.east) -- (fromSB12) (fSB12.east) -- (RCON.west);
+%%% Generate input for the first column
+\node [line width=\lwModule,rectangle,draw,anchor=east] (RCON) at ($(fromSB0)+(-\spacexInLastCol,0)$) {RCON};
+\node [anchor=east,xshift=-0.5cm] (fSB0) at (RCON.west) {\fontS $\AESdpKeyFromSB[8d-1:0d]$};
+\draw [line width=\lwWire] (RCON.east) -- (fromSB0) (fSB0.east) -- (RCON.west);
 
-\node [anchor=east,xshift=-0.5cm] (fSB13) at (fromSB13) {\fontS $\AESdpKeyFromSB[16d-1:8d]$};
-\node [anchor=east,xshift=-0.5cm] (fSB14) at (fromSB14) {\fontS $\AESdpKeyFromSB[24d-1:16d]$};
-\node [anchor=east,xshift=-0.5cm] (fSB15) at (fromSB15) {\fontS $\AESdpKeyFromSB[32d-1:24d]$};
+\node [anchor=east,xshift=-0.5cm] (fSB1) at (fromSB1) {\fontS $\AESdpKeyFromSB[16d-1:8d]$};
+\node [anchor=east,xshift=-0.5cm] (fSB2) at (fromSB2) {\fontS $\AESdpKeyFromSB[24d-1:16d]$};
+\node [anchor=east,xshift=-0.5cm] (fSB3) at (fromSB3) {\fontS $\AESdpKeyFromSB[32d-1:24d]$};
 
-\foreach \xi in {13,14,15}{
+\foreach \xi in {1,2,3}{
     \draw [line width=\lwWire] (fSB\xi) -- (fromSB\xi);
 }
 
@@ -193,3 +195,21 @@
     \draw [->, line width=\lwWire] (D\idxStart/out) |- (toAK\xi);
 }
 
+%%% Small black dot to ensure the connexion at reg 0
+\draw [fill=black] (D0/out) circle (0.15);
+
+%%% Generate the mux for the last column
+\foreach \xi in {12,...,15}{
+    \muxCtrl{D\xi/mux}{$\dpKeyCtrlRouteInit$}{1}{0}
+    \coordinate (inKey\xi) at ($(D\xi/in1)+(-0.5,0.5)$);
+    \pgfmathsetmacro\corrXI{int(mod(\xi+12,16))}
+    \pgfmathsetmacro\mB{int(8*\corrXI)}
+    \pgfmathsetmacro\MB{int(8*(\corrXI+1))}
+    \node [anchor=east] at (inKey\xi) {\fontS $\AESdpKeyKey[\MB d-1:\mB d]$};
+    \draw [->,line width=\lwWire] (inKey\xi) -- ++(0.2,0) |- (D\xi/in1);
+    %% Draw feedback from first column
+    \coordinate (locFBlast\xi) at ($(D\xi/in2)+(-0.4,0)$);
+    \draw [->,line width=\lwWire] (locFBlast\xi) -- (D\xi/in2);  
+    \pgfmathsetmacro\refFB{int((\xi)-12))}
+    \draw [line width=\lwWire] (D\refFB/out) -- ++(0,-\spaceyLoop) -| (locFBlast\xi);
+}
