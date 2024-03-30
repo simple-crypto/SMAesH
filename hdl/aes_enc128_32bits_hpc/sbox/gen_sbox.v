@@ -31,7 +31,6 @@ module gen_sbox
 );
 
 
-
 `include "design.vh"
 
 // Inputs ports

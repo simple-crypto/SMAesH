@@ -2,8 +2,8 @@
 
 ## Source settings
 HDL_ROOT_DIR=../hdl
-HDL_SRC_DIR=$HDL_ROOT_DIR/aes_enc128_32bits_hpc2
-TB_MODULE=tb_aes_enc128_32bits_hpc2
+HDL_SRC_DIR=$HDL_ROOT_DIR/aes_enc128_32bits_hpc
+TB_MODULE=tb_aes_enc128_32bits_hpc
 TB_DIR=$HDL_ROOT_DIR/tb
 TB_PATH=$TB_DIR/$TB_MODULE.v
 MAIN_MODULE=MSKaes_32bits_core
@@ -33,14 +33,15 @@ OUT_DIR=work MAIN_MODULE=$MAIN_MODULE IMPLEM_DIR=$HDL_DIR ${YOSYS:=yosys} -c ./m
 echo "Synthesis finished."
 
 echo "Generating TV..."
-TV=tvs/generated/TV_ECBGFSbox128
+TV_FILE_PREF=ECBGFSbox128
+TV=tvs/generated/TV_$TV_FILE_PREF
 TV_IN=${TV}_in.rsp
 TV_OUT=${TV}_out.rsp
 BEH_SIMU_DIR=../beh_simu
 TV_IN=$BEH_SIMU_DIR/$TV_IN
 TV_OUT=$BEH_SIMU_DIR/$TV_OUT
 
-make -C $BEH_SIMU_DIR tv
+TV_FILE_PREF=$TV_FILE_PREF make -C $BEH_SIMU_DIR tv
 
 echo "Starting simulation..."
 # Change this if you want to use another simulator

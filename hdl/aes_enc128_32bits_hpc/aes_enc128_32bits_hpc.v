@@ -13,9 +13,7 @@
 
 // Masked AES implementation using HPC masking scheme and 32-bit
 // architecture.
-`ifndef DEFAULTSHARES
-`define DEFAULTSHARES 2
-`endif
+`include "architecture_default.vh"
 module aes_enc128_32bits_hpc
 #
 (
