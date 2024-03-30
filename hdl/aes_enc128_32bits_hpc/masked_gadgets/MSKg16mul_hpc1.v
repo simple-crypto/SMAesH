@@ -8,9 +8,9 @@
 // OF MERCHANTABILITY, SATISFACTORY QUALITY AND FITNESS FOR A PARTICULAR PURPOSE.
 // Please see the CERN-OHL-P v2 for applicable conditions.
 
-// Masked AND DOM gadget.
+// Masked HPC1 G(16) multiplication.
 `ifdef FULLVERIF
-(* fv_prop = "NI", fv_strat = "assumed", fv_order=d *)
+(* fv_prop = "PINI", fv_strat = "assumed", fv_order=d *)
 `endif
 `ifndef DEFAULTSHARES
 `define DEFAULTSHARES 2
