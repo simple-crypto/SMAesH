@@ -1,6 +1,7 @@
 #!/bin/bash
 
 ## Source settings
+NSHARES=2
 HDL_ROOT_DIR=../hdl
 HDL_SRC_DIR=$HDL_ROOT_DIR/aes_enc128_32bits_hpc
 TB_MODULE=tb_aes_enc128_32bits_hpc
@@ -14,6 +15,8 @@ CLOCK=clk
 # name of the instance of the main module in the testbench
 DUT=dut.aes_core
 
+SBOX_DIR=${HDL_ROOT_DIR}/sbox-d${NSHARES}
+
 ## workdir
 HDL_DIR=work/hdl
 VCD_PATH=work/a.vcd
@@ -23,7 +26,7 @@ SYNTH_BASE=work/${MAIN_MODULE}_synth
 # Prepare sources
 rm -rf work
 mkdir -p work
-OUT_DIR=$HDL_DIR $HDL_ROOT_DIR/gather_sources.sh $HDL_SRC_DIR
+OUT_DIR=$HDL_DIR $HDL_ROOT_DIR/gather_sources.sh $HDL_SRC_DIR $SBOX_DIR 
 # NB: we use the convention that module X is always in file X.v in this script
 
 
