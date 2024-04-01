@@ -14,11 +14,14 @@
 
 // Full 32-bit arbitrary-order masked implementation of the AES (no inverse).
 // This is the complete AES that can be verified with fullVerif.
+`ifndef NSHARES
+`define NSHARES 2
+`endif
 (* fv_prop = "PINI", fv_strat = "composite", fv_order=d *)
 module MSKaes_32bits_core
 #
 (
-    parameter d=2
+    parameter d=`NSHARES
 )
 (
     clk,

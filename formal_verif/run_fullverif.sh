@@ -26,13 +26,12 @@ SYNTH_BASE=work/${MAIN_MODULE}_synth
 # Prepare sources
 rm -rf work
 mkdir -p work
-OUT_DIR=$HDL_DIR $HDL_ROOT_DIR/gather_sources.sh $HDL_SRC_DIR $SBOX_DIR 
+OUT_DIR=$HDL_DIR $HDL_ROOT_DIR/gather_sources.sh $HDL_SRC_DIR $SBOX_DIR
 # NB: we use the convention that module X is always in file X.v in this script
-
 
 ####### Execution #######
 echo "Starting synthesis..."
-OUT_DIR=work MAIN_MODULE=$MAIN_MODULE IMPLEM_DIR=$HDL_DIR ${YOSYS:=yosys} -c ./msk_presynth.tcl || exit
+OUT_DIR=work MAIN_MODULE=$MAIN_MODULE IMPLEM_DIR=$HDL_DIR NSHARES=$NSHARES ${YOSYS:=yosys} -c ./msk_presynth.tcl || exit
 echo "Synthesis finished."
 
 echo "Generating TV..."
@@ -51,21 +50,22 @@ echo "Starting simulation..."
 # -y source directory for .v modules
 # -s top-level module (i.e. testbench)
 ${IVERILOG:=iverilog} \
-    -y $HDL_DIR \
-    -y $TB_DIR \
-    -I $HDL_DIR \
-    -I $TB_DIR \
-    -s $TB_MODULE \
-    -o $SIM_PATH \
-    -D TV_IN=\"$TV_IN\" \
-    -D TV_OUT=\"$TV_OUT\" \
-    -D DUMPFILE=\"$VCD_PATH\" \
-    -D CORE_SYNTHESIZED=1 \
-    -D RUN_AM=1 \
-    -D FULLVERIF=1 \
-    $SYNTH_BASE.v $TB_PATH || exit
-    #-y $FULLVERIF_LIB_DIR \
-    #-I $FULLVERIF_LIB_DIR \
+	-y $HDL_DIR \
+	-y $TB_DIR \
+	-I $HDL_DIR \
+	-I $TB_DIR \
+	-s $TB_MODULE \
+	-o $SIM_PATH \
+	-D TV_IN=\"$TV_IN\" \
+	-D TV_OUT=\"$TV_OUT\" \
+	-D DUMPFILE=\"$VCD_PATH\" \
+	-D CORE_SYNTHESIZED=1 \
+	-D RUN_AM=1 \
+	-D FULLVERIF=1 \
+	-D NSHARES=$NSHARES \
+	$SYNTH_BASE.v $TB_PATH || exit
+#-y $FULLVERIF_LIB_DIR \
+#-I $FULLVERIF_LIB_DIR \
 ${VVP:=vvp} $SIM_PATH
 echo "Simulation finished"
 
