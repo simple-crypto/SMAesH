@@ -6,6 +6,7 @@ set OUT_DIR $::env(OUT_DIR)
 set MAIN_PATH $IMPLEM_DIR/$MAIN_MODULE.v
 
 # Read verilog, load sub-modules and build the hierarchy.
+yosys verilog_defines "-DFULLVERIF"
 yosys verilog_defaults -add -I$IMPLEM_DIR
 yosys read_verilog $MAIN_PATH
 yosys hierarchy -check -libdir $IMPLEM_DIR -top $MAIN_MODULE;
