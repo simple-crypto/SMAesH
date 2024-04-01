@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ## Source settings
-NSHARES=2
+NSHARES=${NSHARES:-2}
 HDL_ROOT_DIR=../hdl
 HDL_SRC_DIR=$HDL_ROOT_DIR/aes_enc128_32bits_hpc
 TB_MODULE=tb_aes_enc128_32bits_hpc
