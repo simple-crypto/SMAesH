@@ -26,9 +26,14 @@ module MSKaes_32bits_state_datapath
     init,
     en_MC,
     en_loop,
+    en_loop_r0, 
+    en_SB_inverse,
+    bypass_MC_inverse,
+    en_toSB_inverse,
     // Data
     sh_plaintext,
     sh_4bytes_from_key,
+    sh_3bytes_from_key_inverse,
     sh_4bytes_from_SB,
     sh_4bytes_to_SB,
     sh_ciphertext
@@ -41,9 +46,14 @@ input enable;
 input init;
 input en_MC;
 input en_loop;
+input en_loop_r0;
+input en_SB_inverse;
+input bypass_MC_inverse;
+input en_toSB_inverse;
 
 input [128*d-1:0] sh_plaintext;
 input [32*d-1:0] sh_4bytes_from_key;
+input [24*d-1:0] sh_3bytes_from_key_inverse;
 input [32*d-1:0] sh_4bytes_from_SB;
 output [32*d-1:0] sh_4bytes_to_SB;
 output [128*d-1:0] sh_ciphertext;
@@ -74,6 +84,21 @@ MC_unit(
     .b3(sh_4bytes_from_MC[24*d +: 8*d])
 );
 
+// Inverse Mixcolumns combinatorial logic block dealing with 32-bit column from the state
+wire [32*d-1:0] sh_4bytes_from_MC_inverse;
+wire [32*d-1:0] sh_4bytes_to_MC_inverse;
+MSKaesMC_inverse #(.d(d))
+MC_unit_inverse(
+    .a0(sh_4bytes_to_MC_inverse[0 +: 8*d]),
+    .a1(sh_4bytes_to_MC_inverse[8*d +: 8*d]),
+    .a2(sh_4bytes_to_MC_inverse[16*d +: 8*d]),
+    .a3(sh_4bytes_to_MC_inverse[24*d +: 8*d]),
+    .b0(sh_4bytes_from_MC_inverse[0 +: 8*d]),
+    .b1(sh_4bytes_from_MC_inverse[8*d +: 8*d]),
+    .b2(sh_4bytes_from_MC_inverse[16*d +: 8*d]),
+    .b3(sh_4bytes_from_MC_inverse[24*d +: 8*d])
+);
+
 // Generate the state register + input output signals    
 wire [8*d-1:0] sh_reg_in [15:0];
 wire [8*d-1:0] sh_reg_out [15:0];
@@ -93,7 +118,7 @@ for(i=0;i<16;i=i+1) begin: scanff_state
 end
 endgenerate 
 
-// Assign the routing for the first row
+// ########## Assign the routing for the first row
 assign sh_reg_in[0] = sh_reg_out[4];
 assign sh_reg_in[4] = sh_reg_out[8];
 assign sh_reg_in[8] = sh_reg_out[12];
@@ -118,13 +143,16 @@ xor00(
 wire [8*d-1:0] sh_mux_r03_0;
 MSKmux #(.d(d),.count(8))
 muxr03_1(
-    .sel(en_loop),
+    .sel(en_loop_r0),
     .in_true(sh_added_rkey_0),
     .in_false(sh_mux_r03_1),
     .out(sh_reg_in[12])
 );
 
-// Assign the routing for the second row
+assign sh_4bytes_to_MC_inverse[0 +: 8*d] = sh_added_rkey_0;  
+
+// ########## Assign the routing for the second row
+// Xor to add the key in direct and inverse operation
 wire [8*d-1:0] sh_added_rkey_1;
 MSKxor #(.d(d),.count(8))
 xor11(
@@ -132,11 +160,22 @@ xor11(
     .inb(sh_4bytes_from_key[8*d +: 8*d]),
     .out(sh_added_rkey_1)
 );
-assign sh_reg_in[1] = sh_added_rkey_1;
 
+// Mux to feed back the data from the Sbox in inverse operation
+wire [8*d-1:0] sh_fromSB_inverse_11;
+MSKmux #(.d(d), .count(8))
+mux11_SBinv(
+    .sel(en_SB_inverse),
+    .in_true(sh_4bytes_from_SB[8*d +: 8*d]),
+    .in_false(sh_added_rkey_1),
+    .out(sh_fromSB_inverse_11)
+);
+
+assign sh_reg_in[1] = sh_fromSB_inverse_11;
 assign sh_reg_in[5] = sh_reg_out[9];
 assign sh_reg_in[9] = sh_reg_out[13];
 
+// Mux selecting from SB or from MC
 wire [8*d-1:0] sh_mux_r13_1;
 MSKmux #(.d(d),.count(8))
 muxr13_2(
@@ -146,18 +185,30 @@ muxr13_2(
     .out(sh_mux_r13_1)
 );
 
+// Xor to add the inverse round key for inverse operation
+wire [8*d-1:0] sh_added_rkeyinv_1;
+MSKxor #(.d(d),.count(8))
+xor_r10_inv(
+    .ina(sh_reg_out[1]),
+    .inb(sh_3bytes_from_key_inverse[0 +: 8*d]),
+    .out(sh_added_rkeyinv_1)
+);
+assign sh_4bytes_to_MC_inverse[8*d +: 8*d] = sh_added_rkeyinv_1;  
+
+// Mux from loop feedback
 wire [8*d-1:0] sh_mux_r13_0;
 MSKmux #(.d(d),.count(8))
 muxr13_1(
     .sel(en_loop),
-    .in_true(sh_reg_out[1]),
+    .in_true(sh_added_rkeyinv_1),
     .in_false(sh_mux_r13_1),
     .out(sh_reg_in[13])
 );
 
-// Assign the routing for the third row
+// ########## Assign the routing for the third row
 assign sh_reg_in[2] = sh_reg_out[6];
 
+// Xor for key addition in the forward operation
 wire [8*d-1:0] sh_added_rkey_2;
 MSKxor #(.d(d),.count(8))
 xor22(
@@ -165,10 +216,21 @@ xor22(
     .inb(sh_4bytes_from_key[16*d +: 8*d]),
     .out(sh_added_rkey_2)
 );
-assign sh_reg_in[6] = sh_added_rkey_2;
 
+// Mux to feed back the data from the Sbox in inverse operation
+wire [8*d-1:0] sh_fromSB_inverse_22;
+MSKmux #(.d(d), .count(8))
+mux22_SBinv(
+    .sel(en_SB_inverse),
+    .in_true(sh_4bytes_from_SB[16*d +: 8*d]),
+    .in_false(sh_added_rkey_2),
+    .out(sh_fromSB_inverse_22)
+);
+
+assign sh_reg_in[6] = sh_fromSB_inverse_22;
 assign sh_reg_in[10] = sh_reg_out[14];
 
+// Mux to select from SB or from MC 
 wire [8*d-1:0] sh_mux_r23_1;
 MSKmux #(.d(d),.count(8))
 muxr23_2(
@@ -178,19 +240,32 @@ muxr23_2(
     .out(sh_mux_r23_1)
 );
 
+// Xor to add the inverse round key for inverse operation
+wire [8*d-1:0] sh_added_rkeyinv_2;
+MSKxor #(.d(d),.count(8))
+xor_r22_inv(
+    .ina(sh_reg_out[2]),
+    .inb(sh_3bytes_from_key_inverse[8*d +: 8*d]),
+    .out(sh_added_rkeyinv_2)
+);
+
+assign sh_4bytes_to_MC_inverse[16*d +: 8*d] = sh_added_rkeyinv_2;  
+
+// Mux for loop feedback
 wire [8*d-1:0] sh_mux_r23_0;
 MSKmux #(.d(d),.count(8))
 muxr23_1(
     .sel(en_loop),
-    .in_true(sh_reg_out[2]),
+    .in_true(sh_added_rkeyinv_2),
     .in_false(sh_mux_r23_1),
     .out(sh_reg_in[14])
 );
 
-// Assign the routing for the fourth row
+// ########## Assign the routing for the fourth row
 assign sh_reg_in[3] = sh_reg_out[7];
 assign sh_reg_in[7] = sh_reg_out[11];
 
+// Xor used in round key addition for forward operation
 wire [8*d-1:0] sh_added_rkey_3;
 MSKxor #(.d(d),.count(8))
 xor33(
@@ -199,8 +274,19 @@ xor33(
     .out(sh_added_rkey_3)
 );
 
-assign sh_reg_in[11] = sh_added_rkey_3;
+// Mux to feed back the data from the Sbox in inverse operation
+wire [8*d-1:0] sh_fromSB_inverse_33;
+MSKmux #(.d(d), .count(8))
+mux33_SBinv(
+    .sel(en_SB_inverse),
+    .in_true(sh_4bytes_from_SB[24*d +: 8*d]),
+    .in_false(sh_added_rkey_3),
+    .out(sh_fromSB_inverse_33)
+);
 
+assign sh_reg_in[11] = sh_fromSB_inverse_33;
+
+// Mux to select from MC of from SB
 wire [8*d-1:0] sh_mux_r33_1;
 MSKmux #(.d(d),.count(8))
 muxr33_2(
@@ -210,15 +296,25 @@ muxr33_2(
     .out(sh_mux_r33_1)
 );
 
+// Xor to add the inverse round key for inverse operation
+wire [8*d-1:0] sh_added_rkeyinv_3;
+MSKxor #(.d(d),.count(8))
+xor_r33_inv(
+    .ina(sh_reg_out[3]),
+    .inb(sh_3bytes_from_key_inverse[16*d +: 8*d]),
+    .out(sh_added_rkeyinv_3)
+);
+
+assign sh_4bytes_to_MC_inverse[24*d +: 8*d] = sh_added_rkeyinv_3;  
+
 wire [8*d-1:0] sh_mux_r33_0;
 MSKmux #(.d(d),.count(8))
 muxr33_1(
     .sel(en_loop),
-    .in_true(sh_reg_out[3]),
+    .in_true(sh_added_rkeyinv_3),
     .in_false(sh_mux_r33_1),
     .out(sh_reg_in[15])
 );
-
 
 // Assign the enable signal to the pipe
 generate
@@ -230,11 +326,30 @@ for(i=0;i<4;i=i+1) begin: cols_en_sig
 end
 endgenerate
 
-// Assign the output
-assign sh_4bytes_to_SB[0 +: 8*d] = sh_added_rkey_0;
-assign sh_4bytes_to_SB[8*d +: 8*d] = sh_added_rkey_1;
-assign sh_4bytes_to_SB[16*d +: 8*d] = sh_added_rkey_2;
-assign sh_4bytes_to_SB[24*d +: 8*d] = sh_added_rkey_3;
+// Mux structure around the MC inverse core
+wire [32*d-1:0] sh_4bytes_toSB_inverse;
+MSKmux #(.d(d), .count(32))
+mux_bypass_mcinverse(
+    .sel(bypass_MC_inverse),
+    .in_true(sh_4bytes_to_MC_inverse),
+    .in_false(sh_4bytes_from_MC_inverse),
+    .out(sh_4bytes_toSB_inverse)
+);
+
+// Mux to select the 4 bytes going to the Sbox
+wire [32*d-1:0] sh_4bytes_toSB_forward = {
+    sh_added_rkey_3,
+    sh_added_rkey_2,
+    sh_added_rkey_1,
+    sh_added_rkey_0
+};
+MSKmux #(.d(d), .count(32))
+mux_selection_to_SB(
+    .sel(en_toSB_inverse),
+    .in_true(sh_4bytes_toSB_inverse),
+    .in_false(sh_4bytes_toSB_forward),
+    .out(sh_4bytes_to_SB)
+);
 
 // Assign ciphertext
 generate

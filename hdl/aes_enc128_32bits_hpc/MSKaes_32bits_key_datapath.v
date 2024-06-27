@@ -28,11 +28,16 @@ module MSKaes_32bits_key_datapath
     add_from_sb,
     rcon_rst,
     rcon_update,
+    rcon_inverse,
+    enable_buffer_from_sbox,
+    rst_buffer_from_sbox,
     // Data
     sh_key,
+    sh_stored_key,
     sh_4bytes_rot_to_SB,
     sh_4bytes_from_SB,
-    sh_4bytes_to_AK
+    sh_4bytes_to_AK,
+    sh_3bytes_to_AK_inverse,
 );
 
 input clk;
@@ -42,12 +47,17 @@ input loop;
 input add_from_sb;
 input rcon_rst;
 input rcon_update;
+input rcon_inverse;
+input enable_buffer_from_sbox;
+input rst_buffer_from_sbox;
 input [128*d-1:0] sh_key;
+output [128*d-1:0] sh_stored_key;
 output [32*d-1:0] sh_4bytes_rot_to_SB;
 (* verime = "key_col_from_SB" *)
 input [32*d-1:0] sh_4bytes_from_SB;
 (* verime = "key_col_to_AK" *)
 output [32*d-1:0] sh_4bytes_to_AK;
+output [24*d-1:0] sh_3bytes_to_AK_inverse;
 
 ///// RCON addition post Sbox
 // Module used to compute the 8bits RCON value
@@ -59,7 +69,8 @@ rcon_unit(
     .rst(rcon_rst),
     .update(rcon_update),
     .mask_rcon(1'b1),
-    .sh_rcon(sh_rcon_b0)
+    .sh_rcon(sh_rcon_b0),
+    .inverse(rcon_inverse)
 );
 // XOR used to perform the addition with the first byte 
 // coming from the sbox (post rotation of the column)
@@ -112,6 +123,8 @@ for(i=0;i<16;i=i+1) begin: byte_key
         .in(to_sh_m_key[i]),
         .out(sh_m_key[i])
     );
+    // Assign the value to last
+    assign sh_stored_key[8*d*i +: 8*d] = sh_m_key[i];
 end
 endgenerate
 
@@ -131,7 +144,7 @@ for(i=0;i<4;i=i+1) begin: row_min
 end
 endgenerate
 
-// Input structure for the input of sh_m_key[0:4]
+// Input structure for the input of sh_m_key[0:3]
 generate
 for(i=0;i<4;i=i+1) begin: row_lc_in
     // Mux from SB 
@@ -151,6 +164,53 @@ for(i=0;i<4;i=i+1) begin: row_lc_in
         .inb(sh_m_key[4+i]),
         .out(xor_update)
     );
+
+    // Sharing of zeros, going to the register holding from Sbox
+    wire [8*d-1:0] zeros_sh_from_sbox;
+    MSKcst #(.d(d),.count(8))
+    cst_sh_plain(
+        .cst(8'b0),
+        .out(zeros_sh_from_sbox)
+    );
+
+    // Xor for the update before going to the buffer, used in decryption
+    wire [8*d-1:0] buffer_from_SB;
+    wire [8*d-1:0] incremented_buffer;
+    MSKxor #(.d(d), .count(8))
+    xor_increment_inv(
+        .ina(buffer_from_SB),
+        .inb(mux_add_from_SB),
+        .out(incremented_buffer)
+    );
+
+    // Mux before the reg holding data from sbox (for reverse operation only)
+    wire [8*d-1:0] to_buffer_from_SB;
+    MSKmux #(.d(d), .count(8))
+    mux_in_buffer_from_SB(
+        .sel(rst_buffer_from_sbox),
+        .in_true(zeros_sh_from_sbox),
+        .in_false(incremented_buffer),
+        .out(to_buffer_from_SB)
+    );
+
+    // Register to act as a buffer for the data from Sboxes
+    MSKregEn #(.d(d), .count(8))
+    reg_buffer_sbox(
+        .clk(clk),
+        .en(enable_buffer_from_sbox),
+        .in(to_buffer_from_SB),
+        .out(buffer_from_SB)
+    );
+
+    // Xor required only for the reverse operation
+    wire [8*d-1:0] xor_update_with_inverse;
+    MSKxor #(.d(d), .count(8))
+    inst_xor_update_inverse(
+        .ina(xor_update),
+        .inb(buffer_from_SB),
+        .out(xor_update_with_inverse)
+    );
+    
     // Mux for loop
     wire [8*d-1:0] mux_loop;
     MSKmux #(.d(d),.count(8))
@@ -165,18 +225,43 @@ for(i=0;i<4;i=i+1) begin: row_lc_in
     inst_mux_to_sh_m_key(
         .sel(init || loop),
         .in_true(mux_loop),
-        .in_false(xor_update),
+        .in_false(xor_update_with_inverse),
         .out(to_sh_m_key[i])
     );
 end
 endgenerate
 
+// Mux structure for forward versus inverse data to sbox
+wire [8*d-1:0] to_sbox_forwards_vs_inverse [3:0];
+generate
+for(i=0;i<4;i=i+1) begin: mux_layer_forward_vs_inverse
+    // Xor between first and last column 
+    wire [8*d-1:0] xor_c0_c3;
+    MSKxor #(.d(d), .count(8))
+    inst_xor_inverse_to_sbox(
+        .ina(sh_m_key[i]),
+        .inb(sh_m_key[12+i]),
+        .out(xor_c0_c3)
+    );
+    // Mux for selection between inverse versus forward
+    MSKmux #(.d(d),.count(8))
+    inst_mux_inverse_to_sbox(
+        .sel(rcon_inverse),
+        .in_true(xor_c0_c3),
+        .in_false(sh_m_key[i]),
+        .out(to_sbox_forwards_vs_inverse[i])
+    );
+end
+endgenerate
+
+
 // Output assign 
-assign sh_4bytes_rot_to_SB[0 +: 8*d] = sh_m_key[1];
-assign sh_4bytes_rot_to_SB[8*d +: 8*d] = sh_m_key[2];
-assign sh_4bytes_rot_to_SB[16*d +: 8*d] = sh_m_key[3];
-assign sh_4bytes_rot_to_SB[24*d +: 8*d] = sh_m_key[0];
+assign sh_4bytes_rot_to_SB[0 +: 8*d] = to_sbox_forwards_vs_inverse[1];
+assign sh_4bytes_rot_to_SB[8*d +: 8*d] = to_sbox_forwards_vs_inverse[2];
+assign sh_4bytes_rot_to_SB[16*d +: 8*d] = to_sbox_forwards_vs_inverse[3];
+assign sh_4bytes_rot_to_SB[24*d +: 8*d] = to_sbox_forwards_vs_inverse[0];
 
 assign sh_4bytes_to_AK = {sh_m_key[15],sh_m_key[10],sh_m_key[5],sh_m_key[0]};
+assign sh_3bytes_to_AK_inverse = {sh_m_key[3],sh_m_key[2],sh_m_key[1]};
 
 endmodule

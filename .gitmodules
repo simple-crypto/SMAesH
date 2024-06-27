@@ -1,0 +1,3 @@
+[submodule "sboxes-compress/compress"]
+	path = sboxes-compress/compress
+	url = git@github.com:cassiersg/compress.git

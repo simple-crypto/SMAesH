@@ -28,28 +28,34 @@ module MSKaes_rcon
     // Gates the output to 0 if high.
     input mask_rcon,
     // RCON as a sharing 
-    output [8*d-1:0] sh_rcon
+    output [8*d-1:0] sh_rcon,
+    // Control for the inverse operation
+    input inverse
 );
 
 //// Unshared rcon
-reg [7:0] rcon, next_rcon;
+reg [7:0] rcon;
+wire [7:0] next_rcon;
+wire [7:0] rst_rcon;
 always @(posedge clk) begin
-    rcon <= next_rcon;
+    if (rst) begin
+        rcon <= rst_rcon;
+    end else if (update) begin
+        rcon <= next_rcon;
+    end 
 end
 
-always @(*) begin
-    if (rst) begin
-        next_rcon = 8'h01;
-    end else if (update) begin
-        if (rcon[7]) begin
-            next_rcon = 8'h1b;
-        end else begin
-            next_rcon = rcon << 1;
-        end
-    end else begin
-        next_rcon = rcon;
-    end
-end
+// Forward computation
+wire [7:0] shifted_rcon = {rcon[6:0],1'b0};
+wire [7:0] masked_0x1b_cst = {8{rcon[7]}} & 8'h1b;
+wire [7:0] next_rcon_forward = shifted_rcon ^ masked_0x1b_cst;
+
+// Reverse computation
+wire [7:0] shifted_rcon_inverse = {1'b0, rcon[7:1]};
+wire [7:0] next_rcon_inverse = shifted_rcon_inverse ^ ({8{rcon[0]}} & 8'h0d) ^ {rcon[0], 7'b0};
+
+assign next_rcon = inverse ? next_rcon_inverse : next_rcon_forward;
+assign rst_rcon = inverse ? 8'h36 : 8'h01;
 
 //// Output mux
 wire [7:0] out_rcon;

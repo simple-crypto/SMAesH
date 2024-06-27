@@ -38,6 +38,12 @@ module MSKaes_32bits_core
     // Active high when the output can be fetched. If cipher_valid and
     // out_ready are both high, the ciphertext is dropped from the core.
     out_ready,
+    // Active high; specifies that the next operation starting must be inverse
+    inverse, 
+    // Active high; specifies that the next operation starting must compute the key scheduling only 
+    key_schedule_only,
+    // Active high; specifies that the data on sh_last_key bus is valid.
+    last_key_valid,
     //// Data
     // Masked plaintext (bit-compact representation). Valid when valid_in is high.
     sh_plaintext,
@@ -45,6 +51,9 @@ module MSKaes_32bits_core
     sh_key,
     // Masked ciphertext (bit-compact representation). Valid when cipher_valid is high.
     sh_ciphertext,
+    // Masked last key used (bit-compact representation). Valid when 
+    sh_last_key,
+    // Masked final key used (bit-compact representation, used only to init the last round key in inverse mode). 
     // Randomness busses (required for the Sboxes). These busses must contain
     // fresh randomness for every cycle where the core is computing, which is
     // signaled by a HIGH value on in_ready_rnd.
@@ -73,6 +82,13 @@ output cipher_valid;
 (* fv_type="control" *)
 input out_ready;
 
+(* fv_type="control" *)
+input inverse;
+(* fv_type="control" *)
+input key_schedule_only;
+(* fv_type="control" *)
+output last_key_valid;
+
 (* fv_type="sharing", fv_latency=0, fv_count=128 *)
 input [128*d-1:0] sh_plaintext;
 (* fv_type="sharing", fv_latency=0, fv_count=128 *)
@@ -80,6 +96,8 @@ input [128*d-1:0] sh_key;
 // TODO change latency
 (* fv_type="sharing", fv_latency=86, fv_count=128 *)
 output [128*d-1:0] sh_ciphertext;
+(* fv_type="sharing", fv_latency=86, fv_count=128 *)
+output [128*d-1:0] sh_last_key;
 
 (* fv_type="random", fv_count=0, fv_rnd_count_0=4*rnd_bus0 *)
 input [4*rnd_bus0-1:0] rnd_bus0w;
@@ -120,9 +138,14 @@ wire state_enable;
 wire state_init;
 wire state_en_MC;
 wire state_en_loop;
+wire state_en_loop_r0;
+wire state_en_SB_inverse;
+wire state_bypass_MC_inverse;
+wire state_en_toSB_inverse;
 
 (* verime = "b32_fromK" *)
 wire [32*d-1:0] state_sh_4bytes_from_key;
+wire [24*d-1:0] state_sh_3bytes_from_key_inverse;
 wire [32*d-1:0] sh_4bytes_from_SB;
 (* verime = "b32_fromAK" *)
 wire [32*d-1:0] state_sh_4bytes_to_SB;
@@ -136,8 +159,13 @@ core_data(
     .init(state_init),
     .en_MC(state_en_MC),
     .en_loop(state_en_loop),
+    .en_loop_r0(state_en_loop_r0), 
+    .en_SB_inverse(state_en_SB_inverse),
+    .bypass_MC_inverse(state_bypass_MC_inverse),
+    .en_toSB_inverse(state_en_toSB_inverse),
     .sh_plaintext(gated_sh_plaintext),
     .sh_4bytes_from_key(state_sh_4bytes_from_key),
+    .sh_3bytes_from_key_inverse(state_sh_3bytes_from_key_inverse),
     .sh_4bytes_from_SB(sh_4bytes_from_SB),
     .sh_4bytes_to_SB(state_sh_4bytes_to_SB),
     .sh_ciphertext(sh_ciphertext_out)
@@ -164,14 +192,19 @@ mux_in_key_holder(
 // Round constant control 
 wire rcon_rst;
 wire rcon_update;
+wire rcon_inverse;
 
 wire KH_init;
 wire KH_enable;
 wire KH_loop;
 wire KH_add_from_sb;
 
+wire KH_enable_buffer_from_sbox;
+wire KH_rst_buffer_from_sbox;
+
 wire [32*d-1:0] KH_sh_4bytes_rot_to_SB;
 wire [32*d-1:0] KH_sh_4bytes_from_key;
+wire [24*d-1:0] KH_sh_3bytes_from_key_inverse;
 
 MSKaes_32bits_key_datapath #(.d(d))
 key_holder(
@@ -182,10 +215,15 @@ key_holder(
     .add_from_sb(KH_add_from_sb),
     .rcon_rst(rcon_rst),
     .rcon_update(rcon_update),
+    .rcon_inverse(rcon_inverse),
+    .enable_buffer_from_sbox(KH_enable_buffer_from_sbox),
+    .rst_buffer_from_sbox(KH_rst_buffer_from_sbox),
     .sh_key(gated_sh_key),
+    .sh_stored_key(sh_last_key),
     .sh_4bytes_rot_to_SB(KH_sh_4bytes_rot_to_SB),
     .sh_4bytes_from_SB(sh_4bytes_from_SB),
-    .sh_4bytes_to_AK(KH_sh_4bytes_from_key)
+    .sh_4bytes_to_AK(KH_sh_4bytes_from_key),
+    .sh_3bytes_to_AK_inverse(KH_sh_3bytes_from_key_inverse)
 );
 
 // Mux to enable key addition
@@ -196,13 +234,32 @@ cst_zeros32(
     .out(zero_mask)
 );
 
+// Muxes enable the key addition in forward and reverse mode
 wire enable_key_add;
-MSKmux #(.d(d),.count(32))
-mux_key_en(
+wire enable_key_add_inverse; 
+
+MSKmux #(.d(d),.count(8))
+mux_key_en_b0(
+    .sel(enable_key_add | enable_key_add_inverse),
+    .in_true(KH_sh_4bytes_from_key[0 +: 8*d]),
+    .in_false(zero_mask[0 +: 8*d]),
+    .out(state_sh_4bytes_from_key[0 +: 8*d])
+);
+
+MSKmux #(.d(d),.count(24))
+mux_key_en_b123(
     .sel(enable_key_add),
-    .in_true(KH_sh_4bytes_from_key),
-    .in_false(zero_mask),
-    .out(state_sh_4bytes_from_key)
+    .in_true(KH_sh_4bytes_from_key[8*d +: 24*d]),
+    .in_false(zero_mask[8*d +: 24*d]),
+    .out(state_sh_4bytes_from_key[8*d +: 24*d])
+);
+
+MSKmux #(.d(d), .count(24))
+mux_key_en_inverse(
+    .sel(enable_key_add_inverse),
+    .in_true(KH_sh_3bytes_from_key_inverse),
+    .in_false(zero_mask[0 +: 24*d]),
+    .out(state_sh_3bytes_from_key_inverse)
 );
 
 
@@ -212,6 +269,7 @@ wire [8*d-1:0] bytes_to_SB [3:0];
 wire [8*d-1:0] bytes_from_SB [3:0];
 
 wire sbox_valid_in;
+wire sbox_inverse; 
 
 genvar i;
 generate
@@ -231,6 +289,7 @@ for(i=0;i<4;i=i+1) begin: sbox_isnt
         .rnd_bus1w(rnd_bus1w[i*rnd_bus1 +: rnd_bus1]),
         .rnd_bus2w(rnd_bus2w[i*rnd_bus2 +: rnd_bus2]),
         .rnd_bus3w(rnd_bus3w[i*rnd_bus3 +: rnd_bus3]),
+        .inverse(sbox_inverse),
         .o0(bytes_from_SB[i][0*d +: d]),
         .o1(bytes_from_SB[i][1*d +: d]),
         .o2(bytes_from_SB[i][2*d +: d]),
@@ -307,6 +366,8 @@ fsm_unit(
     .clk(clk),
     .rst(rst),
     .busy(busy),
+    .inverse(inverse),
+    .key_schedule_only(key_schedule_only),
     .valid_in(valid_in),
     .in_ready(in_ready),
     .out_ready(out_ready),
@@ -316,16 +377,26 @@ fsm_unit(
     .state_init(state_init),
     .state_en_MC(state_en_MC),
     .state_en_loop(state_en_loop),
+    .state_en_loop_r0(state_en_loop_r0),
+    .state_en_SB_inverse(state_en_SB_inverse),
+    .state_bypass_MC_inverse(state_bypass_MC_inverse),
+    .state_en_toSB_inverse(state_en_toSB_inverse),
     .KH_init(KH_init),
     .KH_enable(KH_enable),
     .KH_loop(KH_loop),
     .KH_add_from_sb(KH_add_from_sb),
+    .KH_enable_buffer_from_sbox(KH_enable_buffer_from_sbox),
+    .KH_rst_buffer_from_sbox(KH_rst_buffer_from_sbox),
+    .KH_last_key_valid(last_key_valid),
     .rcon_rst(rcon_rst),
     .rcon_update(rcon_update),
+    .rcon_inverse(rcon_inverse),
     .pre_need_rnd(in_ready_rnd),
     .sbox_valid_in(sbox_valid_in),
+    .sbox_inverse(sbox_inverse),
     .feed_sb_key(feed_sb_key),
-    .enable_key_add(enable_key_add)
+    .enable_key_add(enable_key_add),
+    .enable_key_add_inverse(enable_key_add_inverse)
 );
 
 

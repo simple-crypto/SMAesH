@@ -18,6 +18,8 @@ module MSKaes_32bits_fsm
     clk,
     rst,
     busy,
+    inverse,
+    key_schedule_only,
     // Once asserted, expected to remain high until exchange completion.
     valid_in,
     in_ready,
@@ -30,27 +32,39 @@ module MSKaes_32bits_fsm
     state_init,
     state_en_MC,
     state_en_loop,
+    state_en_loop_r0,
+    state_en_SB_inverse,
+    state_bypass_MC_inverse,
+    state_en_toSB_inverse,
     // Key handling
     KH_init,
     KH_enable,
     KH_loop,
     KH_add_from_sb,
+    KH_enable_buffer_from_sbox,
+    KH_rst_buffer_from_sbox,
+    KH_last_key_valid,
     // RCON holder
     rcon_rst,
     rcon_update,
+    rcon_inverse,
     // Randomness
     pre_need_rnd, 
     // Sbox
     sbox_valid_in,
+    sbox_inverse,
     // Mux input sbox
     feed_sb_key,
-    enable_key_add
+    enable_key_add,
+    enable_key_add_inverse
 );
 
 // IOs
 input clk;
 input rst;
 output busy;
+input inverse;
+input key_schedule_only;
 input valid_in;
 output in_ready;
 input out_ready;
@@ -61,27 +75,36 @@ output reg state_enable;
 output reg state_init;
 output reg state_en_MC;
 output reg state_en_loop;
+output reg state_en_loop_r0; 
+output reg state_en_SB_inverse;  
+output reg state_bypass_MC_inverse;  
+output reg state_en_toSB_inverse; 
 // Key handling
 output reg KH_init;
 output reg KH_enable;
 output reg KH_loop;
 output reg KH_add_from_sb;
+output reg KH_enable_buffer_from_sbox; 
+output reg KH_rst_buffer_from_sbox;
+output reg KH_last_key_valid;
 // RCON holder
 output reg rcon_rst;
 output reg rcon_update;
+output reg rcon_inverse; 
 // Randomness
 output reg pre_need_rnd; 
 // Sbox
 output reg sbox_valid_in;
+output reg sbox_inverse;
 // Mux input sbox
 output reg feed_sb_key;
 output reg enable_key_add;
+output reg enable_key_add_inverse; 
 
 // Generation parameters
 localparam SERIAL_LAT=4;
 localparam SBOX_LAT=4;
 localparam FIRST_KEXP_CYCLE=SBOX_LAT-1;
-
 
 
 // FSM
@@ -103,11 +126,16 @@ end else if(cnt_fsm_inc) begin
     cnt_fsm <= cnt_fsm + 1;
 end
 
+wire first_round_cycle = cnt_fsm == 0;
 wire last_round_cycle = cnt_fsm == SBOX_LAT+SERIAL_LAT-1;
+wire pre_last_round_cycle = cnt_fsm == SBOX_LAT+SERIAL_LAT-2;
 wire last_FAK_cycle = cnt_fsm == SERIAL_LAT-1;
 
 wire in_AKSB = cnt_fsm<SERIAL_LAT;
 wire in_AKSB_except_last = cnt_fsm < SERIAL_LAT-1;
+
+wire in_KS_KEYUPDATE = (cnt_fsm >= (SBOX_LAT-1)) & (cnt_fsm < SBOX_LAT+3);
+
 
 wire in_KEXP_FIRST = cnt_fsm==FIRST_KEXP_CYCLE;
 wire in_KEXP = (cnt_fsm>=FIRST_KEXP_CYCLE) & (cnt_fsm<(FIRST_KEXP_CYCLE+SERIAL_LAT));
@@ -133,6 +161,21 @@ if(rst) begin
 end else begin
     state <= nextstate;
 end
+
+// Register to save the execution status
+reg exec_status_inverse;
+reg exec_status_key_schedule_only;
+
+reg save_exec_status, rst_exec_status;
+always@(posedge clk)
+if(rst_exec_status) begin
+    exec_status_inverse <= 1'b0;
+    exec_status_key_schedule_only <= 1'b0;
+end else if(save_exec_status) begin
+    exec_status_inverse <= inverse;
+    exec_status_key_schedule_only <= key_schedule_only;
+end
+
 
 // Register to keep the cipher_valid signal
 reg set_valid_out;
@@ -177,6 +220,7 @@ wire start_exec = valid_in & (~valid_out_reg | cipher_fetch);
 
 // Global status
 reg in_fetch, in_first_SBK, in_round, in_last_round, in_AKfinal, in_reset_KH;
+wire is_first_round = cnt_round == 0;
 
 // Nextstate logic
 always@(*) begin
@@ -196,6 +240,9 @@ always@(*) begin
     rcon_rst = 0;
     rcon_update = 0;
 
+    save_exec_status = 0;
+    rst_exec_status = 0;
+
     case(state)
         IDLE: begin
             if(start_exec) begin
@@ -204,9 +251,11 @@ always@(*) begin
                 cnt_fsm_reset = 1;
                 cnt_round_reset = 1;
                 rcon_rst = 1;
+                save_exec_status = 1;
             end else begin
                 if (~valid_out_reg | cipher_fetch) begin
                     in_reset_KH = 1;
+                    rst_exec_status = 1;
                 end
             end
         end
@@ -257,20 +306,31 @@ always@(*) begin
     state_init = 0;
     state_en_MC = 0;
     state_en_loop = 0;
+    state_en_loop_r0 = 0;
+    state_en_SB_inverse = 0;
+    state_bypass_MC_inverse = 0;
+    state_en_toSB_inverse = 0;
 
     KH_init = 0;
     KH_loop = 0;
     KH_add_from_sb = 0;
+    KH_enable_buffer_from_sbox = 0;
+    KH_rst_buffer_from_sbox = 0;
+    KH_last_key_valid = 0;
 
     sbox_valid_in = 0;
+    sbox_inverse = 0;
 
     feed_sb_key = 0;
     
     cnt_fsm_inc = 0;
 
     enable_key_add = 0;
+    enable_key_add_inverse = 0;
 
     pre_need_rnd = 1;
+
+    rcon_inverse = exec_status_inverse;
     
     // Pre_need_rnd always on except when IDLE and no start
     if ((state==IDLE) & ~start_exec)begin
@@ -310,7 +370,11 @@ always@(*) begin
     // during the key addition operation of a round
     // during the final key addition
     if(((in_round | in_last_round) & in_AKSB) | in_AKfinal) begin
-        enable_key_add = 1;
+        if(exec_status_inverse) begin
+            enable_key_add_inverse = 1;
+        end else begin
+            enable_key_add = 1;
+        end
     end
     // The inputs of the Sboxes are key materials
     // during the first cycle or 
@@ -327,15 +391,30 @@ always@(*) begin
         state_enable = 1;
     end
     // State mux control
-    // The Mixcolumns logic is enabled during the rounds except the last one.
-    if(in_round) begin
-        state_en_MC = 1;
+    // During an encryption, the forward Mixcolumns logic is enabled during the rounds except the last one.
+    // During a decryption, the forward Mixcolumns logic is never enabled;
+    if (exec_status_inverse) begin
+        state_en_MC = 0;
+    end else begin
+        if(in_round) begin
+            state_en_MC = 1;
+        end
     end
     // The state holder loops over itself 
-    // During the AKSB operation of rounds (to keep byte 1,2,6,3,7,11 valid) or 
-    // during the final key addition
-    if(((in_round | in_last_round) & in_AKSB) | in_AKfinal) begin
+    //  - During the AKSB operation of rounds (to keep byte 1,2,6,3,7,11 valid) or 
+    //  - During the final key addition
+    // Exception for the last three rows during the decryption, where the 
+    // data always loop over the pipeline since the mux selecting the data between the forward MC and the Sbox output is not used.
+    if(exec_status_inverse) begin
+        if(((in_round | in_last_round) & in_AKSB) | in_AKfinal) begin
+            state_en_loop_r0 = 1;
+        end
         state_en_loop = 1;
+    end else begin
+        if(((in_round | in_last_round) & in_AKSB) | in_AKfinal) begin
+            state_en_loop = 1;
+            state_en_loop_r0 = 1;
+        end
     end
     // The key holder is enabled
     // when a new execution starts or
@@ -364,6 +443,29 @@ always@(*) begin
     end else if(in_first_SBK) begin
         KH_loop = 1;
     end
+    // RCON inverse
+    if(in_fetch) begin
+        rcon_inverse = inverse; 
+    end 
+    // In decryption, the feeding of the datapath from the S-boxes in enabled
+    // during the round computation (as well as the last one) when the key addition is not performed
+    state_en_SB_inverse = exec_status_inverse & (in_round | in_last_round) & (~in_AKSB);
+    // In decryption, the inverse mixcolumn logic block must be bypassed during
+    // the key addition of the first round
+    state_bypass_MC_inverse = exec_status_inverse & (in_round & in_AKSB & is_first_round); 
+    // In decryption, the column going to the Sbox from the state comes from the first column
+    state_en_toSB_inverse = exec_status_inverse;
+    // In decryption, the buffer storing the key material of the last column is reset during 
+    //  - at the very first cycle of an execution
+    //  - at the last cycle of a round (including the last one) 
+    KH_rst_buffer_from_sbox = pre_last_round_cycle | in_first_SBK;
+    // In decryption, the buffer storing the key material is enabled during the round (including the last one) when the sbox output is key material and when the buffer is reset 
+    KH_enable_buffer_from_sbox = (exec_status_inverse & ((in_round | in_last_round) & in_KS_KEYUPDATE)) | in_first_SBK;
+    // In decryption, the sbox is executed in reverse mode
+    sbox_inverse = exec_status_inverse & (~feed_sb_key);
+    // The last key value is valid at the very first cycle of the last key addition operation
+    KH_last_key_valid = in_AKfinal & first_round_cycle; 
+     
 end
 
 assign busy = (state != IDLE);
