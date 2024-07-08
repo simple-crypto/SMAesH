@@ -12,6 +12,9 @@
 `ifndef NSHARES
 `define NSHARES 2
 `endif
+`ifndef KEY_SIZE
+`define KEY_SIZE 128
+`endif
 module tb_MSKaes_32bits_core
 #
 (
@@ -19,12 +22,13 @@ module tb_MSKaes_32bits_core
     parameter d = `NSHARES,
     parameter RND_RANGE_LAT_RESEED=600,
     parameter RND_RANGE_LAT_IN=100,
-    parameter CONTINUOUS = 0
-)
-();
+    parameter CONTINUOUS = 0,
+    parameter KSIZE = `KEY_SIZE
+);
 
-//`define DEBUG_CASE
+`define DEBUG_CASE
 //`define DECRYPTION
+//`define MODE256
 
 localparam wait_delay = 100*T;
 localparam init_delay=Td/2.0;
@@ -41,7 +45,7 @@ reg dut_in_valid;
 wire dut_in_ready;
 
 wire [128*d-1:0] dut_shares_plaintext;
-wire [128*d-1:0] dut_shares_key;
+wire [256*d-1:0] dut_shares_key;
 
 reg dut_seed_valid;
 wire dut_seed_ready;
@@ -56,18 +60,20 @@ wire dut_busy;
 reg dut_inverse;
 reg dut_key_schedule_only;
 wire dut_last_key_valid;
+reg dut_mode256;
 
 wire dut_in_ready_rnd;
 
 // Encoding of the shares
-wire [128*d-1:0] dut_sh_plaintext, dut_sh_key, dut_sh_ciphertext;
+wire [128*d-1:0] dut_sh_plaintext, dut_sh_ciphertext;
+wire [256*d-1:0] dut_sh_key; 
 shares2shbus #(.d(d),.count(128))
 switch_encoding_pt(
     .shares(dut_shares_plaintext),
     .shbus(dut_sh_plaintext)
 );
 
-shares2shbus #(.d(d),.count(128))
+shares2shbus #(.d(d),.count(256))
 switch_encoding_key(
     .shares(dut_shares_key),
     .shbus(dut_sh_key)
@@ -101,6 +107,7 @@ dut(
     .inverse(dut_inverse),
     .key_schedule_only(dut_key_schedule_only),
     .last_key_valid(last_key_valid),
+    .mode_256(dut_mode256),
     .sh_plaintext(dut_sh_plaintext),
     .sh_key(dut_sh_key),
     .sh_ciphertext(dut_sh_ciphertext),
@@ -111,12 +118,11 @@ dut(
     .in_ready_rnd(dut_in_ready_rnd)
 );
 
-/// DEBGU 
-/// A bug seems to come from the key addition in forward not done for rows 1-3
+/// DEBUG 
 genvar k;
 generate
-for(k=0;k<16;k=k+1) begin: debp 
-    wire [8*d-1:0] sh_debug_point = dut.core_data.sh_reg_out[k];//dut.key_holder.sh_m_key[k]; 
+for(k=0;k<32;k=k+1) begin: debp 
+    wire [8*d-1:0] sh_debug_point = dut.key_holder.sh_m_key[k]; 
     wire [8*d-1:0] shares_debug_point; 
     shbus2shares #(.d(d),.count(8)) switch_encoding_debug( .shbus(sh_debug_point),.shares(shares_debug_point));
 
@@ -124,7 +130,7 @@ for(k=0;k<16;k=k+1) begin: debp
     recombine_shares_unit #(.d(d), .count(8)) rec_debug( .shares_in(shares_debug_point), .out(rec_debug_point));
 end
 endgenerate
-wire [32*d-1:0] sh_deb_from_SB =dut.sh_4bytes_from_SB; //dut.sh_bytes_gated_to_SB;
+wire [32*d-1:0] sh_deb_from_SB =dut.sh_bytes_gated_to_SB;//dut.sh_4bytes_from_SB; 
 wire [32*d-1:0] shares_deb_from_SB;
 wire [31:0] rec_deb_from_SB;
 shbus2shares #(.d(d),.count(32)) switch_encoding_debug_SB( .shbus(sh_deb_from_SB),.shares(shares_deb_from_SB));
@@ -135,7 +141,7 @@ recombine_shares_unit #(.d(d), .count(32)) rec_debug( .shares_in(shares_deb_from
 
 //// Value read from files
 reg [127:0] read_plaintext;
-reg [127:0] read_umsk_key;
+reg [KSIZE-1:0] read_umsk_key;
 reg [127:0] read_umsk_ciphertext;
 reg read_last_in;
 reg read_last_out;
@@ -143,9 +149,17 @@ reg read_last_out;
 assign dut_shares_plaintext[128 +: (d-1)*128] = 0;
 `ifdef DEBUG_CASE
     `ifdef DECRYPTION
-        assign dut_shares_plaintext[127:0] = 128'h320b6a19_978511dc_fb09dc02_1d842539;
+        `ifdef MODE256
+            assign dut_shares_plaintext[127:0] = 128'h8960494b_9049fcea_bf456751_cab7a28e;
+        `else
+            assign dut_shares_plaintext[127:0] = 128'h5ac5b470_80b7cdd8_30047b6a_d8e0c469;
+        `endif
     `else
-        assign dut_shares_plaintext[127:0] = 128'h340737e0_a2983131_8d305a88_a8f64332;
+        `ifdef MODE256
+            assign dut_shares_plaintext[127:0] = 128'hffeeddcc_bbaa9988_77665544_33221100;
+        `else
+            assign dut_shares_plaintext[127:0] = 128'hffeeddcc_bbaa9988_77665544_33221100;
+        `endif
     `endif
 `else
     endian_reverse #(
@@ -157,21 +171,33 @@ assign dut_shares_plaintext[128 +: (d-1)*128] = 0;
     );
 `endif
 
-assign dut_shares_key[128 +: (d-1)*128] = 0;
+assign dut_shares_key[256 +: (d-1)*256] = 0;
+generate
+if(KSIZE==128) begin: ksize
+    assign dut_shares_key[128 +: 128] = 128'b0;
+end
+endgenerate
 `ifdef DEBUG_CASE
     `ifdef DECRYPTION
-        assign dut_shares_key[127:0] = 128'ha60c63b6_c80c3fe1_8925eec9_a8f914d0;
-        //assign dut_shares_key[127:0] = 128'h05766c2a_3939a323_b12c5488_17fefaa0;
+        `ifdef MODE256
+            assign dut_shares_key[255:0] = 256'heacdf8cd_aa2b577e_e04ff2a9_99665a4e_36de686d_3cc21a37_e97909bf_cc79fc24;
+        `else
+            assign dut_shares_key[127:0] = 128'hc5302b4d_8ba707f3_174a94e3_7f1d1113;
+        `endif
     `else
-        assign dut_shares_key[127:0] = 128'h3c4fcf09_8815f7ab_a6d2ae28_16157e2b;
+        `ifdef MODE256
+            assign dut_shares_key[255:0] = 256'h1f1e1d1c_1b1a1918_17161514_13121110_0f0e0d0c_0b0a0908_07060504_03020100;
+        `else
+            assign dut_shares_key[127:0] = 128'h0f0e0d0c_0b0a0908_07060504_03020100;
+        `endif
     `endif
 `else
     endian_reverse #(
-        .BSIZE(128),
+        .BSIZE(KSIZE),
         .WIDTH(8)
     ) er_key (
         .bus_in(read_umsk_key),
-        .bus_out(dut_shares_key[127:0])
+        .bus_out(dut_shares_key[KSIZE-1:0])
     );
 `endif
 
@@ -248,6 +274,12 @@ initial begin
         dut_inverse = 0;
     `endif
     dut_key_schedule_only = 0;
+
+    `ifdef MODE256
+        dut_mode256 = 1;
+    `else
+        dut_mode256 = 0;
+    `endif
 
 
     // Init delay 

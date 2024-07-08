@@ -44,6 +44,8 @@ module MSKaes_32bits_core
     key_schedule_only,
     // Active high; specifies that the data on sh_last_key bus is valid.
     last_key_valid,
+    // Active high; specifies that the next operation starting must compute the AES-256 version
+    mode_256,
     //// Data
     // Masked plaintext (bit-compact representation). Valid when valid_in is high.
     sh_plaintext,
@@ -88,16 +90,18 @@ input inverse;
 input key_schedule_only;
 (* fv_type="control" *)
 output last_key_valid;
+(* fv_type="control" *)
+input mode_256;
 
 (* fv_type="sharing", fv_latency=0, fv_count=128 *)
 input [128*d-1:0] sh_plaintext;
 (* fv_type="sharing", fv_latency=0, fv_count=128 *)
-input [128*d-1:0] sh_key;
+input [256*d-1:0] sh_key;
 // TODO change latency
 (* fv_type="sharing", fv_latency=86, fv_count=128 *)
 output [128*d-1:0] sh_ciphertext;
 (* fv_type="sharing", fv_latency=86, fv_count=128 *)
-output [128*d-1:0] sh_last_key;
+output [256*d-1:0] sh_last_key;
 
 (* fv_type="random", fv_count=0, fv_rnd_count_0=4*rnd_bus0 *)
 input [4*rnd_bus0-1:0] rnd_bus0w;
@@ -172,15 +176,15 @@ core_data(
 );
 
 // Mux gating the sharing of the key
-wire [128*d-1:0] cst_sh_key;
-MSKcst #(.d(d),.count(128))
+wire [256*d-1:0] cst_sh_key;
+MSKcst #(.d(d),.count(256))
 cst_sh_key_gadget(
-    .cst(128'b0),
+    .cst(256'b0),
     .out(cst_sh_key)
 );
 
-wire [128*d-1:0] gated_sh_key;
-MSKmux #(.d(d),.count(128))
+wire [256*d-1:0] gated_sh_key;
+MSKmux #(.d(d),.count(256))
 mux_in_key_holder(
     .sel(feed_input),
     .in_true(sh_key),
@@ -191,6 +195,7 @@ mux_in_key_holder(
 ///// Key handling 
 // Round constant control 
 wire rcon_rst;
+wire rcon_mode_256;
 wire rcon_update;
 wire rcon_inverse;
 
@@ -202,6 +207,12 @@ wire KH_add_from_sb;
 wire KH_enable_buffer_from_sbox;
 wire KH_rst_buffer_from_sbox;
 
+wire KH_disable_rot_rcon;
+wire KH_enable_pipe_high;
+wire KH_feedback_from_high;
+wire KH_col7_toSB;
+wire KH_mode_256;
+
 wire [32*d-1:0] KH_sh_4bytes_rot_to_SB;
 wire [32*d-1:0] KH_sh_4bytes_from_key;
 wire [24*d-1:0] KH_sh_3bytes_from_key_inverse;
@@ -210,14 +221,20 @@ MSKaes_32bits_key_datapath #(.d(d))
 key_holder(
     .clk(clk),
     .init(KH_init),
-    .enable(KH_enable),
+    .enable_pipe_low(KH_enable),
     .loop(KH_loop),
     .add_from_sb(KH_add_from_sb),
     .rcon_rst(rcon_rst),
+    .rcon_mode_256(rcon_mode_256),
     .rcon_update(rcon_update),
     .rcon_inverse(rcon_inverse),
     .enable_buffer_from_sbox(KH_enable_buffer_from_sbox),
     .rst_buffer_from_sbox(KH_rst_buffer_from_sbox),
+    .disable_rot_rcon(KH_disable_rot_rcon),
+    .enable_pipe_high(KH_enable_pipe_high),
+    .feedback_from_high(KH_feedback_from_high),
+    .col7_toSB(KH_col7_toSB),
+    .mode_256(KH_mode_256),
     .sh_key(gated_sh_key),
     .sh_stored_key(sh_last_key),
     .sh_4bytes_rot_to_SB(KH_sh_4bytes_rot_to_SB),
@@ -368,6 +385,7 @@ fsm_unit(
     .busy(busy),
     .inverse(inverse),
     .key_schedule_only(key_schedule_only),
+    .mode_256(mode_256),
     .valid_in(valid_in),
     .in_ready(in_ready),
     .out_ready(out_ready),
@@ -388,7 +406,13 @@ fsm_unit(
     .KH_enable_buffer_from_sbox(KH_enable_buffer_from_sbox),
     .KH_rst_buffer_from_sbox(KH_rst_buffer_from_sbox),
     .KH_last_key_valid(last_key_valid),
+    .KH_disable_rot_rcon(KH_disable_rot_rcon),
+    .KH_enable_pipe_high(KH_enable_pipe_high),
+    .KH_feedback_from_high(KH_feedback_from_high),
+    .KH_col7_toSB(KH_col7_toSB),
+    .KH_mode_256(KH_mode_256),
     .rcon_rst(rcon_rst),
+    .rcon_mode_256(rcon_mode_256),
     .rcon_update(rcon_update),
     .rcon_inverse(rcon_inverse),
     .pre_need_rnd(in_ready_rnd),

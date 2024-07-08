@@ -14,12 +14,13 @@ WORK_HDL_COMPRESS ?= $(WORK_HDL)/compress_gadgets
 
 COMPRESS_ROOT =../sboxes-compress/compress
 
-TV_DIR=./tvs/files
+MODE ?= 128
+TV_DIR=./tvs/files/aes${MODE}
 DIR_GENERATED=tvs/generated
-#TV_FILE_PREF=ECBGFSbox128
-TV_FILE_PREF ?= ECBKeySbox128
-#TV_FILE_PREF=ECBVarKey128
-#TV_FILE_PREF?=ECBVarTxt128
+#TV_FILE_PREF=ECBGFSbox${MODE}
+TV_FILE_PREF ?= ECBKeySbox${MODE}
+#TV_FILE_PREF=ECBVarKey${MODE}
+#TV_FILE_PREF?=ECBVarTxt${MODE}
 
 ###########################
 KATIN=${TV_DIR}/${TV_FILE_PREF}.rsp
@@ -71,6 +72,7 @@ simu-build: hdl-dir
 	    -I ${WORK_HDL_COMPRESS} \
 	    -D TV_IN=\"${TVIN}\" \
 	    -D TV_OUT=\"${TVOUT}\" \
+	    -D KEY_SIZE=$(MODE)\
 	    $(TB_FILE) \
 	    -o ${WORK}/simu-exec-$(TB_TARGET) \
 	    -D DUMPFILE=\"${WORK}/log-$(TB_TARGET).vcd\" \

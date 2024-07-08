@@ -23,14 +23,20 @@ module MSKaes_32bits_key_datapath
     clk,
     // Control
     init,
-    enable,
+    enable_pipe_low,
     loop,
     add_from_sb,
     rcon_rst,
+    rcon_mode_256,
     rcon_update,
     rcon_inverse,
     enable_buffer_from_sbox,
     rst_buffer_from_sbox,
+    disable_rot_rcon, 
+    enable_pipe_high,
+    feedback_from_high,
+    col7_toSB,
+    mode_256,
     // Data
     sh_key,
     sh_stored_key,
@@ -42,16 +48,23 @@ module MSKaes_32bits_key_datapath
 
 input clk;
 input init;
-input enable;
+input enable_pipe_low;
 input loop;
 input add_from_sb;
 input rcon_rst;
+input rcon_mode_256;
 input rcon_update;
 input rcon_inverse;
 input enable_buffer_from_sbox;
 input rst_buffer_from_sbox;
-input [128*d-1:0] sh_key;
-output [128*d-1:0] sh_stored_key;
+input disable_rot_rcon;
+input enable_pipe_high;
+input feedback_from_high;
+input col7_toSB;
+input mode_256;
+
+input [256*d-1:0] sh_key;
+output [256*d-1:0] sh_stored_key;
 output [32*d-1:0] sh_4bytes_rot_to_SB;
 (* verime = "key_col_from_SB" *)
 input [32*d-1:0] sh_4bytes_from_SB;
@@ -67,11 +80,22 @@ MSKaes_rcon #(.d(d))
 rcon_unit(
     .clk(clk),
     .rst(rcon_rst),
+    .mode_256(rcon_mode_256),
     .update(rcon_update),
     .mask_rcon(1'b1),
     .sh_rcon(sh_rcon_b0),
     .inverse(rcon_inverse)
 );
+
+// Reverse the rotation performed at the input of the Sbox for Key material. 
+// used only for the AES-256 key scheduling
+wire [32*d-1:0] sh_4bytes_from_SB_norot;
+assign sh_4bytes_from_SB_norot[0 +: 8*d] = sh_4bytes_from_SB[24*d +: 8*d];
+assign sh_4bytes_from_SB_norot[8*d +: 8*d] = sh_4bytes_from_SB[0 +: 8*d];
+assign sh_4bytes_from_SB_norot[16*d +: 8*d] = sh_4bytes_from_SB[8*d +: 8*d];
+assign sh_4bytes_from_SB_norot[24*d +: 8*d] = sh_4bytes_from_SB[16*d +: 8*d];
+
+
 // XOR used to perform the addition with the first byte 
 // coming from the sbox (post rotation of the column)
 wire [8*d-1:0] added_rcon;
@@ -88,12 +112,25 @@ assign sh_4bytes_from_SB_rot_rcon[8*d +: 8*d] = sh_4bytes_from_SB[8*d +: 8*d];
 assign sh_4bytes_from_SB_rot_rcon[16*d +: 8*d] = sh_4bytes_from_SB[16*d +: 8*d];
 assign sh_4bytes_from_SB_rot_rcon[24*d +: 8*d] = sh_4bytes_from_SB[24*d +: 8*d];
 
+// Mux to select data from Sbox 
+// - with RCON addition and rotation (AES128 and AES256)
+//   or 
+// - without (AES256 only)
+wire [32*d-1:0] sh_4bytes_from_SB_to_key_update;
+MSKmux #(.d(d), .count(32))
+inst_mux_rotrcon_vs_raw(
+    .sel(disable_rot_rcon),
+    .in_true(sh_4bytes_from_SB_norot),
+    .in_false(sh_4bytes_from_SB_rot_rcon),
+    .out(sh_4bytes_from_SB_to_key_update)
+);
+
 
 // Byte matrix representation of the input key
-wire [8*d-1:0] sh_m_key_in[15:0];
+wire [8*d-1:0] sh_m_key_in[31:0];
 genvar i;
 generate
-for(i=0;i<16;i=i+1) begin: byte_key_in
+for(i=0;i<32;i=i+1) begin: byte_key_in
     assign sh_m_key_in[i] = sh_key[8*d*i +: 8*d];
 end
 endgenerate
@@ -101,30 +138,42 @@ endgenerate
 // Apply the initial permutation 
 // (required because of the new architecture, in regime the position of 
 // the key byte are located 1 stage before when the last column is taken) 
-wire [8*d-1:0] sh_m_key_in_perm[15:0];
+// Here, the permutation is only applied on the 4 first columns. This is done such that the 
+// AES-256 is implemented on top of the AES-128 while limiting the additional logic. 
+wire [8*d-1:0] sh_m_key_in_perm[31:0];
 generate
 for(i=0;i<16;i=i+1) begin: byte_key_in_perm
     assign sh_m_key_in_perm[i] = sh_m_key_in[(i+12)%16];
+    assign sh_m_key_in_perm[i+16] = sh_m_key_in[i+16];
 end
 endgenerate
 
 // Byte matrix representation of the holded round key
 (* verime = "key_byte" *)
-wire [8*d-1:0] sh_m_key[15:0];
-wire [8*d-1:0] to_sh_m_key[15:0];
+wire [8*d-1:0] sh_m_key[31:0];
+wire [8*d-1:0] to_sh_m_key[31:0];
 
 generate
 for(i=0;i<16;i=i+1) begin: byte_key
-    // Reg instance
+    // Reg instance LOW pipe
     MSKregEn #(.d(d),.count(8))
-    reg_sh_m_key(
+    reg_sh_m_key_low(
         .clk(clk),
-        .en(enable),
+        .en(enable_pipe_low),
         .in(to_sh_m_key[i]),
         .out(sh_m_key[i])
     );
+    // Reg instance HIGH pipe
+    MSKregEn #(.d(d),.count(8))
+    reg_sh_m_key_high(
+        .clk(clk),
+        .en(enable_pipe_high),
+        .in(to_sh_m_key[16+i]),
+        .out(sh_m_key[16+i])
+    );
     // Assign the value to last
     assign sh_stored_key[8*d*i +: 8*d] = sh_m_key[i];
+    assign sh_stored_key[16*d+8*d*i +: 8*d] = sh_m_key[16+i];
 end
 endgenerate
 
@@ -132,7 +181,7 @@ endgenerate
 genvar j;
 generate
 for(i=0;i<4;i=i+1) begin: row_min
-    for(j=0;j<3;j=j+1) begin: col_min
+    for(j=0;j<2;j=j+1) begin: col_min
         MSKmux #(.d(d),.count(8))
         mux_scan(
             .sel(init),
@@ -140,6 +189,48 @@ for(i=0;i<4;i=i+1) begin: row_min
             .in_false(sh_m_key[(4*(j+2)+i) % 16]),
             .out(to_sh_m_key[4*(j+1)+i])
         );        
+    end
+end
+endgenerate
+
+// Mux at the input of sh_m_key[12:15]. 
+generate
+for(i=0;i<4;i=i+1) begin: input_col_12_15
+    // Mux for the feedback selection between 
+    // - sh_m_key[0:3], used during the 
+    //      - key addition in round function (AES-128/256)
+    //      - key scheduling algorithm 
+    // - sh_m_key[16:19], used during the key scheduling of AES-256
+    wire [8*d-1:0] feedback_half;
+    MSKmux #(.d(d), .count(8))
+    mux_feedback_half(
+        .sel(feedback_from_high),
+        .in_true(sh_m_key[16+i]),
+        .in_false(sh_m_key[i]),
+        .out(feedback_half)
+    );
+    // Mux for the initialization
+    MSKmux #(.d(d), .count(8))
+    mux_scan(
+        .sel(init),
+        .in_true(sh_m_key_in_perm[12+i]),
+        .in_false(feedback_half),
+        .out(to_sh_m_key[12+i])
+    );
+end
+endgenerate
+
+// Mux at the input of register sh_m_key[16:31]
+generate
+for(i=0;i<4;i=i+1)begin: row_16_28
+    for(j=0;j<4;j=j+1) begin: byte_row
+        MSKmux #(.d(d), .count(8))
+        mux_scan(
+            .sel(init),
+            .in_true(sh_m_key_in_perm[16+i+4*j]),
+            .in_false(sh_m_key[(16+i+4*(j+1)) % 32]),
+            .out(to_sh_m_key[16+i+4*j])
+        );
     end
 end
 endgenerate
@@ -152,7 +243,7 @@ for(i=0;i<4;i=i+1) begin: row_lc_in
     MSKmux #(.d(d),.count(8))
     inst_mux_add_from_SB(
         .sel(add_from_sb),
-        .in_true(sh_4bytes_from_SB_rot_rcon[i*8*d +: 8*d]),
+        .in_true(sh_4bytes_from_SB_to_key_update[i*8*d +: 8*d]),
         .in_false(sh_m_key[i]),
         .out(mux_add_from_SB)
     );
@@ -246,7 +337,7 @@ for(i=0;i<4;i=i+1) begin: mux_layer_forward_vs_inverse
     // Mux for selection between inverse versus forward
     MSKmux #(.d(d),.count(8))
     inst_mux_inverse_to_sbox(
-        .sel(rcon_inverse),
+        .sel(rcon_inverse & ~mode_256),
         .in_true(xor_c0_c3),
         .in_false(sh_m_key[i]),
         .out(to_sbox_forwards_vs_inverse[i])
@@ -254,12 +345,26 @@ for(i=0;i<4;i=i+1) begin: mux_layer_forward_vs_inverse
 end
 endgenerate
 
+// Mux to select either the last column (used only in the first cycle of
+// AES-256 encryption), or the values from the first column
+wire [8*d-1:0] sh_bytes_to_SB_sel_lastcol [3:0];
+generate
+for(i=0;i<4;i=i+1) begin: mux_byte_to_SB
+    MSKmux #(.d(d),.count(8))
+    inst_mux_initm256(
+        .sel(col7_toSB),
+        .in_true(sh_m_key[28+i]),
+        .in_false(to_sbox_forwards_vs_inverse[i]),
+        .out(sh_bytes_to_SB_sel_lastcol[i])
+    );
+end
+endgenerate
 
 // Output assign 
-assign sh_4bytes_rot_to_SB[0 +: 8*d] = to_sbox_forwards_vs_inverse[1];
-assign sh_4bytes_rot_to_SB[8*d +: 8*d] = to_sbox_forwards_vs_inverse[2];
-assign sh_4bytes_rot_to_SB[16*d +: 8*d] = to_sbox_forwards_vs_inverse[3];
-assign sh_4bytes_rot_to_SB[24*d +: 8*d] = to_sbox_forwards_vs_inverse[0];
+assign sh_4bytes_rot_to_SB[0 +: 8*d] = sh_bytes_to_SB_sel_lastcol[1];
+assign sh_4bytes_rot_to_SB[8*d +: 8*d] = sh_bytes_to_SB_sel_lastcol[2];
+assign sh_4bytes_rot_to_SB[16*d +: 8*d] = sh_bytes_to_SB_sel_lastcol[3];
+assign sh_4bytes_rot_to_SB[24*d +: 8*d] = sh_bytes_to_SB_sel_lastcol[0];
 
 assign sh_4bytes_to_AK = {sh_m_key[15],sh_m_key[10],sh_m_key[5],sh_m_key[0]};
 assign sh_3bytes_to_AK_inverse = {sh_m_key[3],sh_m_key[2],sh_m_key[1]};
