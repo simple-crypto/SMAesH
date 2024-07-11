@@ -12,6 +12,9 @@
 `ifndef NSHARES
 `define NSHARES 2
 `endif
+`ifndef KEY_SIZE
+`define KEY_SIZE 128
+`endif
 module tb_aes_enc128_32bits_hpc
 #
 (
@@ -23,6 +26,8 @@ module tb_aes_enc128_32bits_hpc
 )
 ();
 
+localparam KWORDS = `KEY_SIZE/32;
+
 localparam wait_delay = 100*T;
 localparam init_delay=Td/2.0;
 
@@ -33,23 +38,29 @@ localparam Td = T/2.0;
 reg clk;
 reg syn_rst;
 
-reg dut_in_valid;
-wire dut_in_ready;
+reg dut_in_data_valid;
+wire dut_in_data_ready;
+wire [128*d-1:0] dut_in_shares_data;
+reg [127:0] dut_in_shares_data_share0;
+assign dut_in_shares_data[127:0] = dut_in_shares_data_share0;
+assign dut_in_shares_data[128 +: (d-1)*128] = 0;
 
-wire [128*d-1:0] dut_shares_plaintext;
-wire [128*d-1:0] dut_shares_key;
+reg dut_in_key_valid;
+wire dut_in_key_ready;
+reg [31:0] dut_in_key_data;
+reg dut_in_key_mode_256;
+reg dut_in_key_mode_inverse;
 
 reg dut_seed_valid;
 wire dut_seed_ready;
 reg [127:0] dut_seed;
 
-wire [128*d-1:0] dut_shares_ciphertext;
+wire [128*d-1:0] dut_out_shares_data;
 wire dut_out_valid;
 wire dut_out_ready;
 
 // Generate the clock
 always #Td clk=~clk;
-
 
 // Dut
 aes_enc128_32bits_hpc
@@ -61,41 +72,45 @@ aes_enc128_32bits_hpc
 dut(
     .clk(clk),
     .rst(syn_rst),
-    .in_valid(dut_in_valid),
-    .in_ready(dut_in_ready),
-    .in_shares_plaintext(dut_shares_plaintext),
-    .in_shares_key(dut_shares_key),
+    .in_data_valid(dut_in_data_valid),
+    .in_data_ready(dut_in_data_ready),
+    .in_shares_data(dut_in_shares_data),
+    .in_key_valid(dut_in_key_valid),
+    .in_key_ready(dut_in_key_ready),
+    .in_key_data(dut_in_key_data),
+    .in_key_mode_256(dut_in_key_mode_256),
+    .in_key_mode_inverse(dut_in_key_mode_inverse),
     .in_seed_valid(dut_seed_valid),
     .in_seed_ready(dut_seed_ready),
     .in_seed(dut_seed[79:0]),
-    .out_shares_ciphertext(dut_shares_ciphertext),
+    .out_shares_data(dut_out_shares_data),
     .out_valid(dut_out_valid),
     .out_ready(dut_out_ready)
 );
 
 //// Value read from files
 reg [127:0] read_plaintext;
-reg [127:0] read_umsk_key;
+reg [`KEY_SIZE-1:0] read_umsk_key;
 reg [127:0] read_umsk_ciphertext;
 reg read_last_in;
 reg read_last_out;
 
-assign dut_shares_plaintext[128 +: (d-1)*128] = 0;
+wire [127:0] ref_umsk_plaintext;
 endian_reverse #(
     .BSIZE(128),
     .WIDTH(8)
 ) er_plaintext (
     .bus_in(read_plaintext),
-    .bus_out(dut_shares_plaintext[127:0])
+    .bus_out(ref_umsk_plaintext)
 );
 
-assign dut_shares_key[128 +: (d-1)*128] = 0;
+wire [`KEY_SIZE-1:0] ref_umsk_key;
 endian_reverse #(
-    .BSIZE(128),
+    .BSIZE(`KEY_SIZE),
     .WIDTH(8)
 ) er_key (
     .bus_in(read_umsk_key),
-    .bus_out(dut_shares_key[127:0])
+    .bus_out(ref_umsk_key)
 );
 
 wire [127:0] ref_umsk_ciphertext;
@@ -111,9 +126,27 @@ endian_reverse #(
 wire [127:0] rec_dut_ciphertext;
 recombine_shares_unit #(.d(d),.count(128))
 ru(
-    .shares_in(dut_shares_ciphertext),
+    .shares_in(dut_out_shares_data),
     .out(rec_dut_ciphertext)
 );
+
+
+// For debug usage
+wire [`KEY_SIZE*d-1:0] prob_key_KSU = dut.KSU_sh_key_out[0 +: `KEY_SIZE*d] ;
+wire [`KEY_SIZE*d-1:0] shares_prob_key_KSU;
+shbus2shares #(.d(d), .count(`KEY_SIZE))
+sh2sha_key(
+    .shbus(prob_key_KSU),
+    .shares(shares_prob_key_KSU)
+);
+
+wire [`KEY_SIZE-1:0] rec_key_KSU;
+recombine_shares_unit #(.d(d),.count(`KEY_SIZE))
+ruKSU(
+    .shares_in(shares_prob_key_KSU),
+    .out(rec_key_KSU)
+);
+
 
 ////// RUN 
 integer RUN_AM;
@@ -162,7 +195,7 @@ initial begin
     if (CONTINUOUS!==1) begin
         while(1) begin
             // wait the next execution start
-            while(dut_in_valid!==1 | dut_in_ready!==1) begin
+            while(dut_in_data_valid!==1 | dut_in_data_ready!==1) begin
                 #T;
             end
             // Generate random latecny beofre next reseeding
@@ -176,7 +209,7 @@ initial begin
             end
             // Start a new reseed procedure
             $display("Reseed of PRNG requested...");
-            dut_seed_valid = 1;
+            dut_seed_valid = 0; // FIX here
             // Wait for new seed eating
             while(dut_seed_ready!==1) begin
                 #T;
@@ -194,6 +227,8 @@ integer i;
 integer cnt_in;
 integer id_in;
 integer rnd_time_before_valid_in;
+integer k, dr;
+integer cnt_lock;
 initial begin
     `ifdef DUMPFILE
         // Open dumping file
@@ -218,8 +253,12 @@ initial begin
     clk = 1;
     syn_rst = 0;
     
-    dut_in_valid = 0;
+    dut_in_data_valid = 0;
     dut_seed_valid = 0;
+
+    dut_in_key_valid = 0;
+    dut_in_key_mode_256 = (`KEY_SIZE==256);
+    dut_in_key_mode_inverse = 0;
 
     // Init delay 
     #(wait_delay); 
@@ -245,6 +284,31 @@ initial begin
         read_case_header(id_tv_in,id_in);
         // Read the case inputs
         read_next_in_words(id_tv_in,read_plaintext,read_umsk_key,read_last_in);
+        // Set the key
+        #Td;
+
+        // ######### FIRST, run the encryption #########
+        for(k=0;k<KWORDS;k=k+1) begin
+            dut_in_key_data = ref_umsk_key[k*32 +: 32];
+            dut_in_key_mode_inverse = 0;
+            dut_in_key_valid = 1;
+            while(dut_in_key_ready!==1) begin
+                #T;
+            end
+            #T;
+        end
+        for(dr=0;dr<d-1;dr=dr+1) begin
+            for(k=0;k<KWORDS;k=k+1) begin
+                dut_in_key_data = 32'b0;
+                dut_in_key_valid = 1;
+                while(dut_in_key_ready!==1) begin
+                    #T;
+                end
+                #T;
+            end
+        end
+        dut_in_key_valid = 0;
+
         // Generate random timing before asserting valid
         if (CONTINUOUS===1) begin
             rnd_time_before_valid_in = 0;
@@ -254,13 +318,69 @@ initial begin
         for(i=0;i<rnd_time_before_valid_in;i=i+1) begin
             #T;
         end
-        // Assert valid in
-        dut_in_valid = 1;
-        while(dut_in_ready!==1) begin
+        // Assert valid in with the plaintext
+        dut_in_shares_data_share0 = ref_umsk_plaintext;
+        dut_in_data_valid = 1;
+        while(dut_in_data_ready!==1) begin
             #T;
         end
         #T;
-        dut_in_valid = 0;
+        dut_in_data_valid = 0;
+
+
+        // #### DELAY before starting the decryption ####
+        if (CONTINUOUS===1) begin
+            rnd_time_before_valid_in = 0;
+        end else begin
+            rnd_time_before_valid_in = {$random} % RND_RANGE_LAT_IN;
+        end
+        for(i=0;i<rnd_time_before_valid_in;i=i+1) begin
+            #T;
+        end
+
+        // ######### SECOND, run the decryption #########
+        for(k=0;k<KWORDS;k=k+1) begin
+            dut_in_key_data = ref_umsk_key[k*32 +: 32];
+            dut_in_key_mode_inverse = 1;
+            dut_in_key_valid = 1;
+            while(dut_in_key_ready!==1) begin
+                #T;
+            end
+            #T;
+        end
+        for(dr=0;dr<d-1;dr=dr+1) begin
+            for(k=0;k<KWORDS;k=k+1) begin
+                dut_in_key_data = 32'b0;
+                dut_in_key_valid = 1;
+                while(dut_in_key_ready!==1) begin
+                    #T;
+                end
+                #T;
+            end
+        end
+        dut_in_key_valid = 0;
+
+        // Generate random timing before asserting valid
+        if (CONTINUOUS===1) begin
+            rnd_time_before_valid_in = 0;
+        end else begin
+            rnd_time_before_valid_in = {$random} % RND_RANGE_LAT_IN;
+        end
+        for(i=0;i<rnd_time_before_valid_in;i=i+1) begin
+            #T;
+        end
+        // Assert valid in with the ciphertext
+        dut_in_shares_data_share0 = ref_umsk_ciphertext;
+        dut_in_data_valid = 1;
+        while(dut_in_data_ready!==1) begin
+            #T;
+        end
+        #T;
+        dut_in_data_valid = 0;
+        // Wait for unlock
+        while(cnt_in !== cnt_lock) begin
+            #T;
+        end
     end
 
 end
@@ -295,6 +415,7 @@ integer trash;
 integer cnt_out;
 integer id_out;
 initial begin
+    cnt_lock = -1;
     // Open file
     id_tv_out = $fopen(`TV_OUT,"r");
 
@@ -313,7 +434,7 @@ initial begin
         read_case_header(id_tv_out,id_out);
         // read case output
         read_next_out_words(id_tv_out,read_umsk_ciphertext,read_last_out);
-        // Wait for next fetch at the output 
+        // (1. ENCRYPTION) Wait for next fetch at the output 
         while((dut_out_valid!==1) | (dut_out_ready!==1)) begin
             #T;
         end
@@ -324,8 +445,23 @@ initial begin
             $display("Expected ciphertext:\n%x\n",read_umsk_ciphertext);
             $finish;
         end
-        $display("%d/%d done!",cnt_out+1,RUN_AM);
+        $display(" [ENCRYPT] %d/%d done!",cnt_out+1,RUN_AM);
         #T;
+
+        // (1. DECRYPTION) Wait for next fetch at the output 
+        while((dut_out_valid!==1) | (dut_out_ready!==1)) begin
+            #T;
+        end
+        // Verification
+        if(ref_umsk_plaintext!==rec_dut_ciphertext[127:0]) begin
+            $display("FAILURE for case %d",id_out);
+            $display("plaintext computed:\n%x\n",rec_dut_ciphertext[127:0]);
+            $display("Expected plaintext:\n%x\n",ref_umsk_plaintext);
+            $finish;
+        end
+        $display(" [DECRYPT] %d/%d done!",cnt_out+1,RUN_AM);
+        #T;
+        cnt_lock = cnt_out;
     end
     $display("KAT executions done!");
     #T;

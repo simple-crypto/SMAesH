@@ -106,7 +106,7 @@ dut(
     .out_ready(dut_out_ready),
     .inverse(dut_inverse),
     .key_schedule_only(dut_key_schedule_only),
-    .last_key_valid(last_key_valid),
+    .last_key_pre_valid(dut_last_key_valid),
     .mode_256(dut_mode256),
     .sh_plaintext(dut_sh_plaintext),
     .sh_key(dut_sh_key),
@@ -273,7 +273,7 @@ initial begin
     `else
         dut_inverse = 0;
     `endif
-    dut_key_schedule_only = 0;
+    dut_key_schedule_only = 1;
 
     `ifdef MODE256
         dut_mode256 = 1;

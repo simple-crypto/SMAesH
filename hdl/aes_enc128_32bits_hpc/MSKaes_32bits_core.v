@@ -43,7 +43,7 @@ module MSKaes_32bits_core
     // Active high; specifies that the next operation starting must compute the key scheduling only 
     key_schedule_only,
     // Active high; specifies that the data on sh_last_key bus is valid.
-    last_key_valid,
+    last_key_pre_valid,
     // Active high; specifies that the next operation starting must compute the AES-256 version
     mode_256,
     //// Data
@@ -54,7 +54,7 @@ module MSKaes_32bits_core
     // Masked ciphertext (bit-compact representation). Valid when cipher_valid is high.
     sh_ciphertext,
     // Masked last key used (bit-compact representation). Valid when 
-    sh_last_key,
+    sh_last_key_col,
     // Masked final key used (bit-compact representation, used only to init the last round key in inverse mode). 
     // Randomness busses (required for the Sboxes). These busses must contain
     // fresh randomness for every cycle where the core is computing, which is
@@ -63,7 +63,8 @@ module MSKaes_32bits_core
     rnd_bus1w,
     rnd_bus2w,
     rnd_bus3w,
-    in_ready_rnd
+    in_ready_rnd,
+    rnd_bus0_valid_for_rfrsh
 );
 
 `include "design.vh"
@@ -89,7 +90,7 @@ input inverse;
 (* fv_type="control" *)
 input key_schedule_only;
 (* fv_type="control" *)
-output last_key_valid;
+output last_key_pre_valid;
 (* fv_type="control" *)
 input mode_256;
 
@@ -101,7 +102,7 @@ input [256*d-1:0] sh_key;
 (* fv_type="sharing", fv_latency=86, fv_count=128 *)
 output [128*d-1:0] sh_ciphertext;
 (* fv_type="sharing", fv_latency=86, fv_count=128 *)
-output [256*d-1:0] sh_last_key;
+output [32*d-1:0] sh_last_key_col;
 
 (* fv_type="random", fv_count=0, fv_rnd_count_0=4*rnd_bus0 *)
 input [4*rnd_bus0-1:0] rnd_bus0w;
@@ -114,6 +115,8 @@ input [4*rnd_bus3-1:0] rnd_bus3w;
 
 (* fv_type="control" *)
 output in_ready_rnd;
+(* fv_type="control" *)
+output rnd_bus0_valid_for_rfrsh;
 
 // Control signal to enable to tap values coming from the outside of the core.
 // Otherwise, 0 is fed to the input, ensuring that we don't start computing on
@@ -236,7 +239,7 @@ key_holder(
     .col7_toSB(KH_col7_toSB),
     .mode_256(KH_mode_256),
     .sh_key(gated_sh_key),
-    .sh_stored_key(sh_last_key),
+    .sh_last_key_col(sh_last_key_col),
     .sh_4bytes_rot_to_SB(KH_sh_4bytes_rot_to_SB),
     .sh_4bytes_from_SB(sh_4bytes_from_SB),
     .sh_4bytes_to_AK(KH_sh_4bytes_from_key),
@@ -386,6 +389,7 @@ fsm_unit(
     .inverse(inverse),
     .key_schedule_only(key_schedule_only),
     .mode_256(mode_256),
+    .rnd_bus0_valid_for_refresh(rnd_bus0_valid_for_rfrsh),
     .valid_in(valid_in),
     .in_ready(in_ready),
     .out_ready(out_ready),
@@ -405,7 +409,7 @@ fsm_unit(
     .KH_add_from_sb(KH_add_from_sb),
     .KH_enable_buffer_from_sbox(KH_enable_buffer_from_sbox),
     .KH_rst_buffer_from_sbox(KH_rst_buffer_from_sbox),
-    .KH_last_key_valid(last_key_valid),
+    .KH_last_key_pre_valid(last_key_pre_valid),
     .KH_disable_rot_rcon(KH_disable_rot_rcon),
     .KH_enable_pipe_high(KH_enable_pipe_high),
     .KH_feedback_from_high(KH_feedback_from_high),

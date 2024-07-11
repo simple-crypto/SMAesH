@@ -21,6 +21,7 @@ module MSKaes_32bits_fsm
     inverse,
     key_schedule_only,
     mode_256,
+    rnd_bus0_valid_for_refresh,
     // Once asserted, expected to remain high until exchange completion.
     valid_in,
     in_ready,
@@ -44,7 +45,7 @@ module MSKaes_32bits_fsm
     KH_add_from_sb,
     KH_enable_buffer_from_sbox,
     KH_rst_buffer_from_sbox,
-    KH_last_key_valid,
+    KH_last_key_pre_valid,
     KH_disable_rot_rcon,
     KH_enable_pipe_high,
     KH_feedback_from_high,
@@ -73,6 +74,7 @@ output busy;
 input inverse;
 input key_schedule_only;
 input mode_256;
+output reg rnd_bus0_valid_for_refresh;
 input valid_in;
 output in_ready;
 input out_ready;
@@ -94,7 +96,7 @@ output reg KH_loop;
 output reg KH_add_from_sb;
 output reg KH_enable_buffer_from_sbox; 
 output reg KH_rst_buffer_from_sbox;
-output reg KH_last_key_valid;
+output reg KH_last_key_pre_valid;
 output reg KH_disable_rot_rcon;
 output reg KH_enable_pipe_high;
 output reg KH_feedback_from_high;
@@ -126,7 +128,8 @@ localparam IDLE = 0,
 FIRST_SB_K = 1,
 WAIT_ROUND = 2,
 WAIT_LAST_ROUND = 3,
-WAIT_AKfinal = 4;
+WAIT_AKfinal = 4,
+WAIT_FETCH_KEYMAT = 5;
 
 reg [3:0] state, nextstate;
 
@@ -147,6 +150,8 @@ wire last_FAK_cycle = cnt_fsm == SERIAL_LAT-1;
 
 wire in_AKSB = cnt_fsm<SERIAL_LAT;
 wire in_AKSB_except_last = cnt_fsm < SERIAL_LAT-1;
+
+wire cnt_fsm_is_odd = cnt_fsm[0];
 
 // Key scheduling is performing key update
 wire in_KS_KEYUPDATE = (cnt_fsm >= (SBOX_LAT-1)) & (cnt_fsm < SBOX_LAT+3);
@@ -210,6 +215,15 @@ end else if(save_exec_status) begin
     exec_status_mode_256 <= mode_256;
 end
 
+// Additional control 
+
+//In inverse mode, the key schedule is computed in order to
+// fetch the last round used. ATM, the procedure for recovering the key is to
+// feed back data to the key holder per word of (masked) 16 bits. However, in
+// order to avoid having additional logic for this operation, the architecture
+// leverage the existing mux in the key holder to shift a single column at the
+// time, every two cycles (so the data is valid for 2 cycles).  
+wire last_key_schedule_only_fetch_cycle = exec_status_mode_256 ? (cnt_fsm == 15) : (cnt_fsm == 7);
 
 // Register to keep the cipher_valid signal
 reg set_valid_out;
@@ -222,7 +236,7 @@ end else if(set_valid_out) begin
     valid_out_reg <= 1; 
 end
 
-assign cipher_valid = valid_out_reg;
+assign cipher_valid = valid_out_reg & ~exec_status_key_schedule_only;
 
 // in_ready handling. According to the SVRS protocol, the input interface
 // signal is sticky (the data and the in_valid signals remains fixed once 
@@ -253,7 +267,7 @@ assign in_ready = reg_in_ready;
 wire start_exec = valid_in & (~valid_out_reg | cipher_fetch);
 
 // Global status
-reg in_fetch, in_first_SBK, in_round, in_last_round, in_AKfinal, in_reset_KH;
+reg in_fetch, in_first_SBK, in_round, in_last_round, in_AKfinal, in_reset_KH, in_FKEYMAT;
 wire is_first_round = cnt_round == 0;
 
 // Nextstate logic
@@ -270,6 +284,7 @@ always@(*) begin
     in_last_round = 0;
     in_AKfinal = 0;
     in_reset_KH = 0;
+    in_FKEYMAT = 0;
 
     save_exec_status = 0;
     rst_exec_status = 0;
@@ -312,7 +327,11 @@ always@(*) begin
         WAIT_LAST_ROUND: begin
             in_last_round = 1;
             if(last_round_cycle) begin
-                nextstate = WAIT_AKfinal;
+                if (exec_status_key_schedule_only) begin
+                    nextstate = WAIT_FETCH_KEYMAT;
+                end else begin
+                    nextstate = WAIT_AKfinal;
+                end
                 cnt_fsm_reset = 1;
                 cnt_round_inc = 1;
             end
@@ -322,6 +341,13 @@ always@(*) begin
             if(last_FAK_cycle) begin
                 nextstate = IDLE;
             end
+        end
+        WAIT_FETCH_KEYMAT: begin
+            in_FKEYMAT = 1;
+            if (last_key_schedule_only_fetch_cycle) begin
+                nextstate = IDLE;
+            end
+            
         end
     endcase
 end
@@ -348,7 +374,7 @@ always@(*) begin
     KH_add_from_sb = 0;
     KH_enable_buffer_from_sbox = 0;
     KH_rst_buffer_from_sbox = 0;
-    KH_last_key_valid = 0;
+    KH_last_key_pre_valid = 0;
     KH_disable_rot_rcon = 0;
     KH_enable_pipe_high = 0;
     KH_feedback_from_high = 0;
@@ -373,6 +399,8 @@ always@(*) begin
     rcon_update = 0;
 
     reg_limit_set256 = 0;
+
+    rnd_bus0_valid_for_refresh = 0;
 
     
     // Pre_need_rnd always on except when IDLE and no start
@@ -400,6 +428,8 @@ always@(*) begin
     if(in_first_SBK | in_round | in_last_round) begin
         cnt_fsm_inc = 1;
     end else if(in_AKfinal) begin
+        cnt_fsm_inc = 1;
+    end else if(in_FKEYMAT) begin
         cnt_fsm_inc = 1;
     end
     // The sbox is valid 
@@ -430,8 +460,10 @@ always@(*) begin
     // if a new execution starts or 
     // if no execution starts and the output is fetched (to empty the core).
     // The datapath is disabled when the value coming from the Sbox is key material 
-    if(in_fetch | ((in_round | in_last_round) & ~key_from_sbox ) | in_AKfinal | in_reset_KH) begin
-        state_enable = 1;
+    if(in_fetch) begin
+        state_enable = ~key_schedule_only;
+    end else if (((in_round | in_last_round) & ~key_from_sbox ) | in_AKfinal | in_reset_KH) begin
+        state_enable = ~exec_status_key_schedule_only;
     end
     // State mux control
     // During an encryption, the forward Mixcolumns logic is enabled during the rounds except the last one.
@@ -460,23 +492,29 @@ always@(*) begin
         end
     end
     // The lower part of the key holder (cols[0:3]) is enabled
-    // when a new execution starts or
-    // during rounds when AKSB of key expension are in progress or
-    // during the final key addition or
-    // if no execution starts and the output is fetched (to empty the core).
+    //  - when a new execution starts or
+    //  - during rounds when AKSB of key expension are in progress or
+    //  - during the final key addition or
+    //  - if no execution starts and the output is fetched (to empty the core).
     KH_enable = (
         in_first_SBK |
         in_fetch |
         ((in_round | in_last_round) & ((in_AKSB_except_last | last_round_cycle) | in_KEXP)) |
         in_AKfinal |
+        (in_FKEYMAT & cnt_fsm_is_odd) |
         in_reset_KH 
     );
     // The higher part of the key holder is enabled ONLY during a execution of AES-256:
     // - when a new execution start or 
     // - when the new key material is shifted through the first column
-    KH_enable_pipe_high = (mode_256 & in_fetch) | ( exec_status_mode_256 & (
-        in_key_material_shift
-    ));
+    if (in_fetch) begin
+        KH_enable_pipe_high = mode_256;
+    end else if (in_FKEYMAT) begin
+        KH_enable_pipe_high = exec_status_mode_256 & cnt_fsm_is_odd;
+    end else if (in_key_material_shift) begin
+        KH_enable_pipe_high = exec_status_mode_256;
+    end 
+
     // The result of the sbox is added to the key column during
     // the first cycle of the key expension.
     if((in_round | in_last_round) & in_KEXP_FIRST) begin
@@ -505,6 +543,8 @@ always@(*) begin
         end
     end else if(in_AKfinal) begin
         KH_loop = 1;
+    end else if(in_FKEYMAT) begin
+        KH_loop = 1;
     end else if(in_first_SBK) begin
         KH_loop = 1;
     end 
@@ -529,7 +569,7 @@ always@(*) begin
     // In decryption, the sbox is executed in reverse mode
     sbox_inverse = exec_status_inverse & (~feed_sb_key);
     // The last key value is valid at the very first cycle of the last key addition operation
-    KH_last_key_valid = in_AKfinal & first_round_cycle; 
+    KH_last_key_pre_valid = in_last_round & last_round_cycle; 
     // In AES-256 the rotation and RCON addition is disabled during key scheduling when
     //  - cnt_round (round index) is odd during an encryption
     //  - cnt_round is even during a even during a decryption
@@ -542,7 +582,7 @@ always@(*) begin
     //  - In AES-128: never
     //  - In AES-256:
     //      - When new key material is shifted from the first column. 
-    KH_feedback_from_high = exec_status_mode_256 & in_key_material_shift;
+    KH_feedback_from_high = exec_status_mode_256 & (in_key_material_shift | in_FKEYMAT);
     // The last column of the key is routed to the Sbox only in AES-256, at the first cycle 
     // of an encryption
     KH_col7_toSB = in_first_SBK & exec_status_mode_256 ; // DEBGU: may be required to remove the mux in keydp
@@ -565,6 +605,11 @@ always@(*) begin
     );
     // The round limit is set to 256, at the first key addition if mode256 is fetch
     reg_limit_set256 = exec_status_mode_256; 
+    // The randomness of the bus 0 is valid for refresh when the input to the sbox
+    // is not valid during the computation of a round
+    if(in_round | in_last_round) begin
+        rnd_bus0_valid_for_refresh = ~sbox_valid_in;
+    end
      
 end
 

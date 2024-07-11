@@ -39,7 +39,7 @@ module MSKaes_32bits_key_datapath
     mode_256,
     // Data
     sh_key,
-    sh_stored_key,
+    sh_last_key_col,
     sh_4bytes_rot_to_SB,
     sh_4bytes_from_SB,
     sh_4bytes_to_AK,
@@ -64,7 +64,7 @@ input col7_toSB;
 input mode_256;
 
 input [256*d-1:0] sh_key;
-output [256*d-1:0] sh_stored_key;
+output [32*d-1:0] sh_last_key_col;
 output [32*d-1:0] sh_4bytes_rot_to_SB;
 (* verime = "key_col_from_SB" *)
 input [32*d-1:0] sh_4bytes_from_SB;
@@ -171,11 +171,12 @@ for(i=0;i<16;i=i+1) begin: byte_key
         .in(to_sh_m_key[16+i]),
         .out(sh_m_key[16+i])
     );
-    // Assign the value to last
-    assign sh_stored_key[8*d*i +: 8*d] = sh_m_key[i];
-    assign sh_stored_key[16*d+8*d*i +: 8*d] = sh_m_key[16+i];
 end
 endgenerate
+assign sh_last_key_col[0 +: 8*d] = sh_m_key[0];
+assign sh_last_key_col[8*d +: 8*d] = sh_m_key[1];
+assign sh_last_key_col[16*d +: 8*d] = sh_m_key[2];
+assign sh_last_key_col[24*d +: 8*d] = sh_m_key[3];
 
 // Mux at the input of sh_m_key[4:15]
 genvar j;
