@@ -31,7 +31,7 @@ end else if (inc) begin
     cnt_words <= cnt_words + 1;
 end
 wire inc_share_needed = (cnt_words == words_per_share_bound);
-assign soft_reset = inc_share_needed;
+assign soft_reset = inc & inc_share_needed;
 
 // Counter fpr the shares
 reg [NBITS-1:0] cnt_shares;

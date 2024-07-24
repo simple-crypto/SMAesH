@@ -209,7 +209,8 @@ PAD_ZERO_NEW_KEY = 3,
 START_KEY_COMPUTATION = 4,
 WAIT_KEY_COMPUTATION = 5,
 FETCH_KEY_MATERIAL = 6,
-PAD_ZERO_LAST_KEY = 7
+PAD_ZERO_LAST_KEY = 7,
+IN_REFRESH = 8
 ;
 
 localparam STATE_BITS = 4;
@@ -223,11 +224,12 @@ end
 
 // Virtual state used for branching
 reg [STATE_BITS-1:0] branch_compute_last;
-reg in_branch_compute_last, in_padding, in_fetch_new_key, in_fetch_last_key, in_fetch_from_buffer;
+reg in_branch_compute_last, in_padding, in_fetch_new_key, in_fetch_last_key, in_fetch_from_buffer, in_refresh;
 
 // fsm internal control
 wire last_word_fetch = (share_idx == d-1) & (word_idx == words_per_share_bound);
 wire last_last_key_word_fetch = (share_idx == 0) & (word_idx == words_per_share_bound); 
+wire last_refresh_word = cfg_mode_256 ? (share_idx == 0) & (word_idx == words_per_share_bound) : (share_idx == 1) & (word_idx == words_per_share_bound);
 
 // FSM 
 always@(*) begin
@@ -254,6 +256,7 @@ always@(*) begin
     in_fetch_new_key = 0;
     in_fetch_last_key = 0;
     in_fetch_from_buffer = 0;
+    in_refresh = 0;
 
     case (state)
         IDLE: begin
@@ -261,7 +264,8 @@ always@(*) begin
             rst_count_words = 1;
             // First branch if a new execution started (refresh handling)
             if(aes_exec_started) begin
-                nextstate = state; // TODO modify for refresh
+                nextstate = IN_REFRESH; 
+                rst_count_words = 1;
             // Second branch if a new key is loaded 
             end else if(start_fetch_procedure) begin
                 nextstate = FETCH_DATA;        
@@ -296,7 +300,6 @@ always@(*) begin
             end
         end
         PAD_ZERO_NEW_KEY: begin
-            // TODO add mux for 0
             inc_count_words = 1;
             in_fetch_new_key = 1;
             in_padding = 1;
@@ -338,6 +341,17 @@ always@(*) begin
             ll_enable_mask = 1;
             if(last_last_key_word_fetch) begin
                 nextstate = IDLE; 
+            end
+        end
+        IN_REFRESH: begin
+            in_refresh = 1;
+            ll_enable_from_ksched = 1; 
+            if(rnd_rfrsh_in_valid) begin
+                inc_count_words = 1;
+                ll_enable_mask = 1; 
+                if(last_refresh_word) begin
+                    nextstate = IDLE; 
+                end
             end
         end
     endcase
