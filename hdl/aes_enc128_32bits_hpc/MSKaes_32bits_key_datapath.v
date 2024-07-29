@@ -28,15 +28,14 @@ module MSKaes_32bits_key_datapath
     add_from_sb,
     rcon_rst,
     rcon_mode_256,
+    rcon_mode_192,
     rcon_update,
     rcon_inverse,
-    enable_buffer_from_sbox,
     rst_buffer_from_sbox,
     disable_rot_rcon, 
     enable_pipe_high,
     feedback_from_high,
     col7_toSB,
-    mode_256,
     // Data
     sh_key,
     sh_last_key_col,
@@ -53,15 +52,14 @@ input loop;
 input add_from_sb;
 input rcon_rst;
 input rcon_mode_256;
+input rcon_mode_192;
 input rcon_update;
 input rcon_inverse;
-input enable_buffer_from_sbox;
 input rst_buffer_from_sbox;
 input disable_rot_rcon;
 input enable_pipe_high;
 input feedback_from_high;
 input col7_toSB;
-input mode_256;
 
 input [256*d-1:0] sh_key;
 output [32*d-1:0] sh_last_key_col;
@@ -81,6 +79,7 @@ rcon_unit(
     .clk(clk),
     .rst(rcon_rst),
     .mode_256(rcon_mode_256),
+    .mode_192(rcon_mode_192),
     .update(rcon_update),
     .mask_rcon(1'b1),
     .sh_rcon(sh_rcon_b0),
@@ -286,10 +285,9 @@ for(i=0;i<4;i=i+1) begin: row_lc_in
     );
 
     // Register to act as a buffer for the data from Sboxes
-    MSKregEn #(.d(d), .count(8))
+    MSKreg #(.d(d), .count(8))
     reg_buffer_sbox(
         .clk(clk),
-        .en(enable_buffer_from_sbox),
         .in(to_buffer_from_SB),
         .out(buffer_from_SB)
     );
@@ -338,7 +336,7 @@ for(i=0;i<4;i=i+1) begin: mux_layer_forward_vs_inverse
     // Mux for selection between inverse versus forward
     MSKmux #(.d(d),.count(8))
     inst_mux_inverse_to_sbox(
-        .sel(rcon_inverse & ~mode_256),
+        .sel(rcon_inverse & ~(rcon_mode_256 | rcon_mode_192)),
         .in_true(xor_c0_c3),
         .in_false(sh_m_key[i]),
         .out(to_sbox_forwards_vs_inverse[i])

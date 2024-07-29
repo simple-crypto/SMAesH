@@ -40,12 +40,18 @@ module MSKaes_32bits_core
     out_ready,
     // Active high; specifies that the next operation starting must be inverse
     inverse, 
-    // Active high; specifies that the next operation starting must compute the key scheduling only 
+    // Active high; specifies that the next operation starting must compute the
+    // key scheduling only 
     key_schedule_only,
     // Active high; specifies that the data on sh_last_key bus is valid.
     last_key_pre_valid,
-    // Active high; specifies that the next operation starting must compute the AES-256 version
+    // Active high; specifies that the next operation starting must compute the
+    // AES-256 version (default is AES-128)
     mode_256,
+    // Active high; specifies that the next operation starting must compute the
+    // AES-192 version (default is AES-128).  Ignored if asserted together with
+    // 'mode_256'
+    mode_192,
     //// Data
     // Masked plaintext (bit-compact representation). Valid when valid_in is high.
     sh_plaintext,
@@ -53,9 +59,8 @@ module MSKaes_32bits_core
     sh_key,
     // Masked ciphertext (bit-compact representation). Valid when cipher_valid is high.
     sh_ciphertext,
-    // Masked last key used (bit-compact representation). Valid when 
+    // Masked last key used (bit-compact representation). Used only to init the last round key in inverse mode). 
     sh_last_key_col,
-    // Masked final key used (bit-compact representation, used only to init the last round key in inverse mode). 
     // Randomness busses (required for the Sboxes). These busses must contain
     // fresh randomness for every cycle where the core is computing, which is
     // signaled by a HIGH value on in_ready_rnd.
@@ -93,6 +98,8 @@ input key_schedule_only;
 output last_key_pre_valid;
 (* fv_type="control" *)
 input mode_256;
+(* fv_type="control" *)
+input mode_192;
 
 (* fv_type="sharing", fv_latency=0, fv_count=128 *)
 input [128*d-1:0] sh_plaintext;
@@ -199,6 +206,7 @@ mux_in_key_holder(
 // Round constant control 
 wire rcon_rst;
 wire rcon_mode_256;
+wire rcon_mode_192;
 wire rcon_update;
 wire rcon_inverse;
 
@@ -207,14 +215,12 @@ wire KH_enable;
 wire KH_loop;
 wire KH_add_from_sb;
 
-wire KH_enable_buffer_from_sbox;
 wire KH_rst_buffer_from_sbox;
 
 wire KH_disable_rot_rcon;
 wire KH_enable_pipe_high;
 wire KH_feedback_from_high;
 wire KH_col7_toSB;
-wire KH_mode_256;
 
 wire [32*d-1:0] KH_sh_4bytes_rot_to_SB;
 wire [32*d-1:0] KH_sh_4bytes_from_key;
@@ -229,15 +235,14 @@ key_holder(
     .add_from_sb(KH_add_from_sb),
     .rcon_rst(rcon_rst),
     .rcon_mode_256(rcon_mode_256),
+    .rcon_mode_192(rcon_mode_192),
     .rcon_update(rcon_update),
     .rcon_inverse(rcon_inverse),
-    .enable_buffer_from_sbox(KH_enable_buffer_from_sbox),
     .rst_buffer_from_sbox(KH_rst_buffer_from_sbox),
     .disable_rot_rcon(KH_disable_rot_rcon),
     .enable_pipe_high(KH_enable_pipe_high),
     .feedback_from_high(KH_feedback_from_high),
     .col7_toSB(KH_col7_toSB),
-    .mode_256(KH_mode_256),
     .sh_key(gated_sh_key),
     .sh_last_key_col(sh_last_key_col),
     .sh_4bytes_rot_to_SB(KH_sh_4bytes_rot_to_SB),
@@ -389,6 +394,7 @@ fsm_unit(
     .inverse(inverse),
     .key_schedule_only(key_schedule_only),
     .mode_256(mode_256),
+    .mode_192(mode_192),
     .rnd_bus0_valid_for_refresh(rnd_bus0_valid_for_rfrsh),
     .valid_in(valid_in),
     .in_ready(in_ready),
@@ -407,16 +413,15 @@ fsm_unit(
     .KH_enable(KH_enable),
     .KH_loop(KH_loop),
     .KH_add_from_sb(KH_add_from_sb),
-    .KH_enable_buffer_from_sbox(KH_enable_buffer_from_sbox),
     .KH_rst_buffer_from_sbox(KH_rst_buffer_from_sbox),
     .KH_last_key_pre_valid(last_key_pre_valid),
     .KH_disable_rot_rcon(KH_disable_rot_rcon),
     .KH_enable_pipe_high(KH_enable_pipe_high),
     .KH_feedback_from_high(KH_feedback_from_high),
     .KH_col7_toSB(KH_col7_toSB),
-    .KH_mode_256(KH_mode_256),
     .rcon_rst(rcon_rst),
     .rcon_mode_256(rcon_mode_256),
+    .rcon_mode_192(rcon_mode_192),
     .rcon_update(rcon_update),
     .rcon_inverse(rcon_inverse),
     .pre_need_rnd(in_ready_rnd),

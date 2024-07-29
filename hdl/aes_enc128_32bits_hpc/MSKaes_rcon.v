@@ -25,6 +25,7 @@ module MSKaes_rcon
     input rst,
     // Active high,
     input mode_256,
+    input mode_192,
     // Update the rcon value
     input update,
     // Gates the output to 0 if high.
@@ -55,9 +56,10 @@ wire [7:0] next_rcon_forward = shifted_rcon ^ masked_0x1b_cst;
 // Reverse computation
 wire [7:0] shifted_rcon_inverse = {1'b0, rcon[7:1]};
 wire [7:0] next_rcon_inverse = shifted_rcon_inverse ^ ({8{rcon[0]}} & 8'h0d) ^ {rcon[0], 7'b0};
+wire mode_128 = ~(mode_192 | mode_256);
 
 assign next_rcon = inverse ? next_rcon_inverse : next_rcon_forward;
-assign rst_rcon = inverse ? (mode_256 ? 8'h40 : 8'h36) : 8'h01;
+assign rst_rcon = inverse ? (mode_128 ? 8'h36 : (mode_256 ? 8'h40 : 8'h80)) : 8'h01;
 
 //// Output mux
 wire [7:0] out_rcon;

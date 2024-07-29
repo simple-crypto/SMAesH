@@ -20,15 +20,18 @@ module MSKkey_holder
     rnd_rfrsh_in_valid,
     // Control
     start_fetch_procedure,
-    mode_256, // SYNC with start_fetch_procedure
+    key_size_cfg, // SYNC with start_fetch_procedure
     mode_inverse, // SYNC with start_fetch_procedure
     busy,
     aes_busy,
     // To AES core
     last_key_computation_required,
     aes_mode_256,
+    aes_mode_192,
     aes_mode_inverse
 );
+
+`include "smaesh_config.vh"
 
 // Generation param
 localparam BITS = 256;
@@ -51,13 +54,14 @@ input [(d-1)*RFRSH_RATE-1:0] rnd_rfrsh_in;
 input rnd_rfrsh_in_valid;
 
 input start_fetch_procedure;
-input mode_256;
+input [1:0] key_size_cfg;
 input mode_inverse;
 
 output reg busy;
 input aes_busy;
 
 output aes_mode_256;
+output aes_mode_192;
 output aes_mode_inverse;
 output reg last_key_computation_required;
 
@@ -75,26 +79,29 @@ ll_data_holder(
     .fetch_in(ll_fetch_in)
 );
 
+
+
 // Register to hold the execution status of the key configured
 reg fetch_config_flag;
-reg cfg_mode_256;
+reg [1:0] cfg_key_size;
 reg cfg_mode_inverse;
 always@(posedge clk) 
 if(rst) begin
-    cfg_mode_256 <= 0;
+    cfg_key_size <= 2'b0;
     cfg_mode_inverse <= 0;
 end else if(fetch_config_flag) begin
-    cfg_mode_256 <= mode_256;
+    cfg_key_size <= key_size_cfg;
     cfg_mode_inverse <= mode_inverse;
 end
-assign aes_mode_256 = cfg_mode_256;
+assign aes_mode_256 = cfg_key_size == KSIZE_256;
+assign aes_mode_192 = cfg_key_size == KSIZE_192;
 assign aes_mode_inverse = cfg_mode_inverse;
 
 // Generation parameter for the amount of round 
 localparam MAX_WORDS_PER_SHARE = BITS/RFRSH_RATE;
 localparam AM_WMAX = MAX_WORDS_PER_SHARE*d;
 parameter SIZE_CNT = $clog2(AM_WMAX);
-wire [SIZE_CNT-1:0] words_per_share_bound;
+reg [SIZE_CNT-1:0] words_per_share_bound;
 
 reg rst_count_words;
 reg inc_count_words;
@@ -114,9 +121,11 @@ serial_shares_words_counter #(
     .word_idx(word_idx)
 );
 
+// Some generation parameters
 localparam AMW_256 = 256/RFRSH_RATE;
 localparam AMW_128 = 128/RFRSH_RATE;
-assign words_per_share_bound = cfg_mode_256 ? (AMW_256-1) : (AMW_128-1);
+localparam AMW_192 = 192/RFRSH_RATE;
+localparam NW_OFFSET192 = AMW_256 - AMW_192; 
 
 // Logic to generate the different enable signal for low-level holder
 genvar i;
@@ -226,10 +235,43 @@ end
 reg [STATE_BITS-1:0] branch_compute_last;
 reg in_branch_compute_last, in_padding, in_fetch_new_key, in_fetch_last_key, in_fetch_from_buffer, in_refresh;
 
+
+// Assign the words_per_share_bound
+always@(*) begin
+    case(cfg_key_size)
+        KSIZE_192: words_per_share_bound = in_padding ? NW_OFFSET192-1 : AMW_192-1;
+        KSIZE_256: words_per_share_bound = AMW_256-1;
+        default: words_per_share_bound = AMW_128-1;
+    endcase
+end
+
 // fsm internal control
 wire last_word_fetch = (share_idx == d-1) & (word_idx == words_per_share_bound);
 wire last_last_key_word_fetch = (share_idx == 0) & (word_idx == words_per_share_bound); 
-wire last_refresh_word = cfg_mode_256 ? (share_idx == 0) & (word_idx == words_per_share_bound) : (share_idx == 1) & (word_idx == words_per_share_bound);
+reg last_refresh_word; 
+reg last_new_pad_word;
+
+always@(*) begin
+    // CAUTION: the key holder is in practice holding 256 bits, but not all are
+    // used in version 128/192. However, due to its architecture acting a a
+    // shift register of 256/RFRSH_RATE stages, specific consideration must be
+    // taken for the execution of AES128 and AES192 in order to ensure that the
+    // key value is properly encoded at the end of the refresh procedure. In
+    // practice, this translates in counter more words than the amount of words
+    // required to perform the refresh, enforcing then the shifting of data
+    // through the pipeline. 
+    case(cfg_key_size)
+        KSIZE_192: begin
+            last_refresh_word = (share_idx == 1) & (word_idx == NW_OFFSET192-1);
+        end
+        KSIZE_256: begin
+            last_refresh_word = (share_idx == 0) & (word_idx == words_per_share_bound);
+        end
+        default: begin
+            last_refresh_word = (share_idx == 1) & (word_idx == words_per_share_bound); 
+        end
+    endcase
+end
 
 // FSM 
 always@(*) begin
@@ -288,7 +330,7 @@ always@(*) begin
             in_fetch_from_buffer = 1;
             ll_enable_mask = 1;
             if (last_word_fetch) begin
-                if(cfg_mode_256) begin
+                if(cfg_key_size == KSIZE_256) begin
                     nextstate = branch_compute_last;
                     in_branch_compute_last = 1;
                 end else begin
@@ -326,7 +368,7 @@ always@(*) begin
             in_fetch_last_key = 1;
             ll_enable_mask = 1;
             if (last_last_key_word_fetch) begin
-                if(cfg_mode_256) begin
+                if(cfg_key_size == KSIZE_256) begin
                     nextstate = IDLE;
                 end else begin
                     nextstate = PAD_ZERO_LAST_KEY;

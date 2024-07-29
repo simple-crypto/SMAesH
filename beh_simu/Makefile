@@ -21,6 +21,7 @@ DIR_GENERATED=tvs/generated
 TV_FILE_PREF ?= ECBKeySbox${MODE}
 #TV_FILE_PREF=ECBVarKey${MODE}
 #TV_FILE_PREF?=ECBVarTxt${MODE}
+#TV_FILE_PREF?=ECBdebug
 
 ###########################
 KATIN=${TV_DIR}/${TV_FILE_PREF}.rsp

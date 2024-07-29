@@ -48,7 +48,7 @@ assign dut_in_shares_data[128 +: (d-1)*128] = 0;
 reg dut_in_key_valid;
 wire dut_in_key_ready;
 reg [31:0] dut_in_key_data;
-reg dut_in_key_mode_256;
+reg [1:0] dut_in_key_size_cfg;
 reg dut_in_key_mode_inverse;
 
 reg dut_seed_valid;
@@ -78,7 +78,7 @@ dut(
     .in_key_valid(dut_in_key_valid),
     .in_key_ready(dut_in_key_ready),
     .in_key_data(dut_in_key_data),
-    .in_key_mode_256(dut_in_key_mode_256),
+    .in_key_size_cfg(dut_in_key_size_cfg),
     .in_key_mode_inverse(dut_in_key_mode_inverse),
     .in_seed_valid(dut_seed_valid),
     .in_seed_ready(dut_seed_ready),
@@ -131,7 +131,7 @@ ru(
 );
 
 
-// For debug usage
+////////////////////////// For debug usage
 wire [`KEY_SIZE*d-1:0] prob_key_KSU = dut.KSU_sh_key_out[0 +: `KEY_SIZE*d] ;
 wire [`KEY_SIZE*d-1:0] shares_prob_key_KSU;
 shbus2shares #(.d(d), .count(`KEY_SIZE))
@@ -146,6 +146,95 @@ ruKSU(
     .shares_in(shares_prob_key_KSU),
     .out(rec_key_KSU)
 );
+
+
+wire [32*d-1:0] prob_sh4b_from_key = dut.aes_core.state_sh_4bytes_from_key;
+wire [32*d-1:0] prob_shares_sh4b_from_key;
+wire [31:0] rec_prob_sh4b_from_key;
+
+shbus2shares #(.d(d), .count(32))
+sh2sha_k2AK(
+    .shbus(prob_sh4b_from_key),
+    .shares(prob_shares_sh4b_from_key)
+);
+
+recombine_shares_unit #(.d(d),.count(32))
+ruk2AK(
+    .shares_in(prob_shares_sh4b_from_key),
+    .out(rec_prob_sh4b_from_key)
+);
+
+genvar gi;
+generate
+for(gi=0;gi<32;gi=gi+1) begin: rec_key_dpkey
+    wire [8*d-1:0] prob_sh_kbyte = dut.aes_core.key_holder.sh_m_key[gi];
+    wire [8*d-1:0] prob_shares_kbyte;
+    wire [7:0] rec_prob_kbyte;
+    shbus2shares #(.d(d), .count(8))
+    sh2sha_kbyte_dpkey(
+        .shbus(prob_sh_kbyte),
+        .shares(prob_shares_kbyte)
+    );
+    recombine_shares_unit #(.d(d),.count(8))
+    ru_kbyte_dpkey(
+        .shares_in(prob_shares_kbyte),
+        .out(rec_prob_kbyte)
+    );
+end
+endgenerate
+
+generate
+for(gi=0;gi<16;gi=gi+1) begin: rec_state_dpstate
+    wire [8*d-1:0] prob_sh_sbyte = dut.aes_core.core_data.sh_reg_out[gi];
+    wire [8*d-1:0] prob_shares_byte;
+    wire [7:0] rec_prob_byte;
+    shbus2shares #(.d(d), .count(8))
+    sh2sha_kbyte_dpkey(
+        .shbus(prob_sh_sbyte),
+        .shares(prob_shares_byte)
+    );
+    recombine_shares_unit #(.d(d),.count(8))
+    ru_kbyte_dpkey(
+        .shares_in(prob_shares_byte),
+        .out(rec_prob_byte)
+    );
+end
+endgenerate
+
+wire [32*d-1:0] prob_sh_from_sbox = dut.aes_core.sh_4bytes_from_SB;
+wire [32*d-1:0] prob_shares_from_sbox;
+wire [31:0] rec_prob_from_sbox;
+shbus2shares #(.d(d), .count(32))
+sh2sha_fSBox(
+    .shbus(prob_sh_from_sbox),
+    .shares(prob_shares_from_sbox)
+);
+recombine_shares_unit #(.d(d),.count(32))
+ru_kbyte_fSbox(
+    .shares_in(prob_shares_from_sbox),
+    .out(rec_prob_from_sbox)
+);
+
+
+wire [32*d-1:0] prob_sh_to_sbox = dut.aes_core.state_sh_4bytes_to_SB;
+wire [32*d-1:0] prob_shares_to_sbox;
+wire [31:0] rec_prob_to_sbox;
+shbus2shares #(.d(d), .count(32))
+sh2sha_tSBox(
+    .shbus(prob_sh_to_sbox),
+    .shares(prob_shares_to_sbox)
+);
+recombine_shares_unit #(.d(d),.count(32))
+ru_kbyte_tSbox(
+    .shares_in(prob_shares_to_sbox),
+    .out(rec_prob_to_sbox)
+);
+
+
+
+/////////////////////////////////////////:
+
+
 
 
 ////// RUN 
@@ -221,6 +310,7 @@ initial begin
     end
 end
 
+`include "smaesh_config.vh"
 
 // Input feeding
 integer i;
@@ -250,6 +340,18 @@ initial begin
         RUN_AM = `RUN_AM;
     `endif
 
+    if(`KEY_SIZE==128) begin
+        dut_in_key_size_cfg = KSIZE_128;
+    end else if(`KEY_SIZE==192) begin
+        dut_in_key_size_cfg = KSIZE_192;
+    end else if(`KEY_SIZE==256) begin
+        dut_in_key_size_cfg = KSIZE_256;
+    end else begin
+        $display("Key size not supported. EXIT");
+        $finish();
+    end
+
+
     clk = 1;
     syn_rst = 0;
     
@@ -257,7 +359,6 @@ initial begin
     dut_seed_valid = 0;
 
     dut_in_key_valid = 0;
-    dut_in_key_mode_256 = (`KEY_SIZE==256);
     dut_in_key_mode_inverse = 0;
 
     // Init delay 

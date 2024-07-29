@@ -32,7 +32,7 @@ module aes_enc128_32bits_hpc
     in_key_valid,
     in_key_ready,
     in_key_data,
-    in_key_mode_256,
+    in_key_size_cfg,
     in_key_mode_inverse,
     // valid/ready stream seed
     in_seed_valid,
@@ -56,7 +56,7 @@ input [128*d-1:0] in_shares_data;
 input in_key_valid;
 output in_key_ready;
 input [31:0] in_key_data;
-input in_key_mode_256;
+input [1:0] in_key_size_cfg;
 input in_key_mode_inverse;
 // SVRS PRNG seed
 input in_seed_valid;
@@ -109,6 +109,7 @@ wire KSU_start_fetch_procedure;
 
 wire KSU_last_key_computation_required;
 wire KSU_aes_mode_256;
+wire KSU_aes_mode_192;
 wire KSU_aes_mode_inverse;
 
 MSKkey_holder #(.d(d))
@@ -124,12 +125,13 @@ key_storage_unit(
     .rnd_rfrsh_in(rnd_bus0w[(d-1)*16-1:0]),
     .rnd_rfrsh_in_valid(KSU_rnd_bus0_valid_for_rfrsh),
     .start_fetch_procedure(KSU_start_fetch_procedure),
-    .mode_256(in_key_mode_256),
+    .key_size_cfg(in_key_size_cfg),
     .mode_inverse(in_key_mode_inverse),
     .busy(KSU_busy),
     .aes_busy(aes_busy),
     .last_key_computation_required(KSU_last_key_computation_required),
     .aes_mode_256(KSU_aes_mode_256),
+    .aes_mode_192(KSU_aes_mode_192),
     .aes_mode_inverse(KSU_aes_mode_inverse)
 );
 
@@ -137,8 +139,7 @@ key_storage_unit(
 wire aes_inverse = KSU_last_key_computation_required ? 1'b0 : KSU_aes_mode_inverse; 
 wire aes_key_schedule_only = KSU_last_key_computation_required; 
 wire aes_mode_256 = KSU_aes_mode_256; 
-
-// TODO verify the enable in aes core to check in key_schedule is used
+wire aes_mode_192 = KSU_aes_mode_192;
 
 MSKaes_32bits_core
 `ifndef CORE_SYNTHESIZED
@@ -158,6 +159,7 @@ aes_core(
     .key_schedule_only(aes_key_schedule_only),
     .last_key_pre_valid(KSU_last_key_pre_valid),
     .mode_256(aes_mode_256),
+    .mode_192(aes_mode_192),
     .sh_plaintext(sh_plaintext),
     .sh_key(KSU_sh_key_out),
     .sh_ciphertext(sh_ciphertext),
