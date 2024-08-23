@@ -1,0 +1,32 @@
+
+\def\scaleFontTime{0.7}
+\begin{tikztimingtable}
+\texttt{clk} & L12{\cHalfPeriod H \cHalfPeriod L}\\
+\\
+\timeCnrRound & D2{\cPeriod D}{$i-1$} 8{\cPeriod D}{$i$} 2{\cPeriod D}{$i+1$} \\
+\timeCnrCycle & D{7} \cPeriod D{8} \cPeriod D{9} \cPeriod D{0} \cPeriod D{1} \cPeriod D{2} \cPeriod D{3} \cPeriod D{4} \cPeriod D{5} \cPeriod D{6} \cPeriod D{7} \cPeriod D{0} \cPeriod D{1} \\
+\\
+\AESsboxIn $[8d-1:0]$&D \cPeriod D{0} \cDP{$\pRK{13}{\Nr-i}$} \cDP{$\pMC{0}{\Nr-i}$} \cDP{$\pMC{4}{\Nr-i}$} \cDP{$\pMC{8}{\Nr-i}$} \cDP{$\pMC{12}{\Nr-i}$} 3{\cPeriod D}{0} \cDP{$\pRK{13}{\Nr-i-1}$} \cDP{$\pMC{0}{\Nr-i-1}$} \cDP{$\pMC{4}{\Nr-i-1}$}\\
+\AESsboxIn $[16d-1:8d]$&D \cPeriod D{0} \cDP{$\pRK{14}{\Nr-i}$} \cDP{$\pMC{1}{\Nr-i}$} \cDP{$\pMC{5}{\Nr-i}$} \cDP{$\pMC{9}{\Nr-i}$} \cDP{$\pMC{13}{\Nr-i}$} 3{\cPeriod D}{0} \cDP{$\pRK{14}{\Nr-i-1}$} \cDP{$\pMC{1}{\Nr-i-1}$} \cDP{$\pMC{5}{\Nr-i-1}$}\\
+\AESsboxIn $[24d-1:16d]$&D \cPeriod D{0} \cDP{$\pRK{15}{\Nr-i}$} \cDP{$\pMC{2}{\Nr-i}$} \cDP{$\pMC{6}{\Nr-i}$} \cDP{$\pMC{10}{\Nr-i}$} \cDP{$\pMC{14}{\Nr-i}$} 3{\cPeriod D}{0} \cDP{$\pRK{15}{\Nr-i-1}$} \cDP{$\pMC{2}{\Nr-i-1}$} \cDP{$\pMC{6}{\Nr-i-1}$}\\
+\AESsboxIn $[32d-1:24d]$&D \cPeriod D{0} \cDP{$\pRK{12}{\Nr-i}$} \cDP{$\pMC{3}{\Nr-i}$} \cDP{$\pMC{7}{\Nr-i}$} \cDP{$\pMC{11}{\Nr-i}$} \cDP{$\pMC{15}{\Nr-i}$} 3{\cPeriod D}{0} \cDP{$\pRK{12}{\Nr-i-1}$} \cDP{$\pMC{3}{\Nr-i-1}$} \cDP{$\pMC{7}{\Nr-i-1}$}\\
+\\
+\AESsboxOut $[8d-1:0]$&D{} \cDP{$\pSR{8}{\Nr-i+1}$} \cDP{$\pSR{12}{\Nr-i+1}$} 3{\cPeriod X} \cDP{\pRSB{0}{\Nr-i}} \cDP{$\pSR{0}{\Nr-i}$}\cDP{$\pSR{4}{\Nr-i}$}\cDP{$\pSR{8}{\Nr-i}$}\cDP{$\pSR{12}{\Nr-i}$} 2{\cPeriod X}\\
+\AESsboxOut $[16d-1:8d]$&D{} \cDP{$\pSR{9}{\Nr-i+1}$} \cDP{$\pSR{13}{\Nr-i+1}$} 3{\cPeriod X} \cDP{\pRSB{1}{\Nr-i}} \cDP{$\pSR{1}{\Nr-i}$}\cDP{$\pSR{5}{\Nr-i}$}\cDP{$\pSR{9}{\Nr-i}$}\cDP{$\pSR{13}{\Nr-i}$} 2{\cPeriod X} \\
+\AESsboxOut $[24d-1:16d]$&D{} \cDP{$\pSR{10}{\Nr-i+1}$} \cDP{$\pSR{14}{\Nr-i+1}$} 3{\cPeriod X} \cDP{\pRSB{2}{\Nr-i}} \cDP{$\pSR{2}{\Nr-i}$}\cDP{$\pSR{6}{\Nr-i}$}\cDP{$\pSR{10}{\Nr-i}$}\cDP{$\pSR{14}{\Nr-i}$} 2{\cPeriod X} \\
+\AESsboxOut $[32d-1:24d]$&D{} \cDP{$\pSR{11}{\Nr-i+1}$} \cDP{$\pSR{15}{\Nr-i+1}$} 3{\cPeriod X} \cDP{\pRSB{3}{\Nr-i}} \cDP{$\pSR{3}{\Nr-i}$}\cDP{$\pSR{7}{\Nr-i}$}\cDP{$\pSR{11}{\Nr-i}$}\cDP{$\pSR{15}{\Nr-i}$} 2{\cPeriod X} \\
+\extracode
+\makeatletter
+\begin{pgfonlayer}{background}
+    % Draw cycles
+    \begin{scope}[gray,semitransparent,semithick]
+        \foreach \x in {1,3,...,25}{
+            \draw (\x,1.5) -- (\x,-26.5);
+        }
+    \end{scope}
+    % Draw round
+    \foreach \x in {5,21}{
+        \draw [thick] (\x,2) -- (\x,-27);
+    }
+\end{pgfonlayer}
+\end{tikztimingtable}

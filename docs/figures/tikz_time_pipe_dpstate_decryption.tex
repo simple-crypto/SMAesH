@@ -1,0 +1,40 @@
+\begin{tikztimingtable}
+\texttt{clk} & L13{HL}\\
+\\
+\timeCnrRound & D2{DD}{$i-1$} 8{DD}{$i$} 2{DD}{$i+1$} \\
+\timeCnrCycle & D{7} 2D{8} 2D{9} 2D{0}2D{1}2D{2}2D{3}2D{4}2D{5}2D{6}2D{7}2D{0}2D{1} \\
+\\
+\dpStateDFF{0} & \timeLinedpStateZ{0}{4}{8}{12}\\ 
+\dpStateDFF{1} & \timeLinedpStateI{1}{5}{9}{13}\\ 
+\dpStateDFF{2} & \timeLinedpStateII{2}{6}{10}{14} \\ 
+\dpStateDFF{3} & \timeLinedpStateIII{3}{7}{11}{15} \\ 
+\\
+\dpStateDFF{4} & \timeLinedpStateIV{4}{8}{12}{0} \\
+\dpStateDFF{5} & \timeLinedpStateV{5}{9}{13}{1} \\
+\dpStateDFF{6} & \timeLinedpStateVI{6}{10}{14}{2} \\
+\dpStateDFF{7} & \timeLinedpStateVII{7}{11}{15}{3} \\
+\\
+\dpStateDFF{8} & \timeLinedpStateVIII{8}{12}{0}{4}\\
+\dpStateDFF{9} & \timeLinedpStateIX{9}{13}{1}{5}\\
+\dpStateDFF{10} & \timeLinedpStateX{10}{14}{2}{6}\\
+\dpStateDFF{11} & \timeLinedpStateXI{11}{15}{3}{7} \\
+\\
+\dpStateDFF{12} & \timeLinedpStateXII{12}{0}{4}{8} \\
+\dpStateDFF{13} & \timeLinedpStateXIII{13}{1}{5}{9} \\
+\dpStateDFF{14} & \timeLinedpStateXIV{14}{2}{6}{10} \\
+\dpStateDFF{15} & \timeLinedpStateXV{15}{3}{7}{11} \\
+\extracode
+\makeatletter
+\begin{pgfonlayer}{background}
+    % Draw cycles
+    \begin{scope}[gray,semitransparent,semithick]
+        \foreach \x in {1,3,...,23}{
+            \draw (\x,1.5) -- (\x,-46.5);
+        }
+    \end{scope}
+    % Draw round
+    \foreach \x in {5,21}{
+        \draw [thick] (\x,2) -- (\x,-47);
+    }
+\end{pgfonlayer}
+\end{tikztimingtable}

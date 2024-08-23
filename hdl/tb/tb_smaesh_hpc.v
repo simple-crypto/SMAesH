@@ -15,7 +15,7 @@
 `ifndef KEY_SIZE
 `define KEY_SIZE 128
 `endif
-module tb_aes_enc128_32bits_hpc
+module tb_smaesh_hpc
 #
 (
     parameter T = 2,
@@ -63,7 +63,7 @@ wire dut_out_ready;
 always #Td clk=~clk;
 
 // Dut
-aes_enc128_32bits_hpc
+smaesh_hpc
 `ifdef behavioral
 #(
     .d(d)
@@ -323,7 +323,7 @@ initial begin
     `ifdef DUMPFILE
         // Open dumping file
         $dumpfile(`DUMPFILE);
-        $dumpvars(0,tb_aes_enc128_32bits_hpc);
+        $dumpvars(0,tb_smaesh_hpc);
     `endif
     
     $display("Files configuration used:");

@@ -28,7 +28,7 @@ module MSKaes_32bits_fsm
     in_ready,
     out_ready,
     // Once asserted, should remain high until exhcange completion
-    cipher_valid,
+    out_valid,
     global_init,
     // AES core control
     state_enable,
@@ -79,7 +79,7 @@ output reg rnd_bus0_valid_for_refresh; // validate this one for 192
 input valid_in;
 output in_ready;
 input out_ready;
-output cipher_valid;
+output out_valid;
 output reg global_init;
 // AES core control
 output reg state_enable;
@@ -253,7 +253,7 @@ always@(*) begin
     end
 end
 
-// Register to keep the cipher_valid signal
+// Register to keep the out_valid signal
 reg set_valid_out;
 reg valid_out_reg;
 wire cipher_fetch = valid_out_reg & out_ready;
@@ -264,7 +264,7 @@ end else if(set_valid_out) begin
     valid_out_reg <= 1; 
 end
 
-assign cipher_valid = valid_out_reg & ~exec_status_key_schedule_only;
+assign out_valid = valid_out_reg & ~exec_status_key_schedule_only;
 
 // in_ready handling. According to the SVRS protocol, the input interface
 // signal is sticky (the data and the in_valid signals remains fixed once 

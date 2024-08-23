@@ -12,7 +12,7 @@ DIR_COMPRESS_GADGETS=$(DIR_COMPRESS_ROOT)/gadget_library
 DIR_SBOX=sbox-d${NSHARES}
 DIR_SBOX_COMPRESS=../sboxes-compress/work/circuits/canright_aes_sbox_dual_d${NSHARES}_l4
 
-DIR_SMAESH_HDL=./aes_enc128_32bits_hpc
+DIR_SMAESH_HDL=./smaesh_hpc
 
 .PHONY: all
 

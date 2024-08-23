@@ -7,8 +7,8 @@
 \def\widthDFF{1.5}
 \def\heightDFF{3}
 % Spacing between DFF instance
-\def\spacexDFF{7.5}
-\def\spaceyDFF{11}
+\def\spacexDFF{9.5}
+\def\spaceyDFF{12}
 % Spacing after DFF and XOr instance
 \def\spaceXOR{0}
 
@@ -21,6 +21,7 @@
 \def\spacexFeedBack{0.75}
 \def\spacexFeedBackR{2}
 \def\spaceyXorOut{0.75*\heightDFF}
+\def\spaceyXorOutMC{0.45*\heightDFF}
 \def\spacexXorOut{2}
 \def\spaceyFeedBack{3}
 
@@ -28,6 +29,8 @@
 
 \def\fontS{\Large}
 \def\fontCtrl{}
+
+\def\xshiftMuxFromSBInv{1cm}
 
 %\debugtrue;
 
@@ -37,7 +40,7 @@
 % 3: top value
 % 4: bottom value
 \newcommand{\muxCtrl}[4]{
-    \node[anchor=west,rotate=270] at (#1.bpin 1) {\fontCtrl #2};
+    \node[anchor=north,rotate=0] at (#1.bpin 1) {\fontCtrl #2};
     \node at (#1.center up) {\fontCtrl #3};
     \node at (#1.center down) {\fontCtrl #4};
 }
@@ -101,7 +104,7 @@
     \XOR[line width=\lwModule]{xor}{($(#2/inxor)+(\Radius,0)$)}{\Radius}
     \draw [line width=\lwWire] (#2/inxor) -- (xor/west);
     % Draw the XOR node
-    \node[line width=\scaleCTIKZ*\lwModule,mux2,anchor=rpin 1] (#2/mux) at ($(xor/south)+(-0.5*\widthDFF,-1.3-\spaceyFeedBack)$) {};
+    \node[line width=\scaleCTIKZ*\lwModule,mux2,anchor=rpin 1] (#2/mux) at ($(xor/south)+(-0.5*\widthDFF,-2-\spaceyFeedBack)$) {};
     \draw [->] [line width=\lwWire] (#2/mux.rpin 1) -| (xor/south);
     % Draw small port at output1
     \coordinate (#2/out1) at (xor/north);
@@ -146,15 +149,15 @@
     \debugN[ctrlIn]{(#2/ctrlIn)}
 }
 
-%% Macro for the MC bloc 
+%% Macro for the MC bloc RAW 
 % 1: style
 % 2: id 
 % 3: loc
-\newcommand{\MCBloc}[3][]{
+\newcommand{\MCBlocRAW}[3][]{
     \def\scaleIO{0.7}
     % Draw the MC
-    \rectangle[line width=\lwModule]{rec}{#3}{2}{5}{4}{4}{0}{0};
-    \node at (rec/center) {\fontS $\dpStateModMC$};
+    \rectangle[line width=\lwModule]{rec}{#3}{3}{5}{4}{4}{0}{0};
+    \coordinate (#2/center) at (rec/center);
     % Ports declaration
     \foreach \xi in {1,...,4}{
         \pgfmathsetmacro\idxLabel{int(\xi-1)}
@@ -171,6 +174,24 @@
         \debugN[a\xi]{(#2/a\xi)}
         \debugN[b\xi]{(#2/b\xi)}
     }
+}
+
+%% Macro for the MC bloc 
+% 1: style
+% 2: id 
+% 3: loc
+\newcommand{\MCBloc}[3][]{
+    \MCBlocRAW[#1]{#2}{#3};
+    \node at (#2/center) {\fontS $\dpStateModMC$};
+}
+
+%% Macro for the MCinverse bloc 
+% 1: style
+% 2: id 
+% 3: loc
+\newcommand{\MCBlocInv}[3][]{
+    \MCBlocRAW[#1]{#2}{#3};
+    \node at (#2/center) {\fontS $\dpStateModMCInv$};
 }
 
 %%%%% MAIN DRAWING %%%%%%%%%%%%%
@@ -200,6 +221,7 @@
 %% Compute reference point where to have the x-coordinate of the
 % singal to sbox
 \coordinate (offsetToSB) at (1,\spaceyXorOut);
+\coordinate (offsetToMCInv) at (1,\spaceyXorOutMC);
 
 % Draw KEYXOR value unit
 \foreach \xi in {0,5,10,15}{
@@ -208,16 +230,43 @@
     \pgfmathsetmacro\idxV{int(\xi/5)}
     \pgfmathsetmacro\mB{int(8*\idxV)}
     \pgfmathsetmacro\MB{int(8*(\idxV+1))}
-    \node [anchor=east] (Label) at (KX\xi/in2) {\fontS $\AESdpStateFromKey [\MB d-1 : \mB d]$};
+    \node [anchor=east] (Label) at (KX\xi/in2) {\fontS $\AESdpStateFromKey [\MB d-1:\mB d]$};
     \node [anchor=east] at (KX\xi/in1) {\fontS $0$};  
-    %%% Control signal of the mux
-    %\node [anchor=west,rotate=270] at (KX\xi/ctrl) {\fontCtrl $\dpStateCtrlRouteLoop$};
-    \muxCtrl{KX\xi/mux}{$\dpStateCtrlRouteLoop$}{0}{1}
     %%% IO port out for KEYXOR
     \pgfmathsetmacro\IdxColRight{int(\xi/5)}
-    \node [anchor=west] (Label_out) at ($(D\IdxColRight/out)+(offsetToSB)$) {\fontS $\AESdpStateToSB [\MB d : \mB d]$}; 
+    \node [anchor=west] (Label_out) at ($(D\IdxColRight/out)+(offsetToSB)$) {\fontS $\dpStateToSBForward [\MB d -1:\mB d]$}; 
     \draw [->, line width=\lwWire] (KX\xi/out1) |- (Label_out.west);
 }
+
+% Control signal for the KEYXOR forward
+\muxCtrl{KX0/mux}{$\dpStateCtrlEnableKAddDual$}{0}{1}
+\foreach \xi in {5,10,15}{
+    %%% Control signal of the mux
+    \muxCtrl{KX\xi/mux}{$\dpStateCtrlEnableKAdd$}{0}{1}
+    
+}
+
+% Draw KEYXOR value unit for reverse
+\node [anchor=west] (Label_out) at ($(D0/out)+(offsetToMCInv)$) {\fontS $\dpStateToMCInverse [8d-1 : 0d]$}; 
+\draw [->, line width=\lwWire] (KX0/out1) |- (Label_out.west);
+\foreach \xi in {1,2,3}{
+    \KEYXOR{KXinv\xi}{($(D\xi/out)+(\spaceXOR,0)$)}
+    % IO ports for KEYXOR
+    \pgfmathsetmacro\idxV{int(\xi-1)}
+    \pgfmathsetmacro\mB{int(8*\idxV)}
+    \pgfmathsetmacro\MB{int(8*(\idxV+1))}
+    \node [anchor=east] (Label) at (KXinv\xi/in2) {\fontS $\AESdpStateFromKeyInverse [\MB d-1 : \mB d]$};
+    \node [anchor=east] at (KXinv\xi/in1) {\fontS $0$};  
+    %%% Control signal of the mux
+    \muxCtrl{KXinv\xi/mux}{$\dpStateCtrlEnableKAddInverse$}{0}{1}
+    %%% IO port out for KEYXOR
+    \pgfmathsetmacro\IdxColRight{int(\xi)}
+    \pgfmathsetmacro\mB{int(8*\IdxColRight)}
+    \pgfmathsetmacro\MB{int(8*(\IdxColRight+1))}
+    \node [anchor=west] (Label_out) at ($(D\IdxColRight/out)+(offsetToMCInv)$) {\fontS $\dpStateToMCInverse [\MB d-1:\mB d]$}; 
+    \draw [->, line width=\lwWire] (KXinv\xi/out1) |- (Label_out.west);
+}
+
 
 % Draw the MUXIN structure
 \foreach \xi in {12,...,15}{
@@ -228,6 +277,22 @@
     \muxCtrl{MI\xi/muxIn}{$\dpStateCtrlRouteMC$}{0}{1}
 }
 
+% Draw the mux from SB used in reverse
+\node[line width=\scaleCTIKZ*\lwModule,mux2,anchor=rpin 1,xshift=-\xshiftMuxFromSBInv] (muxFSBInv5) at (D1/in2) {};
+\muxCtrl{muxFSBInv5}{$\dpStateCtrlEnableToSBInverse$}{0}{1}
+\node[anchor=east, yshift=1cm, xshift=-1cm] (FSB5) at (KX5/mux.lpin 1) {\fontS $\AESdpStateFromSB[16d-1:8d]$};
+\draw [line width=\lwWire, <-] (muxFSBInv5.lpin 2) -- ++(-1.5,0) |- (FSB5.east);
+
+\node[line width=\scaleCTIKZ*\lwModule,mux2,anchor=rpin 1,xshift=-\xshiftMuxFromSBInv] (muxFSBInv10) at (D6/in2) {};
+\muxCtrl{muxFSBInv10}{$\dpStateCtrlEnableToSBInverse$}{0}{1}
+\node[anchor=east, yshift=1cm, xshift=-1cm] (FSB10) at (KX10/mux.lpin 1) {\fontS $\AESdpStateFromSB[24d-1:16d]$};
+\draw [line width=\lwWire, <-] (muxFSBInv10.lpin 2) -- ++(-1.5,0) |- (FSB10.east);
+
+\node[line width=\scaleCTIKZ*\lwModule,mux2,anchor=rpin 1,xshift=-\xshiftMuxFromSBInv] (muxFSBInv15) at (D11/in2) {};
+\muxCtrl{muxFSBInv15}{$\dpStateCtrlEnableToSBInverse$}{0}{1}
+\node[anchor=east, yshift=1cm, xshift=-1cm] (FSB15) at (KX15/mux.lpin 1) {\fontS $\AESdpStateFromSB[32d-1:24d]$};
+\draw [line width=\lwWire, <-] (muxFSBInv15.lpin 2) -- ++(-1.5,0) |- (FSB15.east);
+
 % Draw the path between registers
 \draw [->, line width=\lwWire] (D12/out) |- (D8/in2);
 \draw [->, line width=\lwWire] (D8/out) |- (D4/in2);
@@ -236,21 +301,24 @@
 
 \draw [->, line width=\lwWire] (D13/out) |- (D9/in2);
 \draw [->, line width=\lwWire] (D9/out) |- (D5/in2);
-\draw [->, line width=\lwWire] (KX5/out2) |- (D1/in2);
+\draw [->, line width=\lwWire] (KX5/out2) -- (muxFSBInv5.lpin 1);
+\draw [->, line width=\lwWire] (muxFSBInv5.rpin 1) -- (D1/in2);
 \draw [->, line width=\lwWire] (D1/out) -| ++(1,-\spaceyFeedBack) -| ($(MI13/inFB)+(-\spacexFeedBack,0)$) -- (MI13/inFB);
 
 \draw [->, line width=\lwWire] (D14/out) |- (D10/in2);
-\draw [->, line width=\lwWire] (KX10/out2) |- (D6/in2);
+\draw [->, line width=\lwWire] (KX10/out2) -- (muxFSBInv10.lpin 1);%(D6/in2);
+\draw [->, line width=\lwWire] (muxFSBInv10.rpin 1) -- (D6/in2);
 \draw [->, line width=\lwWire] (D6/out) |- (D2/in2);
 \draw [->, line width=\lwWire] (D2/out) -| ++(1,-\spaceyFeedBack) -| ($(MI14/inFB)+(-\spacexFeedBack,0)$) -- (MI14/inFB);
 
-\draw [->, line width=\lwWire] (KX15/out2) |- (D11/in2);
+\draw [->, line width=\lwWire] (KX15/out2) -- (muxFSBInv15.lpin 1);%(D11/in2);
+\draw [->, line width=\lwWire] (muxFSBInv15.rpin 1) -- (D11/in2);
 \draw [->, line width=\lwWire] (D11/out) |- (D7/in2);
 \draw [->, line width=\lwWire] (D7/out) |- (D3/in2);
 \draw [->, line width=\lwWire] (D3/out) -| ++(1,-\spaceyFeedBack) -| ($(MI15/inFB)+(-\spacexFeedBack,0)$) -- (MI15/inFB);
 
 % Draw the MC logic bloc and the input of the last column
-\MCBloc{MC}{($(D8/text)!0.5!(D4/text) + (0,8)$)}
+\MCBloc{MC}{($(D8/text)!0.5!(D4/text)+(0,16)$)}
 \foreach \xi in {0,...,3} {
     %% MC value
     \pgfmathsetmacro\mB{int(8*\xi)}
@@ -268,6 +336,35 @@
     \node [anchor=east] (fMCmux) at (MI\MUXidx/inMC) {\fontS $\texttt{fromMC}[\MB d-1:\mB d]$};
 }
 
+% Draw the MC inverse logic bloc 
+\MCBlocInv{MCInv}{($(D8/text)+(0,8)$)}
+\coordinate (MCIin) at ($(MCInv/a2)!0.5!(MCInv/a3) + (-1.5,0)$);
+\coordinate (MCIout) at ($(MCInv/b2)!0.5!(MCInv/b3) + (1.5,0)$);
+\debugN[MCIin]{(MCIin)}
+\debugN[MCIout]{(MCIout)}
+\node [anchor=south east, xshift=-1cm] (MCInvInput) at ($(MCIin)$) {\fontS $\dpStateToMCInverse$};
+\node[line width=\scaleCTIKZ*\lwModule,mux2,anchor=lpin 2,xshift=1cm] (muxInvMC) at ($(MCIout)$) {};
+
+% Connexion to MCInv port
+\foreach \xi in {1,...,4}{
+    \draw [dashed, line width=\lwWire] (MCIin) -- (MCInv/a\xi);
+    \draw [dashed, line width=\lwWire] (MCInv/b\xi) -- (MCIout);
+}
+\draw [line width=\lwWire] (MCInvInput.south west) -- (MCIin);
+\draw [->, line width=\lwWire] (MCIout) -- (muxInvMC.lpin 2);
+\draw [->, line width=\lwWire] ($(MCInvInput.south east)!0.5!(MCIin)$) -- ++(0,4) -| ($(muxInvMC.lpin 1)+(-0.5,0)$) -- (muxInvMC.lpin 1);
+
+% Mux selecting toSB forward or reverse 
+\node[line width=\scaleCTIKZ*\lwModule,mux2,anchor=lpin 1,xshift=7cm] (muxInvToSB) at (muxInvMC.rpin 1) {};
+\draw [->, line width=\lwWire] (muxInvMC.rpin 1) -- (muxInvToSB.lpin 1);
+\node[anchor=south east, xshift=-0.3cm] (toSBinverse) at (muxInvToSB.lpin 1) {\fontS $\dpStateToSBReverse$};
+\node[anchor=south east, xshift=-0.3cm] (toSBforward) at (muxInvToSB.lpin 2) {\fontS $\dpStateToSBForward$};
+\draw [->, line width=\lwWire] (toSBforward.south west) -- (muxInvToSB.lpin 2);
+\node[anchor=south west, xshift=0.3cm] (toSBpin) at (muxInvToSB.rpin 1) {\fontS $\AESdpStateToSB$};
+\draw [->, line width=\lwWire] (muxInvToSB.rpin 1) -- (toSBpin.south east);
+
+\muxCtrl{muxInvMC}{$\dpStateCtrlBypassMCInverse$}{1}{0}
+\muxCtrl{muxInvToSB}{$\dpStateCtrlEnableToSBInverse$}{1}{0}
 
 %
 

@@ -18,11 +18,17 @@
              \texttt{clk} & clock & input & $1$ & Clock (all the logic is synchronized on the positive edge). \\
              \texttt{syn\_rst} & control & input & $1$ & Active high synchronous reset. Keep asserted for at least one cycle. \\
              \addlinespace[2ex]
+             \multicolumn{5}{c}{\color{colorKEY} SVRS Key interface} \\
+             \svrsKey & data & input & 32 & Key share material (SVRS \texttt{data} signal). \\
+             \svrsKeySizeCfg & control & input & 2 & Key size configuration. \\ 
+             \svrsKeyModeInverse & control & input & 1 & Active high inverse mode configuration. \\
+             \svrsKeyValid & control & input & 1 & SVRS \texttt{valid} signal. \\
+             \svrsKeyReady & control & output & 1 & SVRS \texttt{ready} signal. \\
+             \addlinespace[2ex]
              \multicolumn{5}{c}{\color{colorIN} SVRS Input interface} \\
-             \svrsPlaintext & data & input & $128d$ & Shared plaintext (SVRS \texttt{data} signal). \\
-             \svrsKey & data & input & $128d$ & Shared key (SVRS \texttt{data} signal). \\
-             $\svrsInValid$ & control & input & $1$ & SVRS \texttt{valid} signal. \\
-             \svrsInReady & control & output & $1$ & SVRS \texttt{ready} signal. \\
+             \svrsInData & data & input & $128d$ & Shared plaintext/ciphertext (SVRS \texttt{data} signal). \\
+             \svrsInDataValid & control & input & $1$ & SVRS \texttt{valid} signal. \\
+             \svrsInDataReady & control & output & $1$ & SVRS \texttt{ready} signal. \\
              \addlinespace[2ex]
              \multicolumn{5}{c}{\color{colorSEED} SVRS Seed interface} \\
              \svrsSeed & data & input & $80$ & Fresh randomness used as a seed by the embedded PRNG (SVRS \texttt{data} signal). \\

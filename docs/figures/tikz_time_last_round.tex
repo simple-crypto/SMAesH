@@ -26,18 +26,19 @@
         \dpKeyCtrlRouteInit & L14{LL}2{HH} \\
         \dpKeyCtrlRouteLoop & L2{LL} 4{HH} 4{LL}4{HH}2{LL} \\
         \dpKeyCtrlRouteFromSB & L2{LL} 3{LL} 2H 10{LL}\\
+        \dpKeyCtrlRstBuffer & H2{HH} 3{HH} 2H 10{HH}\\
         \extracode
         \makeatletter
         \begin{pgfonlayer}{background}
             % Draw cycles
             \begin{scope}[gray,semitransparent,semithick]
                 \foreach \x in {1,3,...,31}{
-                    \draw (\x,1.5) -- (\x,-53.5);
+                    \draw (\x,1.5) -- (\x,-55.5);
                 }
             \end{scope}
             % Draw round
             \foreach \x in {5,21}{
-                \draw [thick] (\x,2) -- (\x,-54);
+                \draw [thick] (\x,2) -- (\x,-56);
             }
         \end{pgfonlayer}
 \end{tikztimingtable}

@@ -14,7 +14,7 @@
 // Masked AES implementation using HPC masking scheme and 32-bit
 // architecture.
 `include "architecture_default.vh"
-module aes_enc128_32bits_hpc
+module smaesh_hpc
 #
 (
     parameter d = `DEFAULTSHARES,
@@ -74,7 +74,7 @@ input out_ready;
 wire aes_busy;
 wire aes_valid_in;
 wire aes_ready_in;
-wire aes_cipher_valid;
+wire aes_out_valid;
 wire aes_out_ready;
 wire [4*rnd_bus0-1:0] rnd_bus0w;
 wire [4*rnd_bus1-1:0] rnd_bus1w;
@@ -85,17 +85,17 @@ wire aes_in_ready_rnd;
 
 // Modify shares encoding to sequential shared bit instead of 
 // sequential shares for each bit of the plaintext and ciphertext.
-wire [128*d-1:0] sh_plaintext;
+wire [128*d-1:0] sh_data_in;
 shares2shbus #(.d(d),.count(128))
 switch_encoding_plaintext(
     .shares(in_shares_data),
-    .shbus(sh_plaintext)
+    .shbus(sh_data_in)
 );
 
-wire [128*d-1:0] sh_ciphertext;
+wire [128*d-1:0] sh_data_out;
 shbus2shares #(.d(d),.count(128))
 switch_encoding_ciphertext(
-    .shbus(sh_ciphertext),
+    .shbus(sh_data_out),
     .shares(out_shares_data)
 );
 
@@ -153,16 +153,16 @@ aes_core(
     .busy(aes_busy),
     .valid_in(aes_valid_in),
     .in_ready(aes_ready_in),
-    .cipher_valid(aes_cipher_valid),
+    .out_valid(aes_out_valid),
     .out_ready(aes_out_ready),
     .inverse(aes_inverse),
     .key_schedule_only(aes_key_schedule_only),
     .last_key_pre_valid(KSU_last_key_pre_valid),
     .mode_256(aes_mode_256),
     .mode_192(aes_mode_192),
-    .sh_plaintext(sh_plaintext),
+    .sh_data_in(sh_data_in),
     .sh_key(KSU_sh_key_out),
-    .sh_ciphertext(sh_ciphertext),
+    .sh_data_out(sh_data_out),
     .sh_last_key_col(KSU_sh_last_key_col),
     .rnd_bus0w(rnd_bus0w),
     .rnd_bus1w(rnd_bus1w),
@@ -203,7 +203,7 @@ assign aes_valid_in = ((in_data_valid & ~KSU_busy) | (KSU_last_key_computation_r
 assign in_data_ready = aes_ready_in & ~KSU_busy & ~KSU_last_key_computation_required & prng_out_valid;
 
 assign aes_out_ready = out_ready; 
-assign out_valid = aes_cipher_valid;
+assign out_valid = aes_out_valid;
 
 // Reseed mechanism starts only if in_seed_valid is asserted and AES core is
 // not active (or starting to be active), since this would give bad randomness

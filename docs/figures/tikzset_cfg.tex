@@ -2,7 +2,7 @@
 
 % Debug to print label to nodes
 \newif\ifdebug
-%\debugtrue
+\debugtrue
 \debugfalse
 
 %%%% CONFIG
@@ -66,6 +66,7 @@
     %%%
     \coordinate (#2/center) at #3;
     \coordinate (#2/south) at ($#3 - (0,#5/2)$);
+    \coordinate (#2/north) at ($#3 + (0,#5/2)$);
 }
 
 %% Rectangle from corner locations
@@ -154,6 +155,7 @@
     \coordinate (#2/south) at ($#3 + (0,-#4)$);
     \coordinate (#2/east) at ($#3 + (#4,0)$);
     \coordinate (#2/west) at ($#3 + (-#4,0)$);
+    \coordinate (#2/center) at ($#3$);
     \draw [#1] (#2/north) -- (#2/south);
     \draw [#1] (#2/west) -- (#2/east);
 }

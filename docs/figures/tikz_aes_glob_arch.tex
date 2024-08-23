@@ -4,7 +4,7 @@
 %%%% Config 
 \def\blocLw{0.5mm}
 \def\ctLw{0.3mm}
-\def\wireLw{0.1mm}
+\def\wireLw{0.4mm}
 \def\borderLw{0.7mm}
 
 \def\fsizeTop{\Large}
@@ -134,16 +134,18 @@ dot/.default = 6pt % size of the circle diameter
 % #3: center loc
 \newcommand{\dpState}[3][]{
     % Draw rect
-    \rectangle[#1]{rec}{#3}{9}{3}{2}{2}{1}{0}
+    \rectangle[#1]{rec}{#3}{9}{3}{2}{2}{6}{0}
     \draw node[rectangle,draw,line width=0.6mm,anchor=north west] at (rec/TL) {\fontS \modAESdpState};
     % Draw ports
     \portW{#2/plaintext}{rec/W1}{\fontS \AESdpStatePlaintext}
     \portW{#2/from_SB}{rec/W2}{\fontS \AESdpStateFromSB}
-    \portN{#2/from_key}{rec/N1}{}%\AESdpStateFromKey
+    \portN{#2/from_key}{rec/N3}{}%\AESdpStateFromKey
+    \portN{#2/from_key_inverse}{rec/N4}{}%\AESdpStateFromKey
     \portE{#2/to_SB}{rec/E2}{\fontS \AESdpStateToSB}
     \portE{#2/ciphertext}{rec/E1}{\fontS \AESdpStateCiphertext}
     % Generating coordinate
     \coordinate (#2/BL) at (rec/BL);
+    \coordinate (#2/north) at (rec/north);
 }
 
 %% Datapath module for the key
@@ -152,15 +154,17 @@ dot/.default = 6pt % size of the circle diameter
 % #3: center loc
 \newcommand{\dpKey}[3][]{
     % Draw rect
-    \rectangle[#1]{rec}{#3}{9}{8}{5}{2}{0}{1}
+    \rectangle[#1]{rec}{#3}{9}{10}{5}{2}{0}{6}
     \draw node[rectangle,draw,line width=0.6mm,anchor=north west] at (rec/TL) {\fontS \modAESdpKey};
     % Draw ports
     \portW{#2/key}{rec/W2}{\fontS \AESdpKeyKey}
     \portE{#2/to_SB}{rec/E1}{\fontS \AESdpKeyToSB}
     \portW{#2/from_SB}{rec/W1}{\fontS \AESdpKeyFromSB}
-    \portS{#2/to_AK}{rec/S1}{\fontS \AESdpKeyToAK}
+    \portS{#2/to_AK}{rec/S3}{\fontS \AESdpKeyToAK}
+    \portS{#2/to_AK_inv}{rec/S4}{\fontS \AESdpKeyToAKInverse}
     % Draw generating coordinate
     \coordinate (#2/TL) at (rec/TL);
+    \coordinate (#2/south) at (rec/south);
 }
 
 %%%% Draw main drawing
@@ -183,7 +187,7 @@ dot/.default = 6pt % size of the circle diameter
 \sboxLayer[line width=\blocLw]{sbox}{($(mux_gate_SB.rpin 1) + (6,0)$)}
 
 %% Draw dpKey + input mux
-\dpKey[line width=\blocLw]{dpKey}{($(dpState/from_key) + (0,6)$)}
+\dpKey[line width=\blocLw]{dpKey}{($(dpState/north) + (0,6)$)}
 \node[mux,line width=\ctLw,anchor=rpin 1,xshift=-\spacexMuxGate] (mux_gate_key) at (dpKey/key) {};
 \muxCtrl{mux_gate_key}{\AESFetchIn}{0}{1}
 
@@ -197,6 +201,7 @@ dot/.default = 6pt % size of the circle diameter
 \draw [->,line width=\wireLw] (dpKey/to_SB) -- ++(0.66*\xshMuxToSB,0) |- (mux_to_SB.lpin 1);
 \draw [->,line width=\sizeB] (dpState/ciphertext) -- ++(0.33*\xshMuxToSB,0) |- (mux_gate_cipher.lpin 2);
 \draw [->,line width=\wireLw] (dpKey/to_AK) -- (dpState/from_key);
+\draw [->,line width=\wireLw] (dpKey/to_AK_inv) -- (dpState/from_key_inverse);
 
 %% Draw feedback wires
 \coordinate (sboxOut) at ($(sbox/out)+(\xshSboxOut,0)$);
@@ -221,7 +226,7 @@ dot/.default = 6pt % size of the circle diameter
 
 %% Draw port
 \draw node[rectangle,anchor=east,xshift=-1cm] (top_plaintext) at (mux_gate_plain.lpin 2){\fsizeTop \portAESInPlaintext [128d-1:0]};
-\draw node[rectangle,anchor=east,xshift=-1cm] (top_key) at (mux_gate_key.lpin 2){\fsizeTop \portAESInKey [128d-1:0]};
+\draw node[rectangle,anchor=east,xshift=-1cm] (top_key) at (mux_gate_key.lpin 2){\fsizeTop \portAESInKey [256d-1:0]};
 \draw node[rectangle,anchor=west,xshift=1cm] (top_ciphertext) at (mux_gate_cipher.rpin 1){\fsizeTop \portAESOutCipher [128d-1:0]};
 \draw node[rectangle,anchor=east,rotate=270,xshift=-1cm] (top_rnd) at (sbox/rnd){\fsizeTop \portAESRnd };
 

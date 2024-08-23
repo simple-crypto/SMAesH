@@ -2,8 +2,7 @@
 
 NSHARES?=2
 HDL_ROOT_DIR=../hdl
-HDL_SRC_DIR=$(HDL_ROOT_DIR)/aes_enc128_32bits_hpc
-TB_TARGET?=tb_aes_enc128_32bits_hpc
+TB_TARGET?=tb_smaesh_hpc
 TB_DIR=$(HDL_ROOT_DIR)/tb
 TB_FILE=$(TB_DIR)/$(TB_TARGET).v
 

@@ -322,7 +322,7 @@ end
 endgenerate
 
 // Mux structure for forward versus inverse data to sbox
-wire [8*d-1:0] to_sbox_forwards_vs_inverse [3:0];
+wire [8*d-1:0] toSB_forward_vs_inverse [3:0];
 generate
 for(i=0;i<4;i=i+1) begin: mux_layer_forward_vs_inverse
     // Xor between first and last column 
@@ -339,7 +339,7 @@ for(i=0;i<4;i=i+1) begin: mux_layer_forward_vs_inverse
         .sel(rcon_inverse & ~(rcon_mode_256 | rcon_mode_192)),
         .in_true(xor_c0_c3),
         .in_false(sh_m_key[i]),
-        .out(to_sbox_forwards_vs_inverse[i])
+        .out(toSB_forward_vs_inverse[i])
     );
 end
 endgenerate
@@ -353,7 +353,7 @@ for(i=0;i<4;i=i+1) begin: mux_byte_to_SB
     inst_mux_initm256(
         .sel(col7_toSB),
         .in_true(sh_m_key[28+i]),
-        .in_false(to_sbox_forwards_vs_inverse[i]),
+        .in_false(toSB_forward_vs_inverse[i]),
         .out(sh_bytes_to_SB_sel_lastcol[i])
     );
 end

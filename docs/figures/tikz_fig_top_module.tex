@@ -17,22 +17,27 @@
 }
 
 % Draw rectangle
-\rectangle[line width=0.5mm]{main}{(0,0)}{4}{6}{8}{8}{2}{0};
+\rectangle[line width=0.5mm]{main}{(0,0)}{4}{10}{13}{13}{2}{0};
 % Add module name
 \draw (main/center) node {\topName};
 % Add ports inputs
-\portW[->]{main/W1}{\svrsInValid}{colorIN}
-\portW[<-]{main/W2}{\svrsInReady}{colorIN}
-\portW[->]{main/W3}{\svrsPlaintext[128d-1:0]}{colorIN}
-\portW[->]{main/W4}{\svrsKey[128d-1:0]}{colorIN}
+\portW[->]{main/W1}{\svrsKey[31:0]}{colorKEY}
+\portW[->]{main/W2}{\svrsKeySizeCfg[1:0]}{colorKEY}
+\portW[->]{main/W3}{\svrsKeyModeInverse}{colorKEY}
+\portW[->]{main/W4}{\svrsKeyValid}{colorKEY}
+\portW[<-]{main/W5}{\svrsKeyReady}{colorKEY}
 
-\portW[->]{main/W6}{\svrsSeedValid}{colorSEED}
-\portW[<-]{main/W7}{\svrsSeedReady}{colorSEED}
-\portW[->]{main/W8}{\svrsSeed[79:0]}{colorSEED}
+\portW[->]{main/W7}{\svrsInDataValid}{colorIN}
+\portW[<-]{main/W8}{\svrsInDataReady}{colorIN}
+\portW[->]{main/W9}{\svrsInData[128d-1:0]}{colorIN}
+
+\portW[->]{main/W11}{\svrsSeedValid}{colorSEED}
+\portW[<-]{main/W12}{\svrsSeedReady}{colorSEED}
+\portW[->]{main/W13}{\svrsSeed[79:0]}{colorSEED}
 % Add ports outputs 
 \portE[->]{main/E1}{\svrsOutValid}{colorOUT}
 \portE[<-]{main/E2}{\svrsOutReady}{colorOUT}
-\portE[->]{main/E3}{\svrsCiphertext[128d-1:0]}{colorOUT}
+\portE[->]{main/E3}{\svrsOutData[128d-1:0]}{colorOUT}
 % Add port control
 \portN[->]{main/N1}{\clk}{black}
 \portN[->]{main/N2}{\rst}{black}

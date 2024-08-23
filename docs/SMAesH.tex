@@ -15,6 +15,9 @@
 
 \usepackage{tablefootnote}
 
+\usepackage{geometry}
+\geometry{top=2cm, bottom=2cm, left=2.5cm, right=2.5cm}
+
 \usepackage{listings}
 \lstset{
   basicstyle=\ttfamily\footnotesize,
@@ -34,7 +37,7 @@
 \input{figures/tikzset_cfg.tex}
 
 \title{SMAesH: technical documentation}
-\subtitle{Masked Hardware AES-128 Encryption with HPC}
+\subtitle{Masked Hardware AES with HPC}
 \author{SIMPLE-Crypto}
 \date{}
 
@@ -53,37 +56,44 @@ implemented in the $\topName$ hardware IP.
 \section{History}
 
 \begin{description}
+    \item[2.0.0 (2024-??-??)] Major (breaking API) update: add AES-192, AES-256 and decryption \todo{FIXME}.
     \item[1.1.0 (2024-09-02)] 4 cycles Canright Sbox (new optimised architecture).
     \item[1.0.1 (2023-06-15)] Fix latency in Section 5.4 (documentation change only).
     \item[1.0.0 (2023-05-01)] Initial release.
 \end{description}
 
 \section{Features}
-The \core module is a masked hardware implementation of the AES-128 encryption
-algorithm as specified in \cite{nist197}. 
+The \core{} module is a masked hardware implementation of the three variants of
+the AES algorithm as specified in \cite{nist197}. In particular, the core
+implements the encryption as well as the decryption for the variants using
+128-bit, 192-bit and 256-bit keys.  
 
 \begin{itemize}
-\item{The core implements the AES-128 encrypt function.}
+\item{The core implements the AES-128, AES-192, AES-256 encryption and decryption function, chosen dynamically at run-time.}
 \item{The implementation is protected against side-channel attacks using a combination of HPC1~\cite{DBLP:journals/tc/CassiersGLS21} and HPC3~\cite{DBLP:conf/ccs/Knichel022} masking scheme.}
+\item{The core relies on a internal long-term key, configured at run-time. The key configuration also defines the execution performed by the core (e.g., encryption vs decryption or algorithm version used).}
 \item{The amount of shares $d\ge 2$ can be chosen at synthesis time.\footnote{While feasible, the architecture of the S-box is optimised and automatically generated for a given amount of shares. Therefore, changing the amount of share without re-generating the S-box may lead to suboptimal results. See~\ref{section:masked_aes_core_arhcitecture} for more details.}}
 \item{The randomness required for the masking scheme is internally generated using an embedded PRNG.}
-\item{The core is controlled through three simple valid-ready stream interfaces (input data/key, output data and PRNG seed.}
-\item{The core has an encryption latency of 86~clock cycles and a throughput of one 128-bit block of data per 86~clock cycles.}
-\item{There is no latency penalty for key change.}
+\item{The core is controlled through four simple valid-ready stream interfaces (input key, input data, output data and PRNG seed.}
+\item{The core has an encryption latency of 86, 201 and 118 cycles for respectively AES-128, AES-192 and AES-256. The corresponding throughput is one 128-bit block of data per 86, 201 and 118 cycles.}
+\item{The core has an decryption latency of 86, 121 and 118 cycles for respectively AES-128, AES-192 and AES-256. The corresponding throughput is one 128-bit block of data per 86, 121 and 118 cycles.}
+\item{A key change comes with a latency penalty of $16d$ cycles. For decryption only, an additionnal penalty of $16$ cycles plus the latency of an encryption is paid.}
 \item{The state of the core is automatically cleared when encryption finishes.}
+\item{The key is automatically refreshed after each usage without latency penalty.}
+\item{The AES-192 version comes together with the AES-256 version without paying additional logic other than control.}
+\item{The AES-192 and AES-256 version can be disable at synthesis time. }
 \end{itemize}
 
 \section{Core User Guide} 
 \label{section:svrs_usage}
 
-A top-level view of the core is shown in
-Figure~\ref{fig:top_module_view} and a detailed list of the ports is given in
-Table~\ref{table:ports}.
-The interface is composed of three independent interfaces: the input
-composed of the plaintext and the key (in red), the ciphertext output (in blue)
-and the PRNG seed (in green).
-The key (\svrsKey), plaintext (\svrsPlaintext) and ciphertext (\svrsCiphertext)
-are all 128-bit masked values.
+A top-level view of the core is shown in Figure~\ref{fig:top_module_view_ports}
+and a detailed list of the ports is given in Table~\ref{table:ports}.  The
+interface is composed of four independent interfaces: the key configuration
+input (in violet), the input plaintext/ciphertext (in red), the
+ciphertext/plaintext output (in blue) and the PRNG seed (in green).
+The key (\svrsKey) is a 32-bit bus while the input (\svrsInData) and the output (\svrsOutData)
+are 128-bit masked values.
 The internal PRNG seed (\svrsSeed) is 80-bit wide.
 
 \begin{figure}
@@ -95,7 +105,7 @@ The internal PRNG seed (\svrsSeed) is 80-bit wide.
         \end{tikzpicture}
     }
     \caption{Top level view of module $\topName$.}
-    \label{fig:top_module_view}
+    \label{fig:top_module_view_ports}
 \end{figure}
 
 \input{figures/table_ports.tex}
@@ -171,23 +181,70 @@ Examples of protocol use are given in Figures~\ref{fig:basic_svrs} and~\ref{fig:
 
 \subsection{Core Usage}
 
-\paragraph{Encryption}
-An encryption is started by executing a transaction on the \texttt{in} interface.
-The encryption is executed using the shared key and plaintext provided in the
+\paragraph{Key configuration}
+An new key is configured in the core by executing several transactions on the
+key interfaces.  The configuration of a key of $\KEYSIZE$ bits (128, 192 or
+256) is done by performing $d\cdot\KEYSIZE / 32$ transactions.  Each
+transactions allows to transfer 32 bits of key share. The transactions must be
+performed such that the key shares are transfered sequentially, 32-bit word per
+32-bit word, from the least significant word to the most significant one. The
+key size and the inverse configuration are specified during the first
+transaction. These configurations will then be hold internally to the core in
+order to configure all the executions following the key configuration. In order
+to configure the core in decryption mode, the signal $\svrsKeyModeInverse$
+signal must be asserted during the first transaction. in such case, the core
+internally computes the key of the last round after having fetched the key
+value and stores it as the long term key.  
+The Figure~\ref{fig:srvs_key_cfgd2} depicts an example of key configuration for the 128-bit key
+$\texttt{umsk\_key}$, encoded in the 2-shares sharings $\texttt{share0\_key}$ and
+$\texttt{share1\_key}$.   
+
+\begin{figure}
+    \centering
+    \def\scaleFont{0.5}
+    \begin{tikztimingtable}
+        \texttt{\texttt{umsk\_key}} & 15{DD}{0x0f0e0d0c\_0b0a0908\_07060504\_03020100} \\
+        \texttt{\texttt{share0\_key}} & 15{DD}{0x2a082ca6\_58197c74\_6395f678\_7f02d885} \\
+        \texttt{\texttt{share1\_key}} & 15{DD}{0x250621aa\_5313757c\_6493f37c\_7c00d985} \\
+        \\
+        \texttt{clock} & L 15{HL} \\
+        \svrsKey & X 1{XX}{} 2{DD}{\scalebox{\scaleFont}{7f02d885}} 1{DD}{\scalebox{\scaleFont}{6395f678}} 1{XX} 1{DD}{\scalebox{\scaleFont}{58197c74}} 1{XX} 1{DD}{\scalebox{\scaleFont}{2a082ca6}} 1{DD}{\scalebox{\scaleFont}{7c00d985}} 2{XX} 1{DD}{\scalebox{\scaleFont}{6493f37c}} 1{DD}{\scalebox{\scaleFont}{5313757c}} 1{DD}{\scalebox{\scaleFont}{250621aa}} XX \\ 
+        \svrsKeySizeCfg & X 1{XX}{} 2{DD}{0} 12{XX} \\ 
+        \svrsKeyModeInverse & X 1{XX}{} 2{LL} 12{XX}  \\ 
+        \svrsKeyValid & L 1{LL}{} 3{HH} 1{LL} 1{HH} 1{LL} 2{HH} 2{LL} 3{HH} 1{LL} \\ 
+        \svrsKeyReady & L 2{LL} 12{HH} LL\\
+        \extracode
+        \makeatletter
+        \begin{pgfonlayer}{background}
+            \begin{scope}[gray,semitransparent,semithick]
+                \foreach \x in {1,3,...,29}
+                \draw (\x,1.5) -- (\x,-19.5);
+            \end{scope}
+        \end{pgfonlayer}
+    \end{tikztimingtable}
+    \caption{Configuration of a 128-bit key for encryption}
+    \label{fig:srvs_key_cfgd2}
+\end{figure}
+
+\todo{Revise, not real, must be at least 2 cycles between valid and ready}
+
+\paragraph{Encryption and decryption}
+An encryption (resp. decryption) is started by executing a transaction on the input interface.
+The execution is performed using the internally stored shared long term key and an input plaintext (resp. decryption) provided in the
 transaction, then the \texttt{out} interface becomes valid, with the shared
-ciphertext as data.
+ciphertext (resp. plaintext) as data.
 
 The core can only perform one execution at a time and will not start a new
-encryption before the ciphertext of the current encryption has been consumed from
+execution before the ciphertext/plaintext of the current encryption/decryption has been consumed from
 the \texttt{out} interface.
 Figure~\ref{fig:ex2runs} illustrates the interface signal for two consecutive encryptions.
 
 \emph{Security:}
-The $\svrsCiphertext$ is gated to not expose any confidential value when
+The $\svrsOutData$ is gated to not expose any confidential value when
 $\svrsOutValid$ is not asserted.
 
 \emph{Initialization:}
-After reset, the core will not start an encryption before it is reseeded.
+After reset, the core will not start an execution before it is reseeded.
 
 \emph{Latency and throughput:}
 The AES implementation has a latency of 86~clock cycles. To achieve the
@@ -203,16 +260,21 @@ asserted.
         \texttt{clk} & L4{HL}SS5{HL}SS5{HL}\\
         \texttt{syn\_rst} & L16{LL} \\
         \\
-        \svrsPlaintext & X 2{DD}{$p_0$}{}7{DD}{$p_1$} 1{XX} 6{XX}\\
-        \svrsKey & X 2{DD}{$k_0$}{}7{DD}{$k_1$} 1{XX} 6{XX} \\
+        \svrsInData & X 2{DD}{$p_0$}{}7{DD}{$p_1$} 1{XX} 6{XX}\\
         \svrsInValid & L 4{HH} 4H 6H 1{LL} 6{LL}\\
         \svrsInReady & L LL 1{HH} 2{LL} 4L 4L 2H 2L 3{LL} 3{HH}\\
         \\
         \svrsSeed & X 4{XX} 6X 6X 6{XX}\\
         \svrsSeedValid & {}L 4{LL} 6L 6L 6{LL}\\
-        \svrsSeedReady & {}L 4{LL} 6L 6L 6{LL}\\
+        \svrsSeedReady & {}X 16{XX} \\
         \\
-        \svrsCiphertext & D 4{DD}4D{0} 4D{$c_0$} 4{DD}{0} 1{DD}{$c_1$} 3{DD}{0}\\
+        \svrsKey & X 16{XX} \\
+        \svrsKeySizeCfg & X 16{XX} \\
+        \svrsKeyModeInverse & X 16{XX} \\
+        \svrsKeyValid & L 16{LL} \\
+        \svrsKeyReady & X 16{XX} \\
+        \\
+        \svrsOutData & D 4{DD}4D{0} 4D{$c_0$} 4{DD}{0} 1{DD}{$c_1$} 3{DD}{0}\\
         \svrsOutValid & L 4{LL} 4L 4H 4L 4L 2H 3{LL}\\
         \svrsOutReady & L 4{LL} 4L 2L2H 4L 2L 4H 3{LL}\\
         \extracode
@@ -222,15 +284,15 @@ asserted.
             \node[draw=none] at (22,0.5) {\dots};
             \begin{scope}[gray,semitransparent,semithick]
                 \foreach \x in {1,3,...,7}
-                \draw (\x,1.5) -- (\x,-28.5);
+                \draw (\x,1.5) -- (\x,-38.5);
                 \foreach \x in {11,13,...,19}
-                \draw (\x,1.5) -- (\x,-28.5);
+                \draw (\x,1.5) -- (\x,-38.5);
                 \foreach \x in {23,25,...,31}
-                \draw (\x,1.5) -- (\x,-28.5);
+                \draw (\x,1.5) -- (\x,-38.5);
             \end{scope}
         \end{pgfonlayer}
     \end{tikztimingtable}
-    \caption{Exemplary interface view for two executions.}
+    \caption{Exemplary interface view for two executions (note that $\svrsSeedValid$ and $\svrsKeyValid$ are LOW).}
     \label{fig:ex2runs}
 \end{figure}
 
@@ -247,14 +309,17 @@ After a reseed transaction, the reseeding procedure lasts for a few cycles (the
 duration depends on the core configuration, it is typically less than a dozen
 cycles). 
 
-\emph{Interactions with encryption.}
+\paragraph{Interactions between key configuration, execution and re-seeding}
 \begin{itemize}
-    \item After a reset, the core does not start any encryption before being reseeded once.
-    \item The core will not accept a reseed transaction while it is encrypting.
-    \item The core will not start an encryption while it is reseeding.
-    \item Starting a new encryption takes precedence over starting a reseed,
-        hence if reseeding if needed, no new valid input should be asserted
-        before a reseed transaction happens.
+    \item After a reset, the core does not start any execution/key configuration before being reseeded once. 
+    \item The core will not accept a reseed transaction while it is executing (encryption/decryption) or when a key is under configuration.
+    \item The core will not accept a key configuration transaction while it is executing (encryption/decryption) or when a re-seeding is ongoing.
+    \item The core will not start an execution while it is reseeding or configuring a new key.
+    \item Starting a new execution takes precedence over starting a reseed or configuring a new key.
+        Hence if reseeding or configuring a new key is needed, no new valid input should be asserted
+        before a reseed/key configuration transaction happens.
+    \item There is no precedence between starting a reseed or a key configuration. Therefore, asserting both $\svrsKeyValid$ and $\svrsSeedValid$ at the same time 
+        will result in the core not performing any transaction on both the key and seed interfaces. 
 \end{itemize}
 
 \begin{figure}
@@ -297,8 +362,8 @@ cycles).
 \subsection{Sharing encoding}
 \label{sec:share_encoding}
 
-The busses $\svrsPlaintext$, $\svrsKey$ and
-$\svrsCiphertext$ contain respectively the shared representation of the
+The busses $\svrsInData$ and
+$\svrsOutData$ contain respectively the shared representation of the
 plaintext, the key and the ciphertext.
 
 A sharing (or shared representation) of a bit $b$ is a tuple of $d$ shares
@@ -322,31 +387,37 @@ This representation is illustrated in Figure~\ref{fig:encoding}.
     \label{fig:encoding}
 \end{figure}
 
-The key and the plaintext must be fed as uniform sharings (i.e. the sharing is
+The key and the input data must be fed as uniform sharings (i.e. the sharing is
 selected uniformly at random among possible sharings that represent the correct
-value). The output ciphertext sharing is guaranteed to be uniform.
+value). The output data sharing is guaranteed to be uniform.
 
 \section{Core Architecture}
 \label{section:architecture}
 
-The top-level architecture of $\topName$ is depicted in Figure~\ref{fig:top_module_view}:
-its main components are the encryption unit $\topModAES$ and the PRNG. Some additional logic
-is used to handle the encrypt/reseed interlocking, as well as units to shuffle
+The top-level architecture of $\topName$ is depicted in Figure~\ref{fig:smaesh_top_module}:
+its main components are the AES unit $\topModAES$, the key storage unit $\topModKHOLD$ and the PRNG. Some additional logic
+is used to handle the execution/key configuration/reseed interlocking, as well as units to shuffle
 the shares of the masked busses.
 
 \paragraph{Core}
-The module $\topModAES$ implements a masked version of the AES encryption
-algorithm by serially processing 32-bits parts of the state. It runs a single
-AES execution at a time and the ciphertext produced ($\portAESOutCipher$) has
-to be fetched before a new execution can start.
-The shared plaintext ($\portAESInPlaintext$) and the shared
-key ($\portAESInKey$) are fetched at the beginning of a new execution by
-performing a simple transaction at the input interface (with
-$\portAESInValid$ and $\portAESInReady$).
-Similarly, the shared ciphertext ($\portAESOutCipher$) is output from the core
-with a dedicated interface (with $\portAESOutValid$ and
-$\portAESOutReady$). The signal $\portAESbusy$ is asserted when 
-an execution is ongoing inside the core.
+The module $\topModAES$ implements a masked version of the three variants of
+the AES algorithm, in encryption or decryption, by serially processing 32-bits
+parts of the state and chosen at run-time. The execution is internally
+configured by the $\topModKHOLD$ module that forwards the signals
+$\portAESModeI$ and $\portAESModeII$ to select another version than the 128-bit
+one used by default and the signal $\portAESInverse$ that specifies that the
+reverse algorithm must be executed. It runs a single AES execution at a time
+and the output produced ($\portAESOutData$) has to be fetched before a new
+execution can start. Together with the configuration signals, the shared input ($\portAESInData$) and the shared key
+($\portAESInKey$) are fetched at the beginning of a new execution by performing
+a simple transaction at the input interface (with $\portAESInValid$ and
+$\portAESInReady$).  Similarly, the shared output ($\portAESOutData$) is output
+from the core with a dedicated interface (with $\portAESOutValid$ and
+$\portAESOutReady$). The signal $\portAESbusy$ is asserted when an execution is
+ongoing inside the core.
+Finally, the signals $\portAESKSchedOnly$, $\portAESLastKeyColPreValid$, 
+$\portAESLastKeyCol$ and $\portAESRndRfValid$ are only used internally together with the key storage module $\topModKHOLD$ in order to perform specific operation 
+related to the key management as detailled in the paragraph "Key Holder" below. 
 
 \paragraph{PRNG}
 The module $\topModPRNG$ is generating the randomness required by the 
@@ -376,6 +447,41 @@ initiated and a transaction on the \texttt{seed} bus occurs at the next cycle
 \svrsSeedReady$, and is achieved by detecting a rising edge on the PRNG
 $\portPrngBusy$ signal).
 
+\paragraph{Key holder}
+The module $\topModKHOLD$ is in charge of the key management and the
+configuration of the executions performed by the core. This module is mainly
+keeping the shares values of the long term key and is in charge of refreshing
+the latter after each execution of the core. A new key value is configured
+serially by performing transactions of 32-bit piece of data on the key
+dedicated interface (i.e., $\portKHDataIn$, $\portKHDataInValid$ and
+$\portKHDataInReady$). Besides the key value, the key size (i.e., 128, 192 or
+256 bits) is configured during the first transaction of a new key configuration
+using the signal $\portKHSizeCfg$ (i.e., 0b00 for 128, 0b01 for 192 and 0b11
+for 256). Complementarily, the core can be configured to perform decryption by
+asserting the signal $\portKHInverse$ during the first transaction. When a key
+configuration is ongoing, the signal $\portKHBusy$ is asserted. 
+
+When configured to compute decryption, the module stores a sharing of the last
+round key corresponding the key provided. To do so, the key storage unit
+controls the $\topModAES$ module in order to perform a dummy encryption upon
+the reception of a new key. In particular, the signal $\portKHLastKeyReq$ is
+used to start an dummy encryption with module $\topModAES$ during witch the
+logic unrelated to the key schedule algorithm is disabled (using signal
+$\portAESKSchedOnly$). At the end of the dummy encryption, the signal
+$\portAESLastKeyColPreValid$ is asserted and the value of the (shared) last
+round key is fetched back using the bus $\portAESLastKeyCol$, by serially
+obtaining the shared value of a single column per cycle. In such a case, the
+signal $\portKHBusy$ is asserted until the key material of the last round key
+have not been recovered by the key storage unit. 
+
+During each standard execution (i.e., execution not related to a key
+configuration), the key shares hold by the module $\topModKHOLD$ are refreshed
+on-the-fly. This is made possible due to the fact that some part of the fresh
+randomness provided through the bus $\portAESRnd$ to the module $\topModAES$ is
+not used by the latter during specific cycles of the execution of a round
+function. Such cycles are advertised to the key storage unit by asserting the signal
+$\portAESRndRfValid$. It results that the key refresh is performed with no latency penalty.  
+
 \paragraph{Share shuffling}
 The modules $\texttt{shares2shbus}$ and $\texttt{shbus2shares}$ are simple wire
 shufflings that ``transpose'' the encoding of the shared data.
@@ -391,12 +497,14 @@ using Verilog operators.
     \centering
     \resizebox{\textwidth}{!}{
         \begin{tikzpicture}
-            \input{figures/tikz_fig_global_arch}
+            \input{figures/tikz_fig_smaesh_top}
         \end{tikzpicture}
     }
     \caption{Global architecture of the module \topName.}
-    \label{fig:top_module_view}
+    \label{fig:smaesh_top_module}
 \end{figure}
+
+% HERE
 
 \subsection{Masked AES Core Architecture} 
 \label{section:masked_aes_core_arhcitecture}
@@ -412,15 +520,24 @@ using Verilog operators.
     \label{fig:aes_glob_arch}
 \end{figure}
 
-The module $\topModAES$ is almost identical to the 32-bit masked AES
-implementation presented in~\cite{DBLP:conf/cosade/MominCS22}. As shown in
+The module $\topModAES$ is based on the 32-bit masked AES implementation
+presented in~\cite{DBLP:conf/cosade/MominCS22}. As shown in
 Figure~\ref{fig:aes_glob_arch}, the module is organized around two datapath
 blocks performing the operations dedicated to the round computation (denoted
 \modAESdpState) and the key scheduling (denoted $\modAESdpKey$). The module
 $\modAESsbox$ is shared between the two datapath blocks and implements the
 $\SB$ layer for 4 masked bytes. In particular, it is composed of 4~parallel
-instances of the masked S-boxes implementation presented in~\cite{DBLP:journals/tches/CassiersGMMN24}
-that relies on the representation presented in~\cite{DBLP:conf/ches/Canright05}.
+instances of the masked S-boxes implementation presented
+in~\cite{DBLP:journals/tches/CassiersGMMN24} that relies on the representation
+presented in~\cite{DBLP:conf/ches/Canright05}.  Each instance implements both
+the forward and inverse operation, chosen at run-time using a dedicated control
+signal. More into the details, the S-box is composed of three different layers:
+a non-linear layer surrounded by a linear layer at input and output. While the
+linear layers (both at the input and output) are different for forward and
+inverse operation, the (coslty) non-linear layer remains the same and can be
+shared when performing operations in both ways.  Executing either the forward
+or inverse operation is done in practice by using muxes at the input/output
+linear layers that forwards the data accordingly to the chosen mode of execution. 
 
 The S-boxes have been generated using COMPRESS, and are thus optimised for a
 given amount of shares. The amount of shares implemented in a practical
@@ -433,11 +550,11 @@ $d\in[2,3,4,5]$. If another amount of shares is required, it is advised to
 generate an optimal S-box implementation using COMPRESS\footnote{Please refer
     to
     \href{https://github.com/cassiersg/compress_artifact}{https://github.com/cassiersg/compress\_artifact}
-for more info}.  A single S-box is organized as a pipeline of 4 stages that
+for more info}.  Overall, a single S-box instance is organized as a pipeline of 4 stages that
 requires 36 random bits (resp. 96, 192 and 300) per execution considering $d=2$
 (resp. 3, 4 and 5). The bus $\portAESRnd$ is used to provide the fresh
 randomness to the 4~S-boxes instances (randomness is not used anywhere else in
-$\topModAES$).
+$\topModAES$). 
 
 \subsection{Architecture of the $\modAESdpState$ module}
 \label{sec:architecture}
@@ -458,31 +575,46 @@ module $\modAESdpState$. It is organized as a shift register where each
 register unit holds a masked state byte (the numbers on the figure
 indicate the byte index in the unmasked state).
 The module operates on 32-bit parts of the state and is also implementing the
-logic that computes the $\AK$, $\SR$ and $\MC$ layers.
-In particular, these are implemented in purely
-combinational logic.
-Addition gadgets (i.e., XORs) are used to perform the key addition with key
-bytes coming from the round
-key (denoted $\AESdpStateFromKey$).
-The module $\dpStateModMC$ computes the
-result of the $\MC$ operation for a masked column (i.e., 4~masked bytes). The
-$\SR$ layer is free, being implemented as a specific
-routing at the input of the $\SB$ layer.
-In particular, the ordering of the bytes routed to the
-S-boxes (denoted $\AESdpStateToSB$) is selected such that the rotations over
-the rows are applied. Dedicated MUXes (controlled by $\dpStateCtrlRouteMC$) are
-used in order to bypass the $\MC$ logic block when executing the last round.
-Other MUXes (controlled by $\dpStateCtrlRouteLoop$) are used during the
-last key addition in order to bypass the $\SR$, $\SB$ and $\MC$ layers.
-When a new execution starts, the masked plaintext bytes are loaded in the register through the 
-MUXes controlled by $\dpStateCtrlRouteIn$.
-Then, the $\AK$ and $\SR$ layers are executed by propagating the data 
-across the pipeline to the S-boxes.
-The $\MC$ operation is performed when the result of the $\SB$ layer is coming back to the 
-core by asserting the signal $\dpStateCtrlRouteMC$. 
+logic that computes the $\AK$, $\SR$ and $\MC$ layers, both for the forward and inverse operation.
+In particular, these are implemented in purely combinational logic.   
+
+\paragraph{Encryption} When performing an encryption, addition gadgets (i.e., XORs) are used to
+perform the key addition with key bytes coming from the round key (denoted
+$\AESdpStateFromKey$). The module $\dpStateModMC$ computes the result of the
+$\MC$ operation for a masked column (i.e., 4~masked bytes). The $\SR$ layer is
+free, being implemented as a specific routing at the input of the $\SB$ layer.
+In particular, the ordering of the bytes routed to the S-boxes (denoted
+$\AESdpStateToSB$) is selected such that the rotations over the rows are
+applied. Dedicated MUXes (controlled by $\dpStateCtrlRouteMC$) are used in
+order to bypass the $\MC$ logic block when executing the last round.  Other
+MUXes (controlled by $\dpStateCtrlRouteLoop$) are used during the last key
+addition in order to bypass the $\SR$, $\SB$ and $\MC$ layers.  When a new
+execution starts, the masked plaintext bytes are loaded in the register through
+the MUXes controlled by $\dpStateCtrlRouteIn$.  Then, the $\AK$ and $\SR$
+layers are executed by propagating the data across the pipeline to the S-boxes
+(by selecting the data $\dpStateToSBForward$ with the MUX driving the signal
+$\AESdpStateToSB$).  The $\MC$ operation is performed when the result of the
+$\SB$ layer is coming back to the core by asserting the signal
+$\dpStateCtrlRouteMC$. 
+
+\paragraph{Decryption} When performing a decryption, addition gadget are used to add the key bytes
+coming from the round key (denoted
+$\AESdpStateFromKeyInverse$). These are located in order to add the key
+material with the first column of the state (i.e., bytes indexes in [0,1,2,3]).
+The addition gadget located at the byte index 0 is shared between the
+encryption and decryption process. The additions outcomes are forwarded to the
+module $\dpStateModMCInv$ that implements the inverse $\MC$ operation for a
+masked column. A dedicated mux (controlled by $\dpStateCtrlBypassMCInverse$)
+allows to bypass the latter, as required when computing the inversion of the
+last round. The data are then forward to the S-boxes (by selecting the data
+$\dpStateToSBReverse$) in order to compute the inverse $\SB$ layer.  The
+inverse $\SR$ layer is implemented by dedicated MUXes that allows to insert the
+bytes coming back from the Sboxes to the proper location (i.e., byte indexes in
+[12,1,6,11]). Similarly to the key addition, the MUX inserting data at the byte
+index 12 is shared between the encryption and the decryption.  
 
 \subsection{Architecture of the $\modAESdpKey$ module}
-
+\label{section:module_dpkey}
 \begin{figure}
     \centering
     \resizebox{\textwidth}{!}{
@@ -497,33 +629,140 @@ core by asserting the signal $\dpStateCtrlRouteMC$.
 The module $\modAESdpKey$ is shown in Figure~\ref{fig:aes_dpKey}. It is
 organized as a shift register where each register unit holds a masked byte of
 the key. The module is split in 4~independent parts, each taking care of the
-key scheduling operation on a single row. The sharing of the 128-bit key is
-routed from the input with the control signal $\dpKeyCtrlInit$. Two relevant
-bytes ordering are depicted on the Figure and both refers to the byte index in
-the unmasked key. First, the number on the top depict the byte ordering at the
-beginning of a round when the key addition occurs. Second, the bottom number
-(between parentheses) depict the byte ordering when a fresh execution starts,
-at the last cycle of a round or when the $\SB$ layer results of the key
-scheduling are fetch back from the S-boxes, as detailed next. In practice, the
-second ordering corresponds to the first one with a rotation of 1 column to the
-left.
+key scheduling operation on a single row. The sharing of the key is routed from
+the input with the control signal $\dpKeyCtrlInit$. Depending on the key size
+configured, some part of the bus $\AESdpKeyKey$ may contain 'dont care' values
+and some register are turned off. In particular, the bytes indexes from 16 to
+31 are not used in the 128-bit key version (i.e., registers are disabled) and
+the bytes indexes from 24 to 31 are initially considered as holding 'dont care'
+value in the 192-bit key version.
 
-Concretely, the key scheduling starts by sending the last column of the key
-(i.e., byte indexes 12, 13, 14 and 15) to the S-boxes.  The $\texttt{RotWord}$
-operation is performed by the routing that sends the key bytes to the S-boxes.
-Once computed, the result of the $\SB$ layer is routed back to the core through
-the MUX controlled by the signal $\dpKeyCtrlRouteFromSB$.  At the same time,
-the round constant is applied and the first column (i.e., byte indexes 0,1,2
-and 3) of the new key is computed by adding its value to the column coming back
-from the S-boxes.  The remaining three columns (i.e., byte indexes [4,5,6,7],
+Two relevant bytes ordering are depicted on the Figure and both refers to the
+byte index in the unmasked key. First, the numbers on the top depict the
+register location and correspond to the byte ordering at the beginning of a
+round when the key addition occurs (the byte ordering is relative to the round
+execution flow). Second, the bottom number (between parentheses) depict the
+byte ordering when a fresh execution starts, at the last cycle of a round or
+when the $\SB$ layer results of the key scheduling are fetch back from the
+S-boxes, as detailed next. In practice, the second ordering corresponds to the
+first one with a rotation of 1 column to the left when considering the first 4
+columns only. The structure composed of the registers driven by MUXes that are
+controlled with the signal $\dpKeyCtrlRstBuffer$ as well ass the XORs they are
+driving are not used during encryptions (i.e., $\dpKeyCtrlRstBuffer$ is constantly set to
+'1'). 
+
+\paragraph{AES-128 Encryption} When computing a 128-bit encryption, the key scheduling starts by sending the
+last column of the key (i.e., byte indexes 12, 13, 14 and 15, but that are
+located in positions 0,1,2 and 3) to the S-boxes.  To do so, the signals
+$\dpKeyCtrlReverseDefaut$ and $\dpKeyCtrlColSevenToSB$ are set to '0' in order
+to let the data pass through the MUXes up to the output of the core.  The
+$\texttt{RotWord}$ operation is performed by using an appropriate routing of
+the signal $\AESdpKeyToSB$ that sends the key bytes to the S-boxes.  Once
+computed, the result of the $\SB$ layer is routed back to the core through the
+MUX controlled by the signal $\dpKeyCtrlRouteFromSB$, by setting to '0' the signal $\dpKeyCtrlDisableRot$.  At the same time, the
+round constant is applied and the first column (i.e., byte indexes 0,1,2 and 3)
+of the new round key is computed by adding the first column of the key (thus located in positions 4,5,6 and 7) to the column coming back from
+the S-boxes. The remaining three columns (i.e., byte indexes [4,5,6,7],
 [8,9,10,11] and [12,13,14,15] are then updated sequentially by XORing each
-bytes with the value of the last byte updated in the same row. The signal
-$\dpKeyCtrlLoop$ is used to make the key shares loop across the key pipeline.
-This is required to keep the key material after the $\AK$ operations while the
-$\SB$ results of the key scheduling is still under computation. 
+bytes with the value of the last byte updated in the same row. 
+The signal $\dpKeyCtrlLoop$ is used to make the key shares loop across the key
+pipeline.  This is required to keep the key material after the $\AK$ operations
+while the $\SB$ results of the key scheduling is still under computation. 
 
-\subsection{Internal operation}
+\paragraph{AES256 Encryption}The architecture required for the 256-bit encryption is built upon the 128-bit
+one, and presents some specifities detailed next. The signal
+$\dpKeyCtrlColSevenToSB$ is asserted at the very first cycle of an execution in
+order to sent the seventh column of the key (i.., bytes indexes 28,29,30 and
+31) instead of the fourth one, accordingly with the 256-bit version
+specificiations. It is de-asserted for the remaining of the execution. When new
+round key material are computed , the registers at positions 16 to 31 are
+enabled in order to store these. In the same time, the data hold in these
+registers are propagated through the pipeline by asserting the signal
+$\dpKeyCtrlFBFromHigh$. The MUX controlled by the signal $\dpKeyCtrlDisableRot$
+allows to bypass the addition of the round constant together with
+$\texttt{RotWord}$ operation, as required by one round out of two with the
+256-bit version. 
 
+\paragraph{AES-128/256 Decryption} Naively, the inversion of the key scheduling can be implemented by performing
+the inverse operation of the key schedule algorithm, in reverse order. That is,
+considering that a round key is composed of 4 columns of 32-bit, the three last
+columns of an update key can be computed by sequentially XORing the last three
+columns of the current key.  For the first column, one must additionnaly XOR
+the result of the $\SB$ operation applied to the last column of the updated
+key, obtained as described above by XORing the two last columns of the current
+key (that is, the two columns composed of the key bytes at indexes
+[12,13,14,15] and [8,9,10,11]). As a reminder, the 256-bit version does not
+require the \texttt{RotWord} operation and the addition of the round constant
+at every round, which can be disabled by properly driving the signal
+$\dpKeyCtrlDisableRot$. Implementing this exact computational flow would at
+least require to route the data through the pipeline in the opposite direction
+to what is already implemented for the encryption, leading to significant area
+overhead (e.g., at least $128d$ MUXes and logic replication). Instead, the core
+stick the data propagation flow of the encryption and implements the inverse
+key schedule as detailled next. First, the last column of the updated key is
+computed by XORing the last two columns. In parallel, the latter is routed to
+the Sboxes by asserting the signal $\dpKeyCtrlReverseDefaut$.  Next, the key
+update is similar to what is done during an encryption. That is, the first
+column of the updated key is computed by XORing the first column of the current
+key (located at the positions 4,5,6 and 7) with the material coming back from
+the Sboxes. The following three columns are computed sequentially by XORing the
+freshly updated column (located at positions 0,1,2 and 3) with the column of
+the current key (located at positionis 4,5,6 and 7). Additionally, the signal
+$\dpKeyCtrlRstBuffer$ is asserted for 4 consecutive cycles in order to
+accumulate the value coming back from the Sboxes with the sequential frehsly
+updated key columns.  The latter mechanism is required for functionality
+purpose of the algorithm. Similarly to hte encryption process, the frehsly
+updated key material are propagated thorugh the pipeline, either to the
+locations [12,13,14,15] for the 128-bit version, either to the locations
+[28,29,30,31] for the 256-bits version. 
+
+\paragraph{AES-192}
+The 192-bit version of the algorithm takes advantage of the existing
+structure and is implemented without any additional logic apart from specific
+control.  
+
+
+\subsection{Architecture of the $\topModKHOLD$ module}
+\todo{Description of the key core}
+
+\subsection{Internal operations}
+
+\paragraph{Overview}
+For the three version of the algorithm, the round computations (i.e.,
+computation occuring inside the module $\modAESdpState$) are performed in
+parallel to the key schedule (i.e., computations occuring inside the module
+$\modAESdpKey$).
+
+As the structure of the 128-bit and 256-bit versions are reasonably similar,
+they benefit from the same performance in terms of latency, whether for
+encryption or decryption.  The latter is equal to $1+\Nr\cdot(8)+4$ cycles ,
+where $\Nr = 10$ and $\Nr= 14$ for the 128-bit and 256-bit versions
+respectively. The first cycle (i.e., the '1' in the equation) correspond to the
+cycle where the first key material are sent to the Sboxes in order to start the
+key update mechanism. Then, the $\Nr$ round are executed sequentially, each of
+them requiring 8 cycles the proceed.  Finally, the final key addition is
+performed in 4 cycles. 
+
+Due to the fact that there is less structural similarity between the rounds
+computations (which consist in applying the same operation on 128-bit states)
+and the evolution of the key (which consist in applying the same operation on
+192-bit parts), the implementation requiring no additional logic described in
+Section~\ref{section:module_dpkey} comes at the cost of a significant latency
+overhead. The latter is directly caused by the complexity of computing the key
+scheduling part without modifying the existing module. The flow followed by the
+round computations taking place inside the module $\modAESdpState$ is not
+modified, with the difference that the registers are stalled at the end of a
+round computation to allow the next key computation to be completed before
+starting the next round.  Its implementation consists of a complex control of
+the existing pipeline, making it possible to implement a step that updates 18
+successive key columns in 49 cycles during an encryption (resp. 29 during a
+decryption) and that is repeated 4 times to achieve a complete update.
+Similarly to the other version, the first cycle of an execution is not related
+to the round computation, but is rather used in the contexte of the 192-bit
+version to ensure a proper ordering of the key bytes before starting a round
+computation. Also, the final key addition is performed in 4 additionnal cycles. 
+
+\paragraph{Detailed AES-128 Encryption flow}
 Let us first introduce notations for the intermediate states in the AES algorithm with
 pseudo-code in Figure~\ref{fig:code_round} and Figure~\ref{fig:code_key}.
 Each variable denotes a state or subkey byte at a given step of the algorithm.
@@ -592,35 +831,37 @@ When no index is given, the full 128-bit state is considered instead.
         done
     done
     \end{lstlisting}
-    \caption{Pseudo-code for the AES key evolution.}
+    \caption{Pseudo-code for the AES-128 key evolution.}
     \label{fig:code_key}
 \end{figure}
 
 \begin{figure}
     \centering
     \input{figures/tikz_time_pipe_sbox}
-    \caption{Data going into / coming from the S-boxes during a round.}
+    \caption{Data going into / coming from the S-boxes during an encryption round of AES-128.}
     \label{fig:pipe_sbox}
 \end{figure}
+
 
 \begin{figure}
     \centering
     \input{figures/tikz_time_pipe_dpkey}
-    \caption{Data going into / coming from the key scheduling datapath during a round.}
+    \caption{Data going into / coming from the key scheduling datapath during an encryption round of AES-128.}
     \label{fig:pipe_dpkey}
 \end{figure}
 
 \begin{figure}
     \centering
     \input{figures/tikz_time_pipe_dpstate}
-    \caption{Data going into / coming from the round function datapath during a round.}
+    \caption{Data going into / coming from the round function datapath during an encryption round of AES-128.}
     \label{fig:pipe_dpstate}
 \end{figure}
+
 
 \begin{figure}
     \centering
     \input{figures/tikz_time_first_round} 
-    \caption{Data routing when a new execution starts.}
+    \caption{Data routing when a new encryption of AES-128 starts.}
     \label{fig:time_first_round}
 \end{figure}
 
@@ -629,7 +870,7 @@ and~\ref{fig:pipe_dpstate} describe the evolution of the AES states stored in
 the architecture over the computation of one round.
 Next, Figures~\ref{fig:time_first_round}, \ref{fig:time_regime}
 and~\ref{fig:time_last_round} depict the control signals that drive the
-datapath for the first round, middle rounds, and last round.
+datapath for the first round, middle rounds, and last round. Unspecified control signal are supposed to be tied to '0'.
 In particular, for the first round (Figure~\ref{fig:time_first_round}), the
 data is fetched by the module when the signal $\portAESInValid$ is asserted if
 the core is not busy, there is no ciphertext stored in the core and randomness
@@ -646,10 +887,9 @@ is disabled.
 \begin{figure}
     \centering
     \input{figures/tikz_time_regime} 
-    \caption{In regime data routing.}
+    \caption{In regime data routing during an encryption of AES-128.}
     \label{fig:time_regime}
 \end{figure}
-
 
 Then, the core enters into a nominal regime that computes a round in 8~cycles,
 as depicted in Figure~\ref{fig:time_regime}.  A typical round starts with
@@ -670,7 +910,7 @@ round starts at the following cycle.
 \begin{figure}
     \centering
     \input{figures/tikz_time_last_round} 
-    \caption{Data routing during last rounds.}
+    \caption{Data routing during last rounds of an encryption of AES-128.}
     \label{fig:time_last_round}
 \end{figure}
 
@@ -685,6 +925,32 @@ or the state register is cleared by asserting the control signal
 $\dpStateCtrlRouteIn$.
 This ensures that the core is completely clear of any key- or
 plaintext-dependent data.
+
+
+As a complementary note, the flow occuring for the decryption can be quite
+easily infered from the timing figures provided as well at the architecture
+details described in Section~\ref{sec:architecture} and
+Section~\ref{section:module_dpkey}. Besides, the
+Figure~\ref{fig:pipe_sbox_decryption} and
+Figure~\ref{fig:pipe_dpstate_decryption} are provided as the complement to
+Figure~\ref{fig:pipe_sbox} and Figure~\ref{fig:pipe_dpstate}.  Due to the
+similarities between the 128-bit and the 256-bit version, the same comment
+holds for the 256-bit version. The 192-bit version is not detailed here. 
+
+\begin{figure}
+    \centering
+    \input{figures/tikz_time_pipe_sbox_decryption}
+    \caption{Data going into / coming from the S-boxes during a decryption round of AES-128.}
+    \label{fig:pipe_sbox_decryption}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \input{figures/tikz_time_pipe_dpstate_decryption}
+    \caption{Data going into / coming from the round function datapath during a decryption round of AES-128.}
+    \label{fig:pipe_dpstate_decryption}
+\end{figure}
+
 
 \subsection{Randomness Generation} 
 
@@ -762,6 +1028,8 @@ the completion of a reseed.
         \label{table:synth}
     \end{threeparttable}
 \end{table}
+
+\todo{Update with fresh synthesis results}
 
 Following the architecture described section~\ref{sec:architecture}, the latency is
 $86$ cycles per execution. Table~\ref{table:synth} contains post-synthesis implementation metrics

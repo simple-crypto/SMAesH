@@ -31,12 +31,12 @@ module MSKaes_32bits_state_datapath
     bypass_MC_inverse,
     en_toSB_inverse,
     // Data
-    sh_plaintext,
+    sh_data_in,
     sh_4bytes_from_key,
     sh_3bytes_from_key_inverse,
     sh_4bytes_from_SB,
     sh_4bytes_to_SB,
-    sh_ciphertext
+    sh_data_out
 );
 
 // IOs
@@ -51,19 +51,19 @@ input en_SB_inverse;
 input bypass_MC_inverse;
 input en_toSB_inverse;
 
-input [128*d-1:0] sh_plaintext;
+input [128*d-1:0] sh_data_in;
 input [32*d-1:0] sh_4bytes_from_key;
 input [24*d-1:0] sh_3bytes_from_key_inverse;
 input [32*d-1:0] sh_4bytes_from_SB;
 output [32*d-1:0] sh_4bytes_to_SB;
-output [128*d-1:0] sh_ciphertext;
+output [128*d-1:0] sh_data_out;
 
 // Byte matrix representation of the input plaintext
 wire [8*d-1:0] sh_m_plain[15:0];
 genvar i;
 generate
 for(i=0;i<16;i=i+1) begin: byte_pt
-    assign sh_m_plain[i] = sh_plaintext[8*d*i +: 8*d];
+    assign sh_m_plain[i] = sh_data_in[8*d*i +: 8*d];
 end
 endgenerate
 
@@ -354,7 +354,7 @@ mux_selection_to_SB(
 // Assign ciphertext
 generate
 for(i=0;i<16;i=i+1) begin: cipher_byte
-    assign sh_ciphertext[8*d*i +: 8*d] = sh_reg_out[i];
+    assign sh_data_out[8*d*i +: 8*d] = sh_reg_out[i];
 end
 endgenerate
 

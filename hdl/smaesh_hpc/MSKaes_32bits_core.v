@@ -34,8 +34,8 @@ module MSKaes_32bits_core
     // Active high when the core is not busy: valid_in can be asserted.
     in_ready,
     // Active high when cipher is valid. Remains high as long as in_ready was not asserted for one cycle.
-    cipher_valid,
-    // Active high when the output can be fetched. If cipher_valid and
+    out_valid,
+    // Active high when the output can be fetched. If out_valid and
     // out_ready are both high, the ciphertext is dropped from the core.
     out_ready,
     // Active high; specifies that the next operation starting must be inverse
@@ -54,11 +54,11 @@ module MSKaes_32bits_core
     mode_192,
     //// Data
     // Masked plaintext (bit-compact representation). Valid when valid_in is high.
-    sh_plaintext,
+    sh_data_in,
     // Masked key (bit-compact representation). Valid when valid_in is high.
     sh_key,
-    // Masked ciphertext (bit-compact representation). Valid when cipher_valid is high.
-    sh_ciphertext,
+    // Masked ciphertext (bit-compact representation). Valid when out_valid is high.
+    sh_data_out,
     // Masked last key used (bit-compact representation). Used only to init the last round key in inverse mode). 
     sh_last_key_col,
     // Randomness busses (required for the Sboxes). These busses must contain
@@ -86,7 +86,7 @@ input valid_in;
 (* matchi_type="control" *)
 output in_ready;
 (* matchi_type="control" *)
-output cipher_valid;
+output out_valid;
 (* matchi_type="control" *)
 input out_ready;
 
@@ -102,11 +102,11 @@ input mode_256;
 input mode_192;
 
 (* matchi_type="sharings_dense", matchi_active="matchi_input_active" *)
-input [128*d-1:0] sh_plaintext;
+input [128*d-1:0] sh_data_in;
 (* matchi_type="sharings_dense", matchi_active="matchi_input_active" *)
 input [256*d-1:0] sh_key;
 (* matchi_type="sharings_dense", matchi_active="matchi_output_active" *)
-output [128*d-1:0] sh_ciphertext;
+output [128*d-1:0] sh_data_out;
 (* matchi_type="control" *) // Do not check that ATM
 output [32*d-1:0] sh_last_key_col;
 
@@ -127,7 +127,7 @@ output rnd_bus0_valid_for_rfrsh;
 // Signai only used for MATCHI (formal verif) purpose
 `ifdef MATCHI
     wire matchi_input_active=valid_in;
-    wire matchi_output_active=cipher_valid;
+    wire matchi_output_active=out_valid;
     wire matchi_rnd_active=1'b1; // Validate
 `endif
 
@@ -138,20 +138,20 @@ output rnd_bus0_valid_for_rfrsh;
 wire feed_input;
 
 // Sharing of the plaintext
-wire [128*d-1:0] zeros_sh_plaintext;
+wire [128*d-1:0] zeros_sh_data_in;
 MSKcst #(.d(d),.count(128))
 cst_sh_plain(
     .cst(128'b0),
-    .out(zeros_sh_plaintext)
+    .out(zeros_sh_data_in)
 );
 
-wire [128*d-1:0] gated_sh_plaintext;
+wire [128*d-1:0] gated_sh_data_in;
 MSKmux #(.d(d),.count(128))
 mux_in_data_holder(
     .sel(feed_input),
-    .in_true(sh_plaintext),
-    .in_false(zeros_sh_plaintext),
-    .out(gated_sh_plaintext)
+    .in_true(sh_data_in),
+    .in_false(zeros_sh_data_in),
+    .out(gated_sh_data_in)
 );
 
 // State datapath
@@ -171,7 +171,7 @@ wire [32*d-1:0] sh_4bytes_from_SB;
 (* verime = "b32_fromAK" *)
 wire [32*d-1:0] state_sh_4bytes_to_SB;
 
-wire [128*d-1:0] sh_ciphertext_out;
+wire [128*d-1:0] sh_data_out_gated;
 
 MSKaes_32bits_state_datapath #(.d(d))
 core_data(
@@ -184,12 +184,12 @@ core_data(
     .en_SB_inverse(state_en_SB_inverse),
     .bypass_MC_inverse(state_bypass_MC_inverse),
     .en_toSB_inverse(state_en_toSB_inverse),
-    .sh_plaintext(gated_sh_plaintext),
+    .sh_data_in(gated_sh_data_in),
     .sh_4bytes_from_key(state_sh_4bytes_from_key),
     .sh_3bytes_from_key_inverse(state_sh_3bytes_from_key_inverse),
     .sh_4bytes_from_SB(sh_4bytes_from_SB),
     .sh_4bytes_to_SB(state_sh_4bytes_to_SB),
-    .sh_ciphertext(sh_ciphertext_out)
+    .sh_data_out(sh_data_out_gated)
 );
 
 // Mux gating the sharing of the key
@@ -386,10 +386,10 @@ cst_sh_zeros(
 // during an execution when the output is not valid.
 MSKmux #(.d(d),.count(128))
 mux_out(
-    .sel(cipher_valid),
-    .in_true(sh_ciphertext_out),
+    .sel(out_valid),
+    .in_true(sh_data_out_gated),
     .in_false(zeros_out),
-    .out(sh_ciphertext)
+    .out(sh_data_out)
 );
 
 // FSM
@@ -406,7 +406,7 @@ fsm_unit(
     .valid_in(valid_in),
     .in_ready(in_ready),
     .out_ready(out_ready),
-    .cipher_valid(cipher_valid),
+    .out_valid(out_valid),
     .global_init(feed_input),
     .state_enable(state_enable),
     .state_init(state_init),

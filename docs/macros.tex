@@ -1,20 +1,29 @@
-\newcommand{\core}{AES-128 HPC2 }
+\newcommand{\core}{\texttt{smaesh\_hpc}}
 \newcommand{\clk}{\ensuremath{\texttt{clk}}}
 \newcommand{\rst}{\ensuremath{\texttt{syn\_rst}}}
-\newcommand{\svrsInValid}{\ensuremath{\texttt{in\_valid}}}
-\newcommand{\svrsInReady}{\ensuremath{\texttt{in\_ready}}}
-\newcommand{\svrsPlaintext}{\ensuremath{\texttt{in\_shares\_plaintext}}}
-\newcommand{\svrsKey}{\ensuremath{\texttt{in\_shares\_key}}}
-\newcommand{\svrsCiphertext}{\ensuremath{\texttt{out\_shares\_ciphertext}}}
+\newcommand{\svrsInValid}{\ensuremath{\texttt{in\_valid}}} % remove
+\newcommand{\svrsInDataValid}{\ensuremath{\texttt{in\_data\_valid}}}
+\newcommand{\svrsInReady}{\ensuremath{\texttt{in\_ready}}} %Rremove 
+\newcommand{\svrsInDataReady}{\ensuremath{\texttt{in\_data\_ready}}}
+\newcommand{\svrsPlaintext}{\ensuremath{\texttt{in\_shares\_plaintext}}} % remove
+\newcommand{\svrsInData}{\ensuremath{\texttt{in\_shares\_data}}}
+\newcommand{\svrsKey}{\ensuremath{\texttt{in\_key\_data}}}
+\newcommand{\svrsKeyValid}{\ensuremath{\texttt{in\_key\_valid}}}
+\newcommand{\svrsKeyReady}{\ensuremath{\texttt{in\_key\_ready}}}
+\newcommand{\svrsKeySizeCfg}{\ensuremath{\texttt{in\_key\_size\_cfg}}}
+\newcommand{\svrsKeyModeInverse}{\ensuremath{\texttt{in\_key\_mode\_inverse}}}
+\newcommand{\svrsCiphertext}{\ensuremath{\texttt{out\_shares\_ciphertext}}} % remove
+\newcommand{\svrsOutData}{\ensuremath{\texttt{out\_shares\_data}}}
 \newcommand{\svrsOutValid}{\ensuremath{\texttt{out\_valid}}}
 \newcommand{\svrsOutReady}{\ensuremath{\texttt{out\_ready}}}
 \newcommand{\svrsSeed}{\ensuremath{\texttt{in\_seed}}}
 \newcommand{\svrsSeedValid}{\ensuremath{\texttt{in\_seed\_valid}}}
 \newcommand{\svrsSeedReady}{\ensuremath{\texttt{in\_seed\_ready}}}
 
-\newcommand{\topName}{\ensuremath{\texttt{aes\_enc128\_32bits\_hpc2}}}
+\newcommand{\topName}{\ensuremath{\texttt{smaesh\_hpc}}}
 \newcommand{\topModAES}{\ensuremath{\texttt{MSKaes\_32bits\_core}}}
 \newcommand{\topModPRNG}{\ensuremath{\texttt{prng\_top}}}
+\newcommand{\topModKHOLD}{\ensuremath{\texttt{MSKkey\_holder}}}
 \newcommand{\topModReseedCtrl}{\ensuremath{\texttt{reseed\_controller}}}
 \newcommand{\topModsvrsCtrl}{\ensuremath{\texttt{reseed\_controller}}}
 \newcommand{\SB}{\ensuremath{\texttt{SubBytes}}}
@@ -22,17 +31,32 @@
 \newcommand{\MC}{\ensuremath{\texttt{MixColumns}}}
 \newcommand{\AK}{\ensuremath{\texttt{AddRoundKey}}}
 
+\newcommand{\KEYSIZE}{\ensuremath{\texttt{KEYSIZE}}}
+
 % Ports of AES core
 \newcommand{\portAESInValid}{\ensuremath{\texttt{valid\_in}}}
 \newcommand{\portAESInReady}{\ensuremath{\texttt{in\_ready}}}
-\newcommand{\portAESInPlaintext}{\ensuremath{\texttt{sh\_plaintext}}}
+\newcommand{\portAESInPlaintext}{\ensuremath{\texttt{sh\_plaintext}}} % remove
+\newcommand{\portAESInData}{\ensuremath{\texttt{sh\_in\_data}}}
 \newcommand{\portAESInKey}{\ensuremath{\texttt{sh\_key}}}
 \newcommand{\portAESbusy}{\ensuremath{\texttt{busy}}}
-\newcommand{\portAESOutValid}{\ensuremath{\texttt{cipher\_valid}}}
+\newcommand{\portAESOutValid}{\ensuremath{\texttt{out\_valid}}}
 \newcommand{\portAESOutReady}{\ensuremath{\texttt{out\_ready}}}
-\newcommand{\portAESOutCipher}{\ensuremath{\texttt{sh\_ciphertext}}}
+\newcommand{\portAESOutData}{\ensuremath{\texttt{sh\_out\_data}}} 
+\newcommand{\portAESOutCipher}{\ensuremath{\texttt{sh\_ciphertext}}} % remove
 \newcommand{\portAESRnd}{\ensuremath{\texttt{rnd}}}
 \newcommand{\portAESRndReady}{\ensuremath{\texttt{in\_rnd\_ready}}}
+
+\newcommand{\portAESKeySize}{\ensuremath{\texttt{in\_key\_size\_cfg}}}
+
+\newcommand{\portAESLastKeyCol}{\ensuremath{\texttt{sh\_last\_key\_col}}}
+\newcommand{\portAESLastKeyColPreValid}{\ensuremath{\texttt{last\_key\_pre\_valid}}}
+\newcommand{\portAESRndRfValid}{\ensuremath{\texttt{rnd\_bus0\_valid\_for\_rfrsh}}}
+\newcommand{\portAESModeI}{\ensuremath{\texttt{mode\_192}}}
+\newcommand{\portAESModeII}{\ensuremath{\texttt{mode\_256}}}
+\newcommand{\portAESInverse}{\ensuremath{\texttt{inverse}}}
+\newcommand{\portAESKSchedOnly}{\ensuremath{\texttt{key\_schedule\_only}}}
+
 
 % Ports of PRNG 
 \newcommand{\portPrngSeed}{\ensuremath{\texttt{in\_seed}}}
@@ -46,6 +70,28 @@
 \newcommand{\triviumIV}{\ensuremath{\texttt{IV}[79:0]}}
 \newcommand{\triviumInState}{\ensuremath{1 | 1 | 1 | 0^{112} | \triviumIV | 0^{13} | \triviumKey}}
 \newcommand{\triviumOut}{\ensuremath{\texttt{stream}}}
+
+% Ports of KHolder
+\newcommand{\portKHDataIn}{\ensuremath{\texttt{data\_in}}}
+\newcommand{\portKHDataInValid}{\ensuremath{\texttt{data\_in\_valid}}}
+\newcommand{\portKHDataInReady}{\ensuremath{\texttt{data\_in\_ready}}}
+\newcommand{\portKHLastKeyCol}{\ensuremath{\texttt{sh\_last\_key\_col}}}
+\newcommand{\portKHLastKeyColPreValid}{\ensuremath{\texttt{sh\_last\_key\_col\_pre\_valid}}}
+\newcommand{\portKHDataOut}{\ensuremath{\texttt{sh\_data\_out}}}
+\newcommand{\portKHRndIn}{\ensuremath{\texttt{rnd\_rfrsh\_in}}}
+\newcommand{\portKHRndInValid}{\ensuremath{\texttt{rnd\_rfrsh\_in\_valid}}}
+\newcommand{\portKHStartFetch}{\ensuremath{\texttt{start\_fetch\_procedure}}}
+\newcommand{\portKHSizeCfg}{\ensuremath{\texttt{key\_size\_cfg}}}
+\newcommand{\portKHModeInverse}{\ensuremath{\texttt{mode\_inverse}}}
+\newcommand{\portKHBusy}{\ensuremath{\texttt{busy}}}
+\newcommand{\portKHAESbusy}{\ensuremath{\texttt{aes\_busy}}}
+\newcommand{\portKHLastKeyReq}{\ensuremath{\texttt{last\_key\_computation\_required}}}
+\newcommand{\portKHModeII}{\ensuremath{\texttt{aes\_mode\_256}}}
+\newcommand{\portKHModeI}{\ensuremath{\texttt{aes\_mode\_192}}}
+\newcommand{\portKHInInverse}{\ensuremath{\texttt{mode\_inverse}}}
+\newcommand{\portKHInverse}{\ensuremath{\texttt{aes\_mode\_inverse}}}
+
+
 
 % AES submodule
 \newcommand{\modAESdpState}{\ensuremath{\texttt{MSKaes\_32bits\_state\_datapath}}}
@@ -70,16 +116,31 @@
 \newcommand{\AESdpKeyToSB}{\ensuremath{\texttt{sh\_4bytes\_rot\_to\_SB}}}
 \newcommand{\AESdpKeyFromSB}{\ensuremath{\texttt{sh\_4bytes\_rot\_from\_SB}}}
 \newcommand{\AESdpKeyToAK}{\ensuremath{\texttt{sh\_4bytes\_to\_AK}}}
+\newcommand{\AESdpKeyToAKInverse}{\ensuremath{\texttt{sh\_3bytes\_to\_AK\_inverse}}}
+
+\newcommand{\AESdpStateFromKeyInverse}{\ensuremath{\texttt{sh\_3bytes\_from\_key}}}
 
 
 % dpState internal
 \newcommand{\dpStateModMC}{\ensuremath{\texttt{MC\_unit}}}
+\newcommand{\dpStateModMCInv}{\ensuremath{\texttt{MC\_unit}^{-1}}}
 \newcommand{\dpStateByteToMC}{\ensuremath{\texttt{a}}}
 \newcommand{\dpStateByteFromMC}{\ensuremath{\texttt{b}}}
 \newcommand{\dpStateCtrlRouteMC}{\ensuremath{\texttt{route\_MC}}}
 \newcommand{\dpStateCtrlRouteLoop}{\ensuremath{\texttt{loop}}}
 \newcommand{\dpStateCtrlRouteIn}{\ensuremath{\texttt{init}}}
 \newcommand{\dpStateCtrlEnable}{\ensuremath{\texttt{state\_enable}}}
+
+\newcommand{\dpStateToSBForward}{\ensuremath{\texttt{sh\_4bytes\_toSB\_forward}}}
+\newcommand{\dpStateToMCInverse}{\ensuremath{\texttt{sh\_4bytes\_toMC\_inverse}}}
+\newcommand{\dpStateCtrlEnableKAdd}{\ensuremath{\texttt{enable\_key\_add}}}
+\newcommand{\dpStateCtrlEnableKAddInverse}{\ensuremath{\texttt{enable\_key\_add\_inverse}}}
+\newcommand{\dpStateCtrlEnableKAddDual}{\ensuremath{\texttt{enable\_key\_add\_dual}}}
+\newcommand{\dpStateToSBReverse}{\ensuremath{\texttt{sh\_4bytes\_toSB\_inverse}}}
+
+\newcommand{\dpStateCtrlBypassMCInverse}{\ensuremath{\texttt{bypass\_MC\_inverse}}}
+\newcommand{\dpStateCtrlEnableToSBInverse}{\ensuremath{\texttt{en\_toSB\_inverse}}}
+
 
 % dpKey internal
 \newcommand{\dpKeyCtrlInit}{\ensuremath{\texttt{init}}}
@@ -89,6 +150,12 @@
 \newcommand{\dpKeyCtrlRouteLoop}{\dpKeyCtrlLoop}
 \newcommand{\dpKeyCtrlRouteFromSB}{\ensuremath{\texttt{from\_SB}}}
 \newcommand{\dpKeyCtrlEnable}{\ensuremath{\texttt{KH\_enable}}}
+
+\newcommand{\dpKeyCtrlRstBuffer}{\ensuremath{\texttt{rst\_buffer}}}
+\newcommand{\dpKeyCtrlFBFromHigh}{\ensuremath{\texttt{FB\_from\_high}}}
+\newcommand{\dpKeyCtrlReverseDefaut}{\ensuremath{\texttt{dec128}}}
+\newcommand{\dpKeyCtrlColSevenToSB}{\ensuremath{\texttt{col7\_to\_SB}}}
+\newcommand{\dpKeyCtrlDisableRot}{\ensuremath{\texttt{disable\_rot\_rcon}}}
 
 %% Time only
 \newcommand{\timeCnrRound}{\ensuremath{\texttt{cnt\_round}}}
@@ -113,11 +180,22 @@
 
 \newcommand{\RCON}[1]{\ensuremath{\texttt{RCON}^{#1}}}
 
+\newcommand{\Nr}{\ensuremath{\mathsf{Nr}}}
+
+%% if for debug puprose
+\newif\ifemptytime
+\emptytimetrue
+\emptytimefalse
+
+% Parametric generation of signals
+\def\cHalfPeriod{1} 
+\pgfmathsetmacro{\cPeriod}{\cHalfPeriod * 2}
+\def\scaleFontTime{1.0}
 
 %% Pipe data routing font Size
 \newcommand{\pipeFS}{\scriptsize}
-\newcommand{\cDP}[1]{2D{\pipeFS #1}}
-\newcommand{\NcDP}[2]{#2{2D}{\pipeFS #1}}
+\newcommand{\cDP}[1]{\cPeriod D{\ifemptytime  \else \pipeFS \scalebox{\scaleFontTime}{ #1 } \fi}}
+\newcommand{\NcDP}[2]{#2{\cPeriod D}{\ifemptytime  \else \pipeFS \scalebox{\scaleFontTime} { #1 } \fi}}
 
 %% Pipeline dp Key
 \newcommand{\dpKeyDFF}[1]{\ensuremath{\texttt{sh\_m\_key[#1]}}}
@@ -141,38 +219,42 @@
 \newcommand{\dpStateDFF}[1]{\ensuremath{\texttt{sh\_reg\_out[#1]}}}
 
 % Start
-\newcommand{\timeStInterndpStateXII}[4]{D{}\cDP{\pMC{#3}{i-1}}\cDP{\pMC{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pS{#2}{i}}\cDP{\pS{#3}{i}}\cDP{\pS{#4}{i}}\cDP{\pS{#1}{i}}}
-\newcommand{\timeStInterndpStateXIII}[4]{D{}\cDP{\pMC{#3}{i-1}}\cDP{\pMC{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pMC{#2}{i-1}}\cDP{\pS{#3}{i}}\cDP{\pS{#4}{i}}\cDP{\pS{#1}{i}}}
-\newcommand{\timeStInterndpStateXIV}[4]{D{}\cDP{\pMC{#3}{i-1}}\cDP{\pMC{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pMC{#2}{i-1}}\cDP{\pMC{#3}{i-1}}\cDP{\pS{#4}{i}}\cDP{\pS{#1}{i}}}
-\newcommand{\timeStInterndpStateXV}[4]{D{}\cDP{\pMC{#3}{i-1}}\cDP{\pMC{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pMC{#2}{i-1}}\cDP{\pMC{#3}{i-1}}\cDP{\pMC{#4}{i-1}}\cDP{\pS{#1}{i}}}
+\newcommand{\timeStInterndpStateXII}[4]{D{}\cDP{\pMC{#3}{i-1}}\cDP{\pMC{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pS{#2}{i}}\cDP{\pS{#3}{i}}\NcDP{\pS{#4}{i}}{2}}
+\newcommand{\timeStInterndpStateXIII}[4]{D{}\cDP{\pMC{#3}{i-1}}\cDP{\pMC{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pMC{#2}{i-1}}\cDP{\pS{#3}{i}}\NcDP{\pS{#4}{i}}{2}}
+\newcommand{\timeStInterndpStateXIV}[4]{D{}\cDP{\pMC{#3}{i-1}}\cDP{\pMC{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pMC{#2}{i-1}}\cDP{\pMC{#3}{i-1}}\NcDP{\pS{#4}{i}}{2}}
+\newcommand{\timeStInterndpStateXV}[4]{D{}\cDP{\pMC{#3}{i-1}}\cDP{\pMC{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pMC{#2}{i-1}}\cDP{\pMC{#3}{i-1}}\NcDP{\pMC{#4}{i-1}}{2}}
 
-\newcommand{\timeStInterndpStateXI}[4]{D{}\cDP{\pMC{3}{i-1}}\cDP{\pMC{7}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pS{#2}{i}}\cDP{\pS{#3}{i}}\cDP{\pS{#4}{i}}\cDP{\pS{#1}{i}}}
-\newcommand{\timeStInterndpStateX}[4]{D{}\cDP{\pMC{#3}{i-1}}\cDP{\pMC{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pMC{#2}{i-1}}\cDP{\pMC{#3}{i-1}}\cDP{\pMC{#4}{i-1}}\cDP{\pS{#1}{i}}}
-\newcommand{\timeStInterndpStateIX}[4]{D{}\cDP{\pMC{#3}{i-1}}\cDP{\pMC{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pMC{#2}{i-1}}\cDP{\pMC{#3}{i-1}}\cDP{\pS{#4}{i}}\cDP{\pS{#1}{i}}}
-\newcommand{\timeStInterndpStateVIII}[4]{D{}\cDP{\pMC{#3}{i-1}}\cDP{\pMC{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pMC{#2}{i-1}}\cDP{\pS{#3}{i}}\cDP{\pS{#4}{i}}\cDP{\pS{#1}{i}}}
+\newcommand{\timeStInterndpStateVIII}[4]{D{}\cDP{\pMC{#3}{i-1}}\cDP{\pMC{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pMC{#2}{i-1}}\cDP{\pS{#3}{i}}\NcDP{\pS{#4}{i}}{2}}
+\newcommand{\timeStInterndpStateIX}[4]{D{}\cDP{\pMC{#3}{i-1}}\cDP{\pMC{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pMC{#2}{i-1}}\cDP{\pMC{#3}{i-1}}\NcDP{\pS{#4}{i}}{2}}
+\newcommand{\timeStInterndpStateX}[4]{D{}\cDP{\pMC{#3}{i-1}}\cDP{\pMC{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pMC{#2}{i-1}}\cDP{\pMC{#3}{i-1}}\NcDP{\pMC{#4}{i-1}}{2}}
+\newcommand{\timeStInterndpStateXI}[4]{D{}\cDP{\pMC{3}{i-1}}\cDP{\pMC{7}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pS{#2}{i}}\cDP{\pS{#3}{i}}\NcDP{\pS{#4}{i}}{2}}
 
-\newcommand{\timeStInterndpStateIV}[4]{D{}\cDP{\pS{#3}{i-1}}\cDP{\pMC{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pMC{#2}{i-1}}\cDP{\pMC{#3}{i-1}}\cDP{\pS{#4}{i}}\cDP{\pS{#1}{i}}}
-\newcommand{\timeStInterndpStateV}[4]{D{}\cDP{\pS{#3}{i-1}}\cDP{\pMC{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pMC{#2}{i-1}}\cDP{\pMC{#3}{i-1}}\cDP{\pMC{#4}{i-1}}\cDP{\pS{#1}{i}}}
-\newcommand{\timeStInterndpStateVI}[4]{D{}\cDP{\pS{#3}{i-1}}\cDP{\pMC{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pS{#2}{i}}\cDP{\pS{#3}{i}}\cDP{\pS{#4}{i}}\cDP{\pS{#1}{i}}}
-\newcommand{\timeStInterndpStateVII}[4]{D{}\cDP{\pS{#3}{i-1}}\cDP{\pMC{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pMC{#2}{i-1}}\cDP{\pS{#3}{i}}\cDP{\pS{#4}{i}}\cDP{\pS{#1}{i}}}
+\newcommand{\timeStInterndpStateIV}[4]{D{}\cDP{\pS{#3}{i-1}}\cDP{\pMC{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pMC{#2}{i-1}}\cDP{\pMC{#3}{i-1}}\NcDP{\pS{#4}{i}}{2}}
+\newcommand{\timeStInterndpStateV}[4]{D{}\cDP{\pS{#3}{i-1}}\cDP{\pMC{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pMC{#2}{i-1}}\cDP{\pMC{#3}{i-1}}\NcDP{\pMC{#4}{i-1}}{2}}
+\newcommand{\timeStInterndpStateVI}[4]{D{}\cDP{\pS{#3}{i-1}}\cDP{\pMC{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pS{#2}{i}}\cDP{\pS{#3}{i}}\NcDP{\pS{#4}{i}}{2}}
+\newcommand{\timeStInterndpStateVII}[4]{D{}\cDP{\pS{#3}{i-1}}\cDP{\pMC{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pMC{#2}{i-1}}\cDP{\pS{#3}{i}}\NcDP{\pS{#4}{i}}{2}}
 
-\newcommand{\timeStInterndpStateIII}[4]{D{}\cDP{\pS{#3}{i-1}}\cDP{\pS{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pMC{#2}{i-1}}\cDP{\pMC{#3}{i-1}}\cDP{\pS{#4}{i}}\cDP{\pS{#1}{i}}}
-\newcommand{\timeStInterndpStateII}[4]{D{}\cDP{\pS{#3}{i-1}}\cDP{\pS{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pMC{#2}{i-1}}\cDP{\pS{#3}{i}}\cDP{\pS{#4}{i}}\cDP{\pS{#1}{i}}}
-\newcommand{\timeStInterndpStateI}[4]{D{}\cDP{\pS{#3}{i-1}}\cDP{\pS{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pS{#2}{i}}\cDP{\pS{#3}{i}}\cDP{\pS{#4}{i}}\cDP{\pS{#1}{i}}}
-\newcommand{\timeStInterndpStateZ}[4]{D{}\cDP{\pS{#3}{i-1}}\cDP{\pS{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pMC{#2}{i-1}}\cDP{\pMC{#3}{i-1}}\cDP{\pMC{#4}{i-1}}\cDP{\pS{#1}{i}}}
+\newcommand{\timeStInterndpStateIII}[4]{D{}\cDP{\pS{#3}{i-1}}\cDP{\pS{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pMC{#2}{i-1}}\cDP{\pMC{#3}{i-1}}\NcDP{\pS{#4}{i}}{2}}
+\newcommand{\timeStInterndpStateII}[4]{D{}\cDP{\pS{#3}{i-1}}\cDP{\pS{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pMC{#2}{i-1}}\cDP{\pS{#3}{i}}\NcDP{\pS{#4}{i}}{2}}
+\newcommand{\timeStInterndpStateI}[4]{D{}\cDP{\pS{#3}{i-1}}\cDP{\pS{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pS{#2}{i}}\cDP{\pS{#3}{i}}\NcDP{\pS{#4}{i}}{2}}
+\newcommand{\timeStInterndpStateZ}[4]{D{}\cDP{\pS{#3}{i-1}}\cDP{\pS{#4}{i-1}}\cDP{\pMC{#1}{i-1}}\cDP{\pMC{#2}{i-1}}\cDP{\pMC{#3}{i-1}}\NcDP{\pMC{#4}{i-1}}{2}}
 
 % End 
 \newcommand{\timeEndInterndpStateXII}[4]{\cDP{\pMC{#2}{i}}\cDP{\pMC{#3}{i}}\cDP{\pMC{#4}{i}}\cDP{\pMC{#1}{i}}\cDP{\pS{#2}{i+1}}}
 \newcommand{\timeEndInterndpStateXIII}[4]{\cDP{\pMC{#2}{i}}\cDP{\pMC{#3}{i}}\cDP{\pMC{#4}{i}}\cDP{\pMC{#1}{i}}\cDP{\pMC{#2}{i}}}
 
-\newcommand{\timeEndInterndpStateXI}[4]{\NcDP{\pS{#2}{i}}{1}\cDP{\pMC{#3}{i}}\cDP{\pMC{#4}{i}}\cDP{\pMC{#1}{i}}\cDP{\pS{#2}{i+1}}}
-\newcommand{\timeEndInterndpStateX}[4]{\NcDP{\pS{#2}{i}}{1}\cDP{\pMC{#3}{i}}\cDP{\pMC{#4}{i}}\cDP{\pMC{#1}{i}}\cDP{\pMC{#2}{i}}}
+\newcommand{\timeEndInterndpStateXI}[4]{\NcDP{\pMC{#1}{i-1}}{1}\cDP{\pMC{#3}{i}}\cDP{\pMC{#4}{i}}\cDP{\pMC{#1}{i}}\cDP{\pS{#2}{i+1}}}
+\newcommand{\timeEndInterndpStateX}[4]{\NcDP{\pS{#1}{i}}{1}\cDP{\pMC{#3}{i}}\cDP{\pMC{#4}{i}}\cDP{\pMC{#1}{i}}\cDP{\pMC{#2}{i}}}
 
-\newcommand{\timeEndInterndpStateVII}[4]{\NcDP{\pS{#2}{i}}{1}\cDP{\pS{#3}{i}}\cDP{\pMC{#4}{i}}\cDP{\pMC{#1}{i}}\cDP{\pMC{#2}{i}}}
-\newcommand{\timeEndInterndpStateVI}[4]{\NcDP{\pS{#2}{i}}{1}\cDP{\pS{#3}{i}}\cDP{\pMC{#4}{i}}\cDP{\pMC{#1}{i}}\cDP{\pS{#2}{i+1}}}
+\newcommand{\timeEndInterndpStateIV}[4]{\NcDP{\pS{#1}{i}}{1}\cDP{\pS{#2}{i}}\cDP{\pMC{#4}{i}}\cDP{\pMC{#1}{i}}\cDP{\pMC{#2}{i}}}
+\newcommand{\timeEndInterndpStateV}[4]{\NcDP{\pS{#1}{i}}{1}\cDP{\pS{#2}{i}}\cDP{\pMC{#4}{i}}\cDP{\pMC{#1}{i}}\cDP{\pMC{#2}{i}}}
+\newcommand{\timeEndInterndpStateVI}[4]{\NcDP{\pMC{#1}{i-1}}{1}\cDP{\pS{#2}{i}}\cDP{\pMC{#4}{i}}\cDP{\pMC{#1}{i}}\cDP{\pS{#2}{i+1}}}
+\newcommand{\timeEndInterndpStateVII}[4]{\NcDP{\pS{#1}{i}}{1}\cDP{\pMC{#2}{i-1}}\cDP{\pMC{#4}{i}}\cDP{\pMC{#1}{i}}\cDP{\pMC{#2}{i}}}
 
-\newcommand{\timeEndInterndpStateIII}[4]{\NcDP{\pS{#2}{i}}{1}\cDP{\pS{#3}{i}}\cDP{\pS{#4}{i}}\cDP{\pMC{#1}{i}}\cDP{\pMC{#2}{i}}}
-\newcommand{\timeEndInterndpStateI}[4]{\NcDP{\pS{#2}{i}}{1}\cDP{\pS{#3}{i}}\cDP{\pS{#4}{i}}\cDP{\pMC{#1}{i}}\cDP{\pS{#2}{i+1}}}
+\newcommand{\timeEndInterndpStateZ}[4]{\NcDP{\pS{#1}{i}}{1}\cDP{\pS{#2}{i}}\cDP{\pS{#3}{i}}\cDP{\pMC{#1}{i}}\cDP{\pS{#2}{i+1}}}
+\newcommand{\timeEndInterndpStateI}[4]{\NcDP{\pMC{#1}{i-1}}{1}\cDP{\pS{#2}{i}}\cDP{\pS{#3}{i}}\cDP{\pMC{#1}{i}}\cDP{\pS{#2}{i+1}}}
+\newcommand{\timeEndInterndpStateII}[4]{\NcDP{\pS{#1}{i}}{1}\cDP{\pMC{#2}{i-1}}\cDP{\pS{#3}{i}}\cDP{\pMC{#1}{i}}\cDP{\pS{#2}{i+1}}}
+\newcommand{\timeEndInterndpStateIII}[4]{\NcDP{\pS{#1}{i}}{1}\cDP{\pS{#2}{i}}\cDP{\pMC{#3}{i-1}}\cDP{\pMC{#1}{i}}\cDP{\pMC{#2}{i}}}
 
 % Full line
 \newcommand{\timeLinedpStateXII}[4]{\timeStInterndpStateXII{#1}{#2}{#3}{#4}\timeEndInterndpStateXII{#1}{#2}{#3}{#4}}
@@ -185,14 +267,14 @@
 \newcommand{\timeLinedpStateX}[4]{\timeStInterndpStateX{#1}{#2}{#3}{#4}\timeEndInterndpStateX{#1}{#2}{#3}{#4}}
 \newcommand{\timeLinedpStateXI}[4]{\timeStInterndpStateXI{#1}{#2}{#3}{#4}\timeEndInterndpStateXI{#1}{#2}{#3}{#4}}
 
-\newcommand{\timeLinedpStateIV}[4]{\timeStInterndpStateIV{#1}{#2}{#3}{#4}\timeEndInterndpStateVII{#1}{#2}{#3}{#4}}
-\newcommand{\timeLinedpStateV}[4]{\timeStInterndpStateV{#1}{#2}{#3}{#4}\timeEndInterndpStateVII{#1}{#2}{#3}{#4}}
+\newcommand{\timeLinedpStateIV}[4]{\timeStInterndpStateIV{#1}{#2}{#3}{#4}\timeEndInterndpStateIV{#1}{#2}{#3}{#4}}
+\newcommand{\timeLinedpStateV}[4]{\timeStInterndpStateV{#1}{#2}{#3}{#4}\timeEndInterndpStateV{#1}{#2}{#3}{#4}}
 \newcommand{\timeLinedpStateVI}[4]{\timeStInterndpStateVI{#1}{#2}{#3}{#4}\timeEndInterndpStateVI{#1}{#2}{#3}{#4}}
 \newcommand{\timeLinedpStateVII}[4]{\timeStInterndpStateVII{#1}{#2}{#3}{#4}\timeEndInterndpStateVII{#1}{#2}{#3}{#4}}
 
-\newcommand{\timeLinedpStateZ}[4]{\timeStInterndpStateZ{#1}{#2}{#3}{#4}\timeEndInterndpStateIII{#1}{#2}{#3}{#4}}
+\newcommand{\timeLinedpStateZ}[4]{\timeStInterndpStateZ{#1}{#2}{#3}{#4}\timeEndInterndpStateZ{#1}{#2}{#3}{#4}}
 \newcommand{\timeLinedpStateI}[4]{\timeStInterndpStateI{#1}{#2}{#3}{#4}\timeEndInterndpStateI{#1}{#2}{#3}{#4}}
-\newcommand{\timeLinedpStateII}[4]{\timeStInterndpStateII{#1}{#2}{#3}{#4}\timeEndInterndpStateIII{#1}{#2}{#3}{#4}}
+\newcommand{\timeLinedpStateII}[4]{\timeStInterndpStateII{#1}{#2}{#3}{#4}\timeEndInterndpStateII{#1}{#2}{#3}{#4}}
 \newcommand{\timeLinedpStateIII}[4]{\timeStInterndpStateIII{#1}{#2}{#3}{#4}\timeEndInterndpStateIII{#1}{#2}{#3}{#4}}
 
 %% PRNG section
