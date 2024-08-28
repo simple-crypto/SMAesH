@@ -32,6 +32,7 @@ TVOUT=${DIR_GENERATED}/TV_${TV_FILE_PREF}_out.rsp
 DIR_SBOX=${HDL_ROOT_DIR}/sbox-d${NSHARES}
 DIR_SBOX_COMPRESS=../sboxes-compress/work/circuits/canright_aes_sbox_dual_d${NSHARES}_l4
 
+.PHONY: hdl-dir
 
 help:
 	@echo "Behavioral simulation of the masked core."
@@ -55,14 +56,10 @@ wave:
 	gtkwave ${WORK}/log-$(TB_TARGET).vcd waves-$(TB_TARGET).gtkw
 
 $(WORK_HDL):
-	mkdir -p ${WORK_HDL}
+	mkdir -p $(WORK_HDL)
 
 hdl-dir: $(WORK_HDL)
-	OUT_DIR=${WORK_HDL} $(HDL_ROOT_DIR)/gather_sources.sh $(HDL_SRC_DIR) $(DIR_SBOX) 
-	mkdir -p ${WORK_HDL_COMPRESS}
-	OUT_DIR=${WORK_HDL_COMPRESS} $(HDL_ROOT_DIR)/gather_sources.sh $(COMPRESS_ROOT)/gadget_library/BIN $(COMPRESS_ROOT)/gadget_library/MSK
-	cp $(DIR_SBOX_COMPRESS)/canright_aes_sbox_dual.v ${WORK_HDL}
-	cp $(DIR_SBOX_COMPRESS)/design.vh ${WORK_HDL}
+	DIR_HDL=$(shell pwd)/$(WORK_HDL) make -C ${HDL_ROOT_DIR} gather
 
 simu-build: hdl-dir
 	cp $(TB_DIR)/* ${WORK}/hdl 
