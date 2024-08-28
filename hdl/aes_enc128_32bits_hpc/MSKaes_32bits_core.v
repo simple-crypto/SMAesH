@@ -17,7 +17,7 @@
 `ifndef NSHARES
 `define NSHARES 2
 `endif
-(* fv_prop = "PINI", fv_strat = "composite", fv_order=d *)
+(* matchi_prop="PINI", matchi_strat="composite_top", matchi_arch="loopy", matchi_shares=d *)
 module MSKaes_32bits_core
 #
 (
@@ -75,55 +75,62 @@ module MSKaes_32bits_core
 `include "design.vh"
 
 // IOs Ports
-(* fv_type="control" *)
+(* matchi_type="control" *)
 input rst;
-(* fv_type="clock" *)
+(* matchi_type="clock" *)
 input clk;
-(* fv_type="control" *)
+(* matchi_type="control" *)
 output busy;
-(* fv_type="control" *)
+(* matchi_type="control" *)
 input valid_in;
-(* fv_type="control" *)
+(* matchi_type="control" *)
 output in_ready;
-(* fv_type="control" *)
+(* matchi_type="control" *)
 output cipher_valid;
-(* fv_type="control" *)
+(* matchi_type="control" *)
 input out_ready;
 
-(* fv_type="control" *)
+(* matchi_type="control" *)
 input inverse;
-(* fv_type="control" *)
+(* matchi_type="control" *)
 input key_schedule_only;
-(* fv_type="control" *)
+(* matchi_type="control" *)
 output last_key_pre_valid;
-(* fv_type="control" *)
+(* matchi_type="control" *)
 input mode_256;
-(* fv_type="control" *)
+(* matchi_type="control" *)
 input mode_192;
 
-(* fv_type="sharing", fv_latency=0, fv_count=128 *)
+(* matchi_type="sharings_dense", matchi_active="matchi_input_active" *)
 input [128*d-1:0] sh_plaintext;
-(* fv_type="sharing", fv_latency=0, fv_count=128 *)
+(* matchi_type="sharings_dense", matchi_active="matchi_input_active" *)
 input [256*d-1:0] sh_key;
-// TODO change latency
-(* fv_type="sharing", fv_latency=86, fv_count=128 *)
+(* matchi_type="sharings_dense", matchi_active="matchi_output_active" *)
 output [128*d-1:0] sh_ciphertext;
-(* fv_type="sharing", fv_latency=86, fv_count=128 *)
+(* matchi_type="control" *) // Do not check that ATM
 output [32*d-1:0] sh_last_key_col;
 
-(* fv_type="random", fv_count=0, fv_rnd_count_0=4*rnd_bus0 *)
+(* matchi_type="random", matchi_active="matchi_rnd_active" *)
 input [4*rnd_bus0-1:0] rnd_bus0w;
-(* fv_type="random", fv_count=0, fv_rnd_count_0=4*rnd_bus1 *)
+(* matchi_type="random", matchi_active="matchi_rnd_active" *)
 input [4*rnd_bus1-1:0] rnd_bus1w;
-(* fv_type="random", fv_count=0, fv_rnd_count_0=4*rnd_bus2 *)
+(* matchi_type="random", matchi_active="matchi_rnd_active" *)
 input [4*rnd_bus2-1:0] rnd_bus2w;
-(* fv_type="random", fv_count=0, fv_rnd_count_0=4*rnd_bus3 *)
+(* matchi_type="random", matchi_active="matchi_rnd_active" *)
 input [4*rnd_bus3-1:0] rnd_bus3w;
 
-(* fv_type="control" *)
+(* matchi_type="control" *)
 output in_ready_rnd;
-(* fv_type="control" *)
+(* matchi_type="control" *)
 output rnd_bus0_valid_for_rfrsh;
+
+// Signai only used for MATCHI (formal verif) purpose
+`ifdef MATCHI
+    wire matchi_input_active=valid_in;
+    wire matchi_output_active=cipher_valid;
+    wire matchi_rnd_active=1'b1; // Validate
+`endif
+
 
 // Control signal to enable to tap values coming from the outside of the core.
 // Otherwise, 0 is fed to the input, ensuring that we don't start computing on

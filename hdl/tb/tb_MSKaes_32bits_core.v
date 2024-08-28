@@ -26,10 +26,6 @@ module tb_MSKaes_32bits_core
     parameter KSIZE = `KEY_SIZE
 );
 
-`define DEBUG_CASE
-//`define DECRYPTION
-//`define MODE256
-
 localparam wait_delay = 100*T;
 localparam init_delay=Td/2.0;
 
@@ -61,6 +57,7 @@ reg dut_inverse;
 reg dut_key_schedule_only;
 wire dut_last_key_valid;
 reg dut_mode256;
+reg dut_mode192;
 
 wire dut_in_ready_rnd;
 
@@ -108,6 +105,7 @@ dut(
     .key_schedule_only(dut_key_schedule_only),
     .last_key_pre_valid(dut_last_key_valid),
     .mode_256(dut_mode256),
+    .mode_192(dut_mode192),
     .sh_plaintext(dut_sh_plaintext),
     .sh_key(dut_sh_key),
     .sh_ciphertext(dut_sh_ciphertext),
@@ -118,26 +116,6 @@ dut(
     .in_ready_rnd(dut_in_ready_rnd)
 );
 
-/// DEBUG 
-genvar k;
-generate
-for(k=0;k<32;k=k+1) begin: debp 
-    wire [8*d-1:0] sh_debug_point = dut.key_holder.sh_m_key[k]; 
-    wire [8*d-1:0] shares_debug_point; 
-    shbus2shares #(.d(d),.count(8)) switch_encoding_debug( .shbus(sh_debug_point),.shares(shares_debug_point));
-
-    wire [8-1:0] rec_debug_point; 
-    recombine_shares_unit #(.d(d), .count(8)) rec_debug( .shares_in(shares_debug_point), .out(rec_debug_point));
-end
-endgenerate
-wire [32*d-1:0] sh_deb_from_SB =dut.sh_bytes_gated_to_SB;//dut.sh_4bytes_from_SB; 
-wire [32*d-1:0] shares_deb_from_SB;
-wire [31:0] rec_deb_from_SB;
-shbus2shares #(.d(d),.count(32)) switch_encoding_debug_SB( .shbus(sh_deb_from_SB),.shares(shares_deb_from_SB));
-recombine_shares_unit #(.d(d), .count(32)) rec_debug( .shares_in(shares_deb_from_SB), .out(rec_deb_from_SB));
-
-/// END DEBUG
-
 
 //// Value read from files
 reg [127:0] read_plaintext;
@@ -147,7 +125,7 @@ reg read_last_in;
 reg read_last_out;
 
 assign dut_shares_plaintext[128 +: (d-1)*128] = 0;
-`ifdef DEBUG_CASE
+`ifdef HCODED_CASE
     `ifdef DECRYPTION
         `ifdef MODE256
             assign dut_shares_plaintext[127:0] = 128'h8960494b_9049fcea_bf456751_cab7a28e;
@@ -177,7 +155,7 @@ if(KSIZE==128) begin: ksize
     assign dut_shares_key[128 +: 128] = 128'b0;
 end
 endgenerate
-`ifdef DEBUG_CASE
+`ifdef HCODED_CASE
     `ifdef DECRYPTION
         `ifdef MODE256
             assign dut_shares_key[255:0] = 256'heacdf8cd_aa2b577e_e04ff2a9_99665a4e_36de686d_3cc21a37_e97909bf_cc79fc24;
@@ -273,13 +251,18 @@ initial begin
     `else
         dut_inverse = 0;
     `endif
-    dut_key_schedule_only = 1;
+    dut_key_schedule_only = 0;
 
-    `ifdef MODE256
+    if (KSIZE==256) begin
         dut_mode256 = 1;
-    `else
+    end else begin
         dut_mode256 = 0;
-    `endif
+    end 
+    if (KSIZE==192) begin
+        dut_mode192 = 1;
+    end else begin
+        dut_mode192 = 0;
+    end
 
 
     // Init delay 

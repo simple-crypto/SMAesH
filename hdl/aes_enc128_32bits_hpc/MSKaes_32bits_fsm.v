@@ -634,8 +634,7 @@ always@(*) begin
     end else if(exec_status_mode_192) begin
         if(in_m192_fl_rot) begin
             KH_enable = 1;
-        end
-        if(in_m192_round) begin
+        end else begin
             if(in_m192_rt2) begin
                 if(exec_status_inverse) begin
                     KH_enable = ~(

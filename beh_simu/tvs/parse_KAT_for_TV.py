@@ -159,6 +159,18 @@ def parser_add_options(parser):
             required=True,
             help="Directory where file will be generated."
             )
+    parser.add_argument(
+            "--fn-in",
+            type=str,
+            default=None,
+            help="Specify the filename for the input testvectors"
+            )
+    parser.add_argument(
+            "--fn-out",
+            type=str,
+            default=None,
+            help="Specify the filename for the output testvectors"
+            )
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="File parser for testbench")
@@ -168,8 +180,8 @@ if __name__ == "__main__":
     filepref = basename(args.file_in).split(".")[0] 
 
     kat_in= '{}'.format(args.file_in)
-    fn_in = '{}/TV_{}_in.rsp'.format(args.dir_out,filepref)
-    fn_out = '{}/TV_{}_out.rsp'.format(args.dir_out,filepref)
+    fn_in = '{}/{}'.format(args.dir_out,"TV_{}_in.rsp".format(filepref) if args.fn_in is None else args.fn_in)
+    fn_out = '{}/{}'.format(args.dir_out,"TV_{}_out.rsp".format(filepref) if args.fn_out is None else args.fn_out)
 
     ## Parse files
     cases = parse_file_in(kat_in)

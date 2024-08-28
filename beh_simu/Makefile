@@ -16,7 +16,7 @@ COMPRESS_ROOT =../sboxes-compress/compress
 
 MODE ?= 128
 TV_DIR=./tvs/files/aes${MODE}
-DIR_GENERATED=tvs/generated
+DIR_GENERATED ?= tvs/generated
 #TV_FILE_PREF=ECBGFSbox${MODE}
 TV_FILE_PREF ?= ECBKeySbox${MODE}
 #TV_FILE_PREF=ECBVarKey${MODE}
@@ -25,14 +25,16 @@ TV_FILE_PREF ?= ECBKeySbox${MODE}
 
 ###########################
 KATIN=${TV_DIR}/${TV_FILE_PREF}.rsp
-TVIN=${DIR_GENERATED}/TV_${TV_FILE_PREF}_in.rsp
-TVOUT=${DIR_GENERATED}/TV_${TV_FILE_PREF}_out.rsp
+FN_TVIN ?= TV_${TV_FILE_PREF}_in.rsp
+FN_TVOUT ?= TV_${TV_FILE_PREF}_out.rsp
+TVIN=${DIR_GENERATED}/${FN_TVIN}
+TVOUT=${DIR_GENERATED}/${FN_TVOUT}
 
 
 DIR_SBOX=${HDL_ROOT_DIR}/sbox-d${NSHARES}
 DIR_SBOX_COMPRESS=../sboxes-compress/work/circuits/canright_aes_sbox_dual_d${NSHARES}_l4
 
-.PHONY: hdl-dir
+.PHONY: hdl-dir tv
 
 help:
 	@echo "Behavioral simulation of the masked core."
@@ -45,7 +47,9 @@ ${TVIN}:
 	mkdir -p ${DIR_GENERATED}
 	python3 tvs/parse_KAT_for_TV.py \
 	    --file-in ${KATIN} \
-	    --dir-out ${DIR_GENERATED}
+	    --dir-out ${DIR_GENERATED} \
+	    --fn-in ${FN_TVIN} \
+	    --fn-out ${FN_TVOUT} 
 
 tv: ${TVIN}
 
