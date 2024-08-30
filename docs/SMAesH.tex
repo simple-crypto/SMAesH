@@ -34,7 +34,7 @@
 \input{figures/tikzset_cfg.tex}
 
 \title{SMAesH: technical documentation}
-\subtitle{Masked Hardware AES-128 Encryption with HPC2}
+\subtitle{Masked Hardware AES-128 Encryption with HPC}
 \author{SIMPLE-Crypto}
 \date{}
 
@@ -64,11 +64,11 @@ algorithm as specified in \cite{nist197}.
 
 \begin{itemize}
 \item{The core implements the AES-128 encrypt function.}
-\item{The implementation is protected against side-channel attacks using the HPC2 masking scheme~\cite{DBLP:journals/tc/CassiersGLS21}.}
-\item{The amount of shares $d\ge 2$ can be chosen at synthesis time.}
+\item{The implementation is protected against side-channel attacks using a combination of HPC1~\cite{DBLP:journals/tc/CassiersGLS21} and HPC3~\cite{DBLP:conf/ccs/Knichel022} masking scheme.}
+\item{The amount of shares $d\ge 2$ can be chosen at synthesis time.\footnote{While feasible, the architecture of the S-box is optimised and automatically generated for a given amount of shares. Therefore, changing the amount of share without re-generating the S-box may lead to suboptimal results. See~\ref{section:masked_aes_core_arhcitecture} for more details.}}
 \item{The randomness required for the masking scheme is internally generated using an embedded PRNG.}
 \item{The core is controlled through three simple valid-ready stream interfaces (input data/key, output data and PRNG seed.}
-\item{The core has an encryption latency of 105~clock cycles and a throughput of one 128-bit block of data per 105~clock cycles.}
+\item{The core has an encryption latency of 86~clock cycles and a throughput of one 128-bit block of data per 86~clock cycles.}
 \item{There is no latency penalty for key change.}
 \item{The state of the core is automatically cleared when encryption finishes.}
 \end{itemize}
@@ -190,8 +190,8 @@ $\svrsOutValid$ is not asserted.
 After reset, the core will not start an encryption before it is reseeded.
 
 \emph{Latency and throughput:}
-The AES implementation has a latency of 105~clock cycles. To achieve the
-maximum throughput of one encrypted block per 105~cycles, there must be no
+The AES implementation has a latency of 86~clock cycles. To achieve the
+maximum throughput of one encrypted block per 86~cycles, there must be no
 back-pressure (i.e., $\portAESOutReady$ must be high at the clock cycle where
 $\portAESOutValid$ becomes asserted) and the input must be valid
 ($\portAESInValid$ asserted) at least one cycle before $\portAESOutValid$ is
@@ -399,6 +399,7 @@ using Verilog operators.
 \end{figure}
 
 \subsection{Masked AES Core Architecture} 
+\label{section:masked_aes_core_arhcitecture}
 
 \begin{figure}
     \centering
@@ -411,23 +412,33 @@ using Verilog operators.
     \label{fig:aes_glob_arch}
 \end{figure}
 
-\todo{FIXME: verify Boyar Peralta Sbox reference}
-\todo{FIXME: check latency in architecture Figures}
-
-The module $\topModAES$ is almost identical to the 32-bit masked AES implementation
-presented in~\cite{DBLP:conf/cosade/MominCS22}. As shown in
+The module $\topModAES$ is almost identical to the 32-bit masked AES
+implementation presented in~\cite{DBLP:conf/cosade/MominCS22}. As shown in
 Figure~\ref{fig:aes_glob_arch}, the module is organized around two datapath
 blocks performing the operations dedicated to the round computation (denoted
 \modAESdpState) and the key scheduling (denoted $\modAESdpKey$). The module
-$\modAESsbox$ is shared between the two datapath blocks and implements the $\SB$
-layer for 4 masked bytes. In particular, it is composed of 4~parallel instances
-of masked S-boxes that follow an optimized architecture based
-on the S-box representation presented in~\cite{DBLP:conf/sec/BoyarP12}.
-A single S-box is organized as a pipeline of 6 stages with 34 HPC2 AND gadgets
-each requiring $d(d-2)/2$ bits of randomness per execution.
-The bus
-$\portAESRnd$ is used to provide the fresh randomness to the 4~S-boxes
-instances (randomness is not used anywhere else in $\topModAES$).
+$\modAESsbox$ is shared between the two datapath blocks and implements the
+$\SB$ layer for 4 masked bytes. In particular, it is composed of 4~parallel
+instances of masked S-boxes that follow an optimized architecture based on the
+S-box implementation presented in~\cite{DBLP:journals/tches/CassiersGMMN24}
+that relies on the representation presented in~\cite{DBLP:conf/ches/Canright05}.
+
+The S-boxes have been generated using COMPRESS, and are thus optimised for a
+given amount of shares. The amount of shares implemented in a practical
+integration can be modified at synthesis time by changing the generic $d$ at
+the top level. However, a mismatch between the amount of shares instanciated
+and the amount of shares specified during the S-box generation with COMPRESS
+may lead to sub-optimal performance (e.g., area and/or latency). In this
+document, we report the results for four different protection levels, namely
+$d\in[2,3,4,5]$. When another amount of shares is required, it is advised to
+generate an optimal S-box implementation using COMPRESS\footnote{Please refer
+    to
+    \href{https://github.com/cassiersg/compress_artifact}{https://github.com/cassiersg/compress\_artifact}
+for more info}.  A single S-box is organized as a pipeline of 4 stages that
+requires 36 random bits (resp. 96, 192 and 300) per execution considering $d=2$
+(resp. 3, 4 and 5). The bus $\portAESRnd$ is used to provide the fresh
+randomness to the 4~S-boxes instances (randomness is not used anywhere else in
+$\topModAES$).
 
 \subsection{Architecture of the $\modAESdpState$ module}
 \label{sec:architecture}
@@ -640,22 +651,22 @@ is disabled.
     \label{fig:time_regime}
 \end{figure}
 
-Then, the core enters into a nominal regime that computes a round in 10~cycles,
-as depicted in Figure~\ref{fig:time_regime}.
-A typical round starts with 4~clock cycles during which data is read from the
-state registers, XORed with the subkey and fed to the S-boxes, which performs
-the $\AK$, $\SR$ and $\SB$ layers for the full state (one column per cycle).
-During these cycles, $\AESsboxValidIn$ is asserted and data (state and subkey)
-loops over the shift registers.
-An exception occurs at the fourth cycle (i.e., 
-when $\timeCnrCycle=3$): at this cycle, the S-boxes output the column of the
-new subkey value, which is processed by deasserting $\dpKeyCtrlLoop$.  Next,
-during the last 4~cycles of a round, the S-boxes output the 4~columns of the
-state, on which the $\MC$ layer is directly applied, and the result is stored
-in the state registers. At the same time, the subkey update is finalized, such
-that a new subkey is ready at the last cycle of a round (i.e.,
-$\timeCnrCycle=7$). During this last cycle, the next key schedule round is
-started, and a new state round starts at the following cycle.
+
+Then, the core enters into a nominal regime that computes a round in 8~cycles,
+as depicted in Figure~\ref{fig:time_regime}.  A typical round starts with
+4~clock cycles during which data is read from the state registers, XORed with
+the subkey and fed to the S-boxes, which performs the $\AK$, $\SR$ and $\SB$
+layers for the full state (one column per cycle).  During these cycles,
+$\AESsboxValidIn$ is asserted and data (state and subkey) loops over the shift
+registers. An exception occurs at the fourth cycle (i.e., when
+$\timeCnrCycle=3$): at this cycle, the S-boxes output the column of the new
+subkey value, which is processed by deasserting $\dpKeyCtrlLoop$.  Next, during
+the last 4~cycles of a round, the S-boxes output the 4~columns of the state, on
+which the $\MC$ layer is directly applied, and the result is stored in the
+state registers. At the same time, the subkey update is finalized, such that a
+new subkey is ready at the last cycle of a round (i.e., $\timeCnrCycle=7$).
+During this last cycle, the next key schedule round is started, and a new state
+round starts at the following cycle.
 
 \begin{figure}
     \centering
@@ -665,7 +676,7 @@ started, and a new state round starts at the following cycle.
 \end{figure}
 
 Finally, the last round is very similar to the regime mode except that the
-module $\dpStateModMC$is bypassed. In particular, the signal
+module $\dpStateModMC$ is bypassed. In particular, the signal
 $\dpStateCtrlRouteMC$ is de-asserted and the shift registers are configured to
 make the data loop. No new key scheduling round is started during this last
 cycle.
@@ -678,6 +689,7 @@ plaintext-dependent data.
 
 \subsection{Randomness Generation} 
 
+%CiC-1-2-4
 \todo{FIXME: update with canright}
 
 \begin{figure}
@@ -694,11 +706,12 @@ plaintext-dependent data.
 
 \label{subsection:PRNG}
 
-The module $\topModPRNG$ is a PRNG generating $\NRNDBITS = 4\cdot 34 \cdot \MULHPCRND
- = 4\cdot 34 \cdot [d(d-1)/2]$ pseudo-random bits per clock cycle.  It is based on
-one or multiple instances of the Trivium stream
+The module $\topModPRNG$ is a PRNG generating all the pseudo-random bits
+required by the S-boxes in a single clock cycle, denoted next \NRNDBITS.
+Following the recommendation from~\cite{CiC-1-2-4}, it is based on one or
+multiple instances of the Trivium stream
 cipher~\cite{DBLP:series/lncs/CanniereP08} from which the key stream is used as
-the PRNG output.  As shown in Figure~\ref{fig:prng}, a Trivium instance is
+the PRNG output. As shown in Figure~\ref{fig:prng}, a Trivium instance is
 implemented using a 288-bit state register and $\UNROLL$ cascaded combinational
 layers that each implement one state update step and produce one keystream bit.
 Moreover, the state register is either taken from a reseed value (to initiate a
@@ -737,42 +750,24 @@ the completion of a reseed.
             table-alignment-mode = format,
             table-number-alignment = center,
             }
-        \begin{tabular}
-            {lc
-            S[table-format = 4.0]
-            S[table-format = 4.0]
-            S[table-format = 5.0]
-            S[table-format = 3.0]
-            S[table-format = 3.0]
-            S[table-format = 3.1]
-            S[table-format = 3.1]
-            }
+        \begin{tabular}{lccS[table-alignment-mode=format,table-format=3.1,round-mode=places,round-precision=1]}
             \toprule
-            {\thead{Part}} & {\thead{Shares ($d$)}} & {\thead{Slices}} & {\thead{LUTs}} & {\thead{Regs}} & {\thead{SRLs}} & {\thead{Latency}} & {\thead{Freq.}} & {\thead{TP}} \\
-                         &  &   &  &  & & {\thead{[cycle]}} & {\thead{[MHz]}} & {\thead{[Mbit/s]}} \\
+            {Design} & {Latency} & {\makecell{Shares}} & {Area (kGE)} \\ \midrule
             \midrule
-            xc7a100tftg256-2 & 2 & 1495 & 4664 & 3502 & 0 & 105 & 68.6 & 83.6 \\
-            (opt. disabled$^1$) & 3 & 3069 & 9960 & 7157 & 0 & 105 & 66.2 & 80.7 \\
-                             & 4 & 4829 & 16527 & 12189 & 0 & 105 & 66.5 & 81.0 \\
-            xc7a100tftg256-2 & 2 & 910 & 2950 & 3145 & 144 & 105 & 159 & 193 \\
-                             & 3 & 1868 & 6071 & 6620 & 216 & 105 & 137.9  & 168.1 \\
-                             & 4 & 3244 & 10759 & 11474 & 288 & 105 & 128.76 & 156.96 \\
+            \multirow{4}{*}{SMAesH v1.2} & \multirow{4}{*}{86} & 1 & 24.35 \\
+             &  & 2 & 47.35 \\
+             &  & 3 & 81.16 \\
+             &  & 4 & 120.04 \\\addlinespace[0.8ex]
             \bottomrule
         \end{tabular}
-        \caption{Artix-7 FPGA synthesis results (\texttt{out\_of\_context}, post-implementation, $\MAXUNROLL=128$).}
-        \begin{tablenotes}
-        \item[1] Optimizations might impact the side-channel security of the implementation, see section~\ref{section:verif}.
-        \end{tablenotes}
+        \caption{NanGate45 PDK synthesis results, post-synthesis, from~\cite{DBLP:journals/tches/CassiersGMMN24} }
         \label{table:synth}
     \end{threeparttable}
 \end{table}
 
-\todo{FIXME: Fix area Table}
-
 Following the architecture described section~\ref{sec:architecture}, the latency is
-$105$ cycles per execution. Table~\ref{table:synth} contains performance metrics
-for two implementations on a Xilinx Series~7 FPGA: one with the optimisations
-disabled at every steps of the toolflow and one with the optimisation enabled.
+$86$ cycles per execution. Table~\ref{table:synth} contains post-synthesis implementation metrics
+obtained with Yosys for the NanGate45 Open Cell Library.
 
 \section{Core Verification}
 \label{section:verif}
@@ -801,17 +796,20 @@ waiting a random amount of clock cycles before asserting the signal
 $\svrsSeedValid$ and waiting until a transaction at the seed interface occurs.
 
 Additionally, a practical implementation on an Artix7 FPGA (xc7a100tftg256-2)
-has been tested with random known-test vectors (i.e., random key, plaintext and seed).  
+has been tested with random known-test vectors (i.e., random key, plaintext and seed) for cores below version 1.2 (not included).  
 
 \paragraph{Side-channel security}
 This core has been formally verified for security in the glitch+transition
 robust probing model using the \texttt{fullVerif}%
 tool~\cite{DBLP:journals/tc/CassiersGLS21,DBLP:journals/tches/CassiersS21}\footnote{\url{https://github.com/cassiersg/fullverif}}.
 The scripts for this verification are provided along with the implementation.
-The implementation has also been empirically evaluated on an FPGA (with
-synthesis optimizations disabled), the evaluation report is available at
-\url{https://simple-crypto.org/outputs}. Note that this evaluation is
-device-specific, and should be performed on every instantiation of this device.
+An implementation of the version 1.0.1 has also been empirically evaluated on
+an FPGA (with synthesis optimizations disabled), the evaluation report is
+available at \url{https://simple-crypto.org/outputs}. The latter also undergone
+a public evaluation in the context of the CHES23
+challenge/footnote{https://smaesh-challenge.simple-crypto.org/}. Note that this
+evaluation is device-specific, and should be performed on every instantiation
+of this device.
 
 \section{Copyright}
 

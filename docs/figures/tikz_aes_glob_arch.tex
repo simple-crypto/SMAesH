@@ -223,7 +223,7 @@ dot/.default = 6pt % size of the circle diameter
 \draw node[rectangle,anchor=east,xshift=-1cm] (top_plaintext) at (mux_gate_plain.lpin 2){\fsizeTop \portAESInPlaintext [128d-1:0]};
 \draw node[rectangle,anchor=east,xshift=-1cm] (top_key) at (mux_gate_key.lpin 2){\fsizeTop \portAESInKey [128d-1:0]};
 \draw node[rectangle,anchor=west,xshift=1cm] (top_ciphertext) at (mux_gate_cipher.rpin 1){\fsizeTop \portAESOutCipher [128d-1:0]};
-\draw node[rectangle,anchor=east,rotate=270,xshift=-1cm] (top_rnd) at (sbox/rnd){\fsizeTop \portAESRnd [68d(d-1)-1:0]};
+\draw node[rectangle,anchor=east,rotate=270,xshift=-1cm] (top_rnd) at (sbox/rnd){\fsizeTop \portAESRnd };
 
 \draw [->,line width = \sizeB] (top_plaintext.east) -- (mux_gate_plain.lpin 2);
 \draw [->,line width = \sizeB] (top_key.east) -- (mux_gate_key.lpin 2);
