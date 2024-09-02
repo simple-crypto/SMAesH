@@ -53,7 +53,7 @@ implemented in the $\topName$ hardware IP.
 \section{History}
 
 \begin{description}
-    \item[2.0.0 (2024-??-??)] 4 cycles Canright Sbox (new optimised architecture) \todo{FIXME}.
+    \item[1.1.0 (2024-09-02)] 4 cycles Canright Sbox (new optimised architecture).
     \item[1.0.1 (2023-06-15)] Fix latency in Section 5.4 (documentation change only).
     \item[1.0.0 (2023-05-01)] Initial release.
 \end{description}
@@ -419,8 +419,7 @@ blocks performing the operations dedicated to the round computation (denoted
 \modAESdpState) and the key scheduling (denoted $\modAESdpKey$). The module
 $\modAESsbox$ is shared between the two datapath blocks and implements the
 $\SB$ layer for 4 masked bytes. In particular, it is composed of 4~parallel
-instances of masked S-boxes that follow an optimized architecture based on the
-S-box implementation presented in~\cite{DBLP:journals/tches/CassiersGMMN24}
+instances of the masked S-boxes implementation presented in~\cite{DBLP:journals/tches/CassiersGMMN24}
 that relies on the representation presented in~\cite{DBLP:conf/ches/Canright05}.
 
 The S-boxes have been generated using COMPRESS, and are thus optimised for a
@@ -428,9 +427,9 @@ given amount of shares. The amount of shares implemented in a practical
 integration can be modified at synthesis time by changing the generic $d$ at
 the top level. However, a mismatch between the amount of shares instanciated
 and the amount of shares specified during the S-box generation with COMPRESS
-may lead to sub-optimal performance (e.g., area and/or latency). In this
+may lead to sub-optimal performance (i.e., area). In this
 document, we report the results for four different protection levels, namely
-$d\in[2,3,4,5]$. When another amount of shares is required, it is advised to
+$d\in[2,3,4,5]$. If another amount of shares is required, it is advised to
 generate an optimal S-box implementation using COMPRESS\footnote{Please refer
     to
     \href{https://github.com/cassiersg/compress_artifact}{https://github.com/cassiersg/compress\_artifact}
@@ -690,7 +689,6 @@ plaintext-dependent data.
 \subsection{Randomness Generation} 
 
 %CiC-1-2-4
-\todo{FIXME: update with canright}
 
 \begin{figure}
     \centering
@@ -754,10 +752,10 @@ the completion of a reseed.
             \toprule
             {Design} & {Latency} & {\makecell{Shares}} & {Area (kGE)} \\ \midrule
             \midrule
-            \multirow{4}{*}{SMAesH v1.2} & \multirow{4}{*}{86} & 1 & 24.35 \\
-             &  & 2 & 47.35 \\
-             &  & 3 & 81.16 \\
-             &  & 4 & 120.04 \\\addlinespace[0.8ex]
+            \multirow{4}{*}{SMAesH v1.1} & \multirow{4}{*}{86} & 2 & 24.35 \\
+             &  & 3 & 47.35 \\
+             &  & 4 & 81.16 \\
+             &  & 5 & 120.04 \\\addlinespace[0.8ex]
             \bottomrule
         \end{tabular}
         \caption{NanGate45 PDK synthesis results, post-synthesis, from~\cite{DBLP:journals/tches/CassiersGMMN24} }
@@ -796,7 +794,7 @@ waiting a random amount of clock cycles before asserting the signal
 $\svrsSeedValid$ and waiting until a transaction at the seed interface occurs.
 
 Additionally, a practical implementation on an Artix7 FPGA (xc7a100tftg256-2)
-has been tested with random known-test vectors (i.e., random key, plaintext and seed) for cores below version 1.2 (not included).  
+has been tested with random known-test vectors (i.e., random key, plaintext and seed) for cores below version 1.1 (not included).  
 
 \paragraph{Side-channel security}
 This core has been formally verified for security in the glitch+transition
@@ -807,7 +805,7 @@ An implementation of the version 1.0.1 has also been empirically evaluated on
 an FPGA (with synthesis optimizations disabled), the evaluation report is
 available at \url{https://simple-crypto.org/outputs}. The latter also undergone
 a public evaluation in the context of the CHES23
-challenge/footnote{https://smaesh-challenge.simple-crypto.org/}. Note that this
+challenge\footnote{\url{https://smaesh-challenge.simple-crypto.org/}}. Note that this
 evaluation is device-specific, and should be performed on every instantiation
 of this device.
 

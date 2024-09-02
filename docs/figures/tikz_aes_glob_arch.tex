@@ -115,7 +115,7 @@ dot/.default = 6pt % size of the circle diameter
     \draw node[rectangle,draw,line width=0.6mm,anchor=north west] at (rec/TL) {\fontS $4 \times \modAESsbox$};
     % Draw the pipelie triangles
     \pgfmathsetmacro\trigBase{\sbHeight/3}
-    \foreach \xi in {0,...,5}{
+    \foreach \xi in {0,...,3}{
         \coordinate (trigCB) at ($(rec/BL) + (0.5*\sbWidth+-2.5*\trigBase,0) + (\xi*\trigBase,0)$);        
         \coordinate (trigC0) at ($(trigCB) + (-\trigBase/2,0)$);
         \coordinate (trigC1) at ($(trigCB) + (0,\trigBase)$);
