@@ -1,6 +1,6 @@
 # SIMPLE-Crypto's Masked AES in Hardware (SMAesH)
 
-An optimized masked hardware implementation of AES-128 Encryption using HPC2.
+An optimized masked hardware implementation of AES-128 Encryption using HPC.
 
 This repository contains the masked AES hardware implementation published by [SIMPLE-Crypto](https://simple-crypto.org).
 
