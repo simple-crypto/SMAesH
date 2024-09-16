@@ -1054,7 +1054,6 @@ always@(*) begin
     if(in_round | in_last_round | in_m192_round) begin
         rnd_bus0_valid_for_refresh = ~sbox_valid_in;
     end
-     
 end
 
 assign busy = (state != IDLE);

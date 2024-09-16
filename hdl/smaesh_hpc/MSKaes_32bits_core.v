@@ -107,7 +107,7 @@ input [128*d-1:0] sh_data_in;
 input [256*d-1:0] sh_key;
 (* matchi_type="sharings_dense", matchi_active="matchi_output_active" *)
 output [128*d-1:0] sh_data_out;
-(* matchi_type="control" *) // Do not check that ATM
+(* matchi_type="sharings_dense", matchi_active="matchi_lcol_valid" *) 
 output [32*d-1:0] sh_last_key_col;
 
 (* matchi_type="random", matchi_active="matchi_rnd_active" *)
@@ -129,6 +129,10 @@ output rnd_bus0_valid_for_rfrsh;
     wire matchi_input_active=valid_in;
     wire matchi_output_active=out_valid;
     wire matchi_rnd_active=1'b1; // Validate
+
+    // Logic required to have the signal asserting the validity of 
+    // the key material (used only for inversion configuration)
+    wire matchi_lcol_valid = 1;
 `endif
 
 

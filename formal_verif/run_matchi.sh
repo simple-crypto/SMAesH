@@ -71,7 +71,8 @@ ${VVP:=vvp} $SIM_PATH
 echo "Ending simulation..."
 
 ### Run matchi
-$DIR_MATCHI_ROOT/matchi/target/release/matchi --json $SYNTH_BASE.json --vcd $VCD_PATH --dut $TB_MODULE.dut --gname $MAIN_MODULE
+VCD_MATCHI=$WORK_DIR/matchi.vcd
+$DIR_MATCHI_ROOT/matchi/target/release/matchi --json $SYNTH_BASE.json --vcd $VCD_PATH --dut $TB_MODULE.dut --gname $MAIN_MODULE --output-vcd $VCD_MATCHI
 
 
 

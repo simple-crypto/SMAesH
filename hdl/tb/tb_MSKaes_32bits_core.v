@@ -212,6 +212,13 @@ end else begin
     reg_init_reseed_done <= reg_init_reseed_done | set_init_reseed_done;
 end
 
+reg [15:0] cnt_cycles;
+always@(posedge clk)
+if(syn_rst) begin
+    cnt_cycles <= 0;
+end else begin
+    cnt_cycles <= cnt_cycles + 1;
+end
 
 // Input feeding
 integer i;
