@@ -1014,18 +1014,45 @@ the completion of a reseed.
             table-alignment-mode = format,
             table-number-alignment = center,
             }
-        \begin{tabular}{lccS[table-alignment-mode=format,table-format=3.1,round-mode=places,round-precision=1]}
+        \begin{tabular}{lcS[table-alignment-mode=format,table-format=3.1,round-mode=places,round-precision=1]} 
             \toprule
-            {Design} & {Latency} & {\makecell{Shares}} & {Area (kGE)} \\ \midrule
+            {Design} & {\makecell{Shares}} & {Area (kGE)} \\ \midrule
             \midrule
-            \multirow{4}{*}{SMAesH v1.1} & \multirow{4}{*}{86} & 2 & 24.35 \\
-             &  & 3 & 47.35 \\
-             &  & 4 & 81.16 \\
-             &  & 5 & 120.04 \\\addlinespace[0.8ex]
+            \multirow{6}{*}{SMAesH} &    &         \\
+                                         & 2  & 29.429  \\
+                                         & 3  & 52.546   \\
+                                         & 4  & 84.249   \\
+                                         & 5  & 119.981  \\
+                                         &    &          \\
             \bottomrule
         \end{tabular}
-        \caption{NanGate45 PDK synthesis results, post-synthesis, from~\cite{DBLP:journals/tches/CassiersGMMN24} }
+        \caption{NanGate45 PDK synthesis results, post-synthesis}
         \label{table:synth}
+    \end{threeparttable}
+\end{table}
+
+\begin{table}
+    \centering
+    \setlength{\tabcolsep}{1ex}
+    \begin{threeparttable}
+        \sisetup{
+            table-alignment-mode = format,
+            table-number-alignment = center,
+            }
+        \begin{tabular}{ccc} %[table-alignment-mode=format,table-format=3.1,round-mode=places,round-precision=1]
+            \toprule
+            {Version} & Algorithm & {Latency (cycles)} \\ \midrule
+            \midrule
+            \multirow{2}{*}{128} & Enc & 86 \\
+                                 & Dec & 86 \\\addlinespace[0.8ex]
+            \multirow{2}{*}{192} & Enc & 201 \\
+                                 & Dec & 121 \\\addlinespace[0.8ex]
+            \multirow{2}{*}{256} & Enc & 118 \\
+                                 & Dec & 118 \\
+            \bottomrule
+        \end{tabular}
+        \caption{Feature performances metric}
+        \label{table:perfos}
     \end{threeparttable}
 \end{table}
 
@@ -1033,7 +1060,7 @@ the completion of a reseed.
 
 Following the architecture described section~\ref{sec:architecture}, the latency is
 $86$ cycles per execution. Table~\ref{table:synth} contains post-synthesis implementation metrics
-obtained with Yosys for the NanGate45 Open Cell Library.
+obtained with Yosys for the NanGate45 Open Cell Library, and Table~\ref{table:perfos} contains feature performance metric.
 
 \section{Core Verification}
 \label{section:verif}

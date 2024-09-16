@@ -62,6 +62,7 @@ output [d-1:0] o6;
 output [d-1:0] o7;
 
 // Generate in order to mux on the instance to use
+(* keep_hierarchy = "yes", DONT_TOUCH = "yes" *)
 canright_aes_sbox_dual #(.d(d)) sb_inst(
     .clk(clk),
     .i0(i0),
