@@ -209,7 +209,7 @@ assign out_valid = aes_out_valid;
 // not active (or starting to be active), since this would give bad randomness
 // to that core, or when a re-keying procedure is asked or ongoing. 
 assign prng_start_reseed = in_seed_valid & (
-    ~in_data_valid & ~aes_busy & ~KSU_busy & ~in_key_valid
+    ~in_data_valid & ~aes_busy & ~KSU_busy 
 );
 
 // Re-keying mechanism starts only if 

@@ -243,3 +243,5 @@ async def AES_256_DEC_KAT(dut):
     # Load the test cases
     list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_256_FILES)
     await AES_BC_DEC_TEMPLATE(dut, list_cases, 300000, NSHARES)
+
+##########" Add more fancy tests

@@ -318,8 +318,8 @@ cycles).
     \item Starting a new execution takes precedence over starting a reseed or configuring a new key.
         Hence if reseeding or configuring a new key is needed, no new valid input should be asserted
         before a reseed/key configuration transaction happens.
-    \item There is no precedence between starting a reseed or a key configuration. Therefore, asserting both $\svrsKeyValid$ and $\svrsSeedValid$ at the same time 
-        will result in the core not performing any transaction on both the key and seed interfaces. 
+    \item Starting a reseeding takes precedence over starting a new key configuration. Therefore, if configuring a new key is required, no new 
+        seed valid input should be asserted before the first key configuration transaction occured.
 \end{itemize}
 
 \begin{figure}

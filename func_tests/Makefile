@@ -12,7 +12,7 @@ VERILATOR_MDIR=$(WORK_CASE)/verilator
 ####### COCOTB related
 # defaults
 export SIM ?= verilator
-export EXTRA_ARGS ?= -Wno-NULLPORT -Wno-PINMISSING -Wno-WIDTH 
+export EXTRA_ARGS ?= -Wno-NULLPORT -Wno-PINMISSING -Wno-WIDTH
 export TOPLEVEL_LANG ?= verilog
 # Scratch directory
 export SIM_BUILD ?= $(WORK_CASE)
