@@ -1,13 +1,15 @@
 import functools as ft
 
-CFG_KEY_SIZE = {
+MAP_KSIZE_CFG = {
     128: 0,
     192: 1,
     256: 2
 }
 
+MAP_CFG_KSIZE = {k:v for v,k in MAP_KSIZE_CFG.items()}
+
 class Sharing:
-    def __parse_shares(bvalues, nshares, encoding="stidded"):
+    def __parse_shares(bvalues, nshares, encoding="stridded"):
         lv = len(bvalues)//nshares
         if encoding=="stridded":
             return [bvalues[i*lv:(i+1)*lv] for i in range(nshares)]    
