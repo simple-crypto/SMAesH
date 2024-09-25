@@ -36,7 +36,7 @@ class MessageBus:
         return self.datas.keys()
 
     def __str__(self):
-        all_str_data = ["({}): {}".format(i, d) for i, d in enumerate(self.datas.values())]
+        all_str_data = ["\t({}): {}".format(i, d) for i, d in enumerate(self.datas.values())]
         return ft.reduce(lambda a,b: a+b, all_str_data)
 
 class SMAESHMessage:
@@ -94,49 +94,166 @@ class SMAESHMessage:
     def __str__(self):
         return "-{}-\n{}".format(SMAESHMessage.TYPE_STR[self.type], self.data)
 
-# Object used to generate a randomized stream following the SVRS protocol 
-# defined in the doc.
-# TODO update with fine tuning of probability or interval between valid
-class SVRStreamGenerator:
+# An object that allows to deal with a SVRStream
+class SVRStreamBus:
     def __init__(self, 
-            clk_sig: cocotb.handle.ModifiableObject, 
-            valid_sig: cocotb.handle.ModifiableObject, 
-            ready_sig: cocotb.handle.ModifiableObject, 
+            valid_sig: cocotb.handle.ModifiableObject,
+            ready_sig: cocotb.handle.ModifiableObject,
             data_list: list[cocotb.handle.ModifiableObject]
             ):
-        self.clk = clk_sig
         self.valid = valid_sig
         self.ready = ready_sig
         self.data_list = data_list
-        # Internal value for simulation
-        self.transaction_done = True
-        
-        # Init with 0
-        self.valid.value = 0
 
-    async def generate_random_data(self):
+    # Generate fresh (random) value on the different data signals of the Bus
+    def sample_random_data(self):
         for d in self.data_list:
             d.value = random.randint(0,(2**d.value.n_bits)-1)
 
-    async def sample_random(self):
-        await self.generate_random_data()
+    # Generate fresh (random) data and validity signal
+    def sample_random(self):
+        self.sample_random_data()
         self.valid.value = random.randint(0,1)
 
-    # Async run used to generate the value, per cycle
-    # respect the "stick" behavior of the valid signal
+    # Enforce a new fresh (random) data with valid asserted 
+    def enforce_fresh_valid(self):
+        self.sample_random_data()
+        self.valid.value = 1
+
+    # When sample, return tje status of an ongoing trnasaction.
+    @property 
+    def in_transaction(self):
+        return (self.ready.value == 1) and (self.valid.value == 1)
+
+
+class DeadlockException(Exception):
+    def __init__(self):
+        super().__init__("A deadlock occured in the simulation")
+
+
+# Object used to generate a randomized streams following the SVRS protocol.
+# The instance takes parallel SVRStream instances and control them in parallel in
+# a randomized way, but following the protocol (i.e., the sticky behavior of the valid
+# signal is ensured).
+#
+# The signal generation follows the following rules:
+# - the original state of the busses are drawn randomly. 
+# - the state of a bus is redrawn randomly each time a transaction occurs
+# - the state of each bus not asserting validity are redrawn randomly each time a 
+#   transaction occurs on one of the busses driven. 
+#
+# Additionnal feature:
+# - to avoid continuous deadlock that may occurs if initialization phase is not 
+#   performed properlly due to the randomized behaviour, a wake up signal can be configured 
+#   once the states of every busses did not change during a configurable amount of cycles. 
+#   This has the effect of enforcing validity on the oldest invalid bus. 
+class SVRStreamsGenerator:
+    def __init__(self, 
+            clk_sig: cocotb.handle.ModifiableObject, 
+            streams: list[SVRStreamBus],
+            wake_up = None,
+            logger = None
+            ):
+        self.logger = logger
+        self.clk = clk_sig
+        self.streams = streams
+        self.wake_up = None
+
+        #### Internal data 
+        # To keep track of transactions on busses. Init to True to enforce update
+        self.transaction_done = len(self.streams)*[True]
+        # To keep track of dead cycles
+        dead_cycles = 0
+        cycles_since_update = len(self.streams)*[0]
+
+        #### Init the busses states with 0 
+        self._init_busses()
+
+    def _log(self, m):
+        if self.logger is not None:
+            self.logger.info(m)
+
+    # Init the busses with a validity signal to 0
+    def _init_busses(self):
+        for s in self.streams:
+            s.valid.value = 0
+
+    def _sample_random_bus(self, bi):
+        self.streams[bi].sample_random()
+        self.cycles_since_update[bi] = 0
+        self.dead_cycles = 0
+
+    def _enforce_valid_bus(self, bi):
+        self.streams[bi].enforce_fresh_valid()
+        self.cycles_since_update[bi] = 0
+
+    # Solve values for busses on which a transaction occured
+    def _update_with_transactions(self):
+        for bi, tstatus in enumerate(self.transaction_done):
+            # Update the data
+            if tstatus:
+                self.transaction_done[bi] = False
+                self._sample_random_bus(bi)
+
+    # Used to resolve the busses that are not valid
+    def _resolve_invalid_busses_idx(self):
+        # First resolve the inde that are non-valid
+        idx_valid = []
+        for si, s in enumerate(self.streams):
+            if s.valid.valid == 0:
+                idx_valid.append(si)
+        return idx_valid
+
+    # Used to find the index of the oldest invalid busses in case of
+    # deadlock resolution (wake up)
+    def _resolve_oldest_invalid_busses(self):
+        nonvalid_idx = self._resolve_invalid_busses_idx()
+        if len(nonvalid_idx) == 0:
+            raise DeadlockException()
+        else:
+            list_age = [self.cycles_since_update[e] for e in nonvalid_idx]
+            return nonvalid_idx.index(max(list_age))
+
+    # Solve values for busses if wake up is required
+    def _update_with_wakeup(self):
+        if self.wake_up is not None:
+            if self.dead_cycles > self.wake_up:
+                # Search for index to enforce
+                idx2upd = self._resolve_oldest_invalid_busses()
+                self._enforce_valid_bus(idx2upd)
+                self._log("[Generator.WAKE_UP]: enforce validity on stream {}".format(idx2upd))
+
+    def _resolve_transactions_done(self):
+        for bi, bus in enumerate(self.streams):
+            self.transaction_done[bi] = bus.in_transaction
+
+    # Run the generation, sync on the clk signal
     async def run(self):
         while True:
             # Wait the following RisingEdge
             await RisingEdge(self.clk)
-            if self.transaction_done or (self.valid.value == 0):
-                # Need to sample fresh data
-                await self.sample_random()
-                self.transaction_done = False
-            # Wait for the FallingEdge
+            # First update, based on transactions
+            self._update_with_transactions()
+            # Second update, based on wake up
+            self._update_with_wakeup()
             await FallingEdge(self.clk)
-            # Resolve the transaction
-            if (self.ready.value == 1) and (self.valid.value == 1):
-                self.transaction_done = True
+            self._resolve_transactions_done()
+            
+    ## Async run used to generate the value, per cycle
+    ## respect the "stick" behavior of the valid signal
+    #async def run(self):
+    #    while True:
+    #        # Wait the following RisingEdge
+    #        await RisingEdge(self.clk)
+    #        if self.transaction_done or (self.stream.valid.value == 0):
+    #            # Need to sample fresh data
+    #            self.stream.sample_random()
+    #            self.transaction_done = False
+    #        # Wait for the FallingEdge
+    #        await FallingEdge(self.clk)
+    #        # Resolve the transaction
+    #        if (self.stream.ready.value == 1) and (self.stream.valid.value == 1):
+    #            self.transaction_done = True
 
 
 class FunctionnalException(Exception):
@@ -240,9 +357,12 @@ class SMAesHPacketProcessor:
     def _key_initialized(self):
         return (self.key_size != None)
 
+    def _key_bytes_remaining(self):
+        return (self.nshares*utils_smaesh.MAP_CFG_KSIZE[self.key_size]//8)-len(self.key_shares)
+
     def _key_configured(self):
         if self._key_initialized():
-            return len(self.key_shares) == (self.nshares*utils_smaesh.MAP_CFG_KSIZE[self.key_size]//8)
+            return self._key_bytes_remaining()==0
         else:
             return False
 
@@ -260,25 +380,27 @@ class SMAesHPacketProcessor:
         # - or new key configuration start (that is, if key is already configured)
         # -> Start a fresh processing
         if not(self._key_initialized()) or self._key_configured() :
-            self.key_shares = m.data["data"].data
-            self.key_size = int(m.data["size"].data[0])
-            self.inverse = int(m.data["inverse"].data[0])
+            self.key_shares = m.data.datas["data"].data
+            self.key_size = int(m.data.datas["size"].data[0])
+            self.inverse = int(m.data.datas["inverse"].data[0])
         else:
             # Simply append fresh data.
             # Configuration not considered here
-            self.key_shares += m.data["data"].data
+            self.key_shares += m.data.datas["data"].data
+            self._log("[Processor.proc_key]: {} words remaining".format(self._key_bytes_remaining()//4))
 
     def _execute(self, din:bytes):
         # First, unmask data to process 
         sharing_key = utils_smaesh.Sharing(self.key_shares, self.nshares, encoding="stridded")
-        sharing_din = utils_smaesh.Sharing(self.din, self.nshares, encoding="stridded")
+        sharing_din = utils_smaesh.Sharing(din, self.nshares, encoding="stridded")
         self._log("[Processor.exec]: kcfg={} inverse={}".format(self.key_size, self.inverse))   
         self._log("key: {}".format(sharing_key.recombine2bytes().hex()))
         self._log("din: {}".format(sharing_din.recombine2bytes().hex()))
 
     def _proc_data(self, m):
+        # TODO: refactorize: data.datas stuff is heavy
         # Fetch the sharing, and process to execution
-        self._execute(m.data["data"])
+        self._execute(m.data.datas["data"].data)
 
     async def run(self):
         while True:

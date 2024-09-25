@@ -206,7 +206,7 @@ async def AES_BC_DEC_TEMPLATE(dut, list_cases, timeout_cycles, nshares):
         rec_output_int = utils_smaesh.Sharing.from_int(out_shares_data,16, nshares).recombine2int()
         assert rec_output_int == c.plaintext.int, "Execution failure for case {}".format(c)
 
-## Test for the AES-128 encryption KAT
+### Test for the AES-128 encryption KAT
 #@cocotb.test()
 #async def AES_128_ENC_KAT(dut):
 #    # Load the test cases
@@ -327,7 +327,7 @@ class ClockGenerator:
 
 
 @cocotb.test()
-async def DEVEL(dut):
+async def basic_fuzzying(dut):
     # Logger for this test
     tl = logging.getLogger(__name__)
     tl.setLevel(logging.INFO)
@@ -336,24 +336,25 @@ async def DEVEL(dut):
     clkgen = ClockGenerator(dut.clk, ncycles=None) 
 
     # Instanciate the svrs_generator 
-    svrs_gen_data = utils_fuzzing.SVRStreamGenerator(
-            dut.clk,
+    svrs_bus_data = utils_fuzzing.SVRStreamBus(
             dut.in_data_valid,
             dut.in_data_ready,
             [dut.in_shares_data]
             )
-    svrs_gen_key = utils_fuzzing.SVRStreamGenerator(
-            dut.clk,
+    svrs_bus_key = utils_fuzzing.SVRStreamBus(
             dut.in_key_valid,
             dut.in_key_ready,
             [dut.in_key_data,dut.in_key_size_cfg,dut.in_key_mode_inverse]
             )
-    svrs_gen_seed = utils_fuzzing.SVRStreamGenerator(
-            dut.clk,
+    svrs_bus_seed = utils_fuzzing.SVRStreamBus(
             dut.in_seed_valid,
             dut.in_seed_ready,
             [dut.in_seed]
             )
+
+    svrs_generator = utils_fuzzing.SVRStreamsGenerator(
+            dut.clk,[svrs_bus_seed,svrs_bus_key,svrs_bus_data]
+            )  
     
     # Create the packetizer
     packetizer = utils_fuzzing.SMAesHPacketizer(
@@ -375,6 +376,7 @@ async def DEVEL(dut):
             dut.clk,
             sigs=[
                 dut.in_data_valid,
+                dut.aes_valid_in,
                 dut.in_data_ready,
                 dut.in_shares_data,
                 dut.in_key_valid,
@@ -392,9 +394,7 @@ async def DEVEL(dut):
     await clkgen.stop()
 
     # Start the simulation flow
-    await cocotb.start(svrs_gen_data.run())
-    await cocotb.start(svrs_gen_key.run())
-    await cocotb.start(svrs_gen_seed.run())
+    await cocotb.start(svrs_generator.run())
     await cocotb.start(packetizer.run())
     await cocotb.start(ref_model.run())
     await cocotb.start(monitor.run())

@@ -111,6 +111,7 @@ wire KSU_last_key_computation_required;
 wire KSU_aes_mode_256;
 wire KSU_aes_mode_192;
 wire KSU_aes_mode_inverse;
+wire KSU_in_ready;
 
 MSKkey_holder #(.d(d))
 key_storage_unit(
@@ -118,7 +119,7 @@ key_storage_unit(
     .rst(rst),
     .data_in(in_key_data),
     .data_in_valid(in_key_valid),
-    .data_in_ready(in_key_ready),
+    .data_in_ready(KSU_in_ready),
     .sh_last_key_col(KSU_sh_last_key_col),
     .sh_last_key_col_pre_valid(KSU_last_key_pre_valid),
     .sh_data_out(KSU_sh_key_out),
@@ -197,37 +198,32 @@ assign rnd_bus1w = rnd[4*rnd_bus0 +: 4*rnd_bus1];
 assign rnd_bus2w = rnd[4*(rnd_bus0+rnd_bus1) +: 4*rnd_bus2];
 assign rnd_bus3w = rnd[4*(rnd_bus0+rnd_bus1+rnd_bus2) +: 4*rnd_bus3];
 
-// SVRS interfaces handling.
-// Stall input interface if PRNG output is not valid.
-assign aes_valid_in = ((in_data_valid & ~KSU_busy) | (KSU_last_key_computation_required & ~aes_busy)) & prng_out_valid;
-assign in_data_ready = aes_ready_in & ~KSU_busy & ~KSU_last_key_computation_required & prng_out_valid;
+//// SVRS interfaces handling.
+// Arbitrer
+smaesh_arbitrer arbitrer(
+    .clk(clk),
+    .rst(rst),
+    .in_seed_valid(in_seed_valid),
+    .in_seed_ready(in_seed_ready),
+    .in_key_valid(in_key_valid),
+    .in_key_ready(in_key_ready),
+    .in_data_valid(in_data_valid),
+    .in_data_ready(in_data_ready),
+    .KSU_in_ready(KSU_in_ready),
+    .aes_in_ready(aes_ready_in),
+    .prng_busy(prng_busy),
+    .KSU_busy(KSU_busy),
+    .aes_busy(aes_busy),
+    .prng_seeded(prng_out_valid),
+    .prng_start_reseed(prng_start_reseed),
+    .KSU_start_fetch_procedure(KSU_start_fetch_procedure),
+    .KSU_last_key_computation_required(KSU_last_key_computation_required),
+    .aes_valid_in(aes_valid_in)
+);
 
+// Output signal: just forward
 assign aes_out_ready = out_ready; 
 assign out_valid = aes_out_valid;
 
-// Reseed mechanism starts only if in_seed_valid is asserted and AES core is
-// not active (or starting to be active), since this would give bad randomness
-// to that core, or when a re-keying procedure is asked or ongoing. 
-assign prng_start_reseed = in_seed_valid & (
-    ~in_data_valid & ~aes_busy & ~KSU_busy 
-);
-
-// Re-keying mechanism starts only if 
-//  - no re-seeding procedure is expecting to start or ongoing
-//  - no new run is expected to start or ongoing
-assign KSU_start_fetch_procedure = in_key_valid & (
-    ~in_data_valid & ~aes_busy & ~prng_busy & ~in_seed_valid
-);
-
-// Compute in_seed_ready.
-// We used input seed when there is as posedge on prng_busy.
-reg prev_prng_busy;
-always @(posedge clk)
-if (rst) begin
-    prev_prng_busy <= 0; 
-end else begin
-    prev_prng_busy <= prng_busy; 
-end
-assign in_seed_ready = ~prev_prng_busy & prng_busy;
 
 endmodule

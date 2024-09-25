@@ -8,11 +8,12 @@ RTL_DIR_HDL?=$(WORK_CASE)/smaesh_hdl_d$(NSHARES)
 
 ####### Verilator related
 VERILATOR_MDIR=$(WORK_CASE)/verilator
+VERILATOR_BUILD_PROC?=8
 
 ####### COCOTB related
 # defaults
 export SIM ?= verilator
-export EXTRA_ARGS ?= -Wno-NULLPORT -Wno-PINMISSING -Wno-WIDTH
+export EXTRA_ARGS ?= -Wno-NULLPORT -Wno-PINMISSING -Wno-WIDTH -j $(VERILATOR_BUILD_PROC)
 export TOPLEVEL_LANG ?= verilog
 # Scratch directory
 export SIM_BUILD ?= $(WORK_CASE)
