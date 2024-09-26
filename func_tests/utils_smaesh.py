@@ -7,6 +7,7 @@ MAP_KSIZE_CFG = {
 }
 
 MAP_CFG_KSIZE = {k:v for v,k in MAP_KSIZE_CFG.items()}
+MAP_CFG_KSIZE[3] = 128 # not explicit, but default
 
 class Sharing:
     def __parse_shares(bvalues, nshares, encoding="stridded"):

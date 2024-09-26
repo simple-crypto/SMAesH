@@ -5,6 +5,7 @@ from enum import Enum
 import functools as ft
 import random
 import utils_smaesh
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 class MessageType(Enum):
     SEED = 0
@@ -139,8 +140,8 @@ class DeadlockException(Exception):
 # The signal generation follows the following rules:
 # - the original state of the busses are drawn randomly. 
 # - the state of a bus is redrawn randomly each time a transaction occurs
-# - the state of each bus not asserting validity are redrawn randomly each time a 
-#   transaction occurs on one of the busses driven. 
+# - the state of each bus not asserting validity are redrawn randomly if 
+#   a single transaction occurs on a stream
 #
 # Additionnal feature:
 # - to avoid continuous deadlock that may occurs if initialization phase is not 
@@ -157,14 +158,14 @@ class SVRStreamsGenerator:
         self.logger = logger
         self.clk = clk_sig
         self.streams = streams
-        self.wake_up = None
+        self.wake_up = wake_up
 
         #### Internal data 
         # To keep track of transactions on busses. Init to True to enforce update
         self.transaction_done = len(self.streams)*[True]
         # To keep track of dead cycles
-        dead_cycles = 0
-        cycles_since_update = len(self.streams)*[0]
+        self.dead_cycles = 0
+        self.cycles_since_update = len(self.streams)*[0]
 
         #### Init the busses states with 0 
         self._init_busses()
@@ -189,20 +190,29 @@ class SVRStreamsGenerator:
 
     # Solve values for busses on which a transaction occured
     def _update_with_transactions(self):
+        cntupd = 0
         for bi, tstatus in enumerate(self.transaction_done):
             # Update the data
             if tstatus:
+                self._log("[Generator.PTRANS]: post transaction on bus {}".format(bi))
                 self.transaction_done[bi] = False
                 self._sample_random_bus(bi)
+                cntupd += 1
+        return cntupd
 
     # Used to resolve the busses that are not valid
     def _resolve_invalid_busses_idx(self):
         # First resolve the inde that are non-valid
         idx_valid = []
         for si, s in enumerate(self.streams):
-            if s.valid.valid == 0:
+            if s.valid.value == 0:
                 idx_valid.append(si)
         return idx_valid
+
+    # Used to resample busses that are not valid
+    def _update_invalid_busses(self):
+        for bidx in self._resolve_invalid_busses_idx():
+            self.streams[bidx].sample_random()
 
     # Used to find the index of the oldest invalid busses in case of
     # deadlock resolution (wake up)
@@ -212,7 +222,7 @@ class SVRStreamsGenerator:
             raise DeadlockException()
         else:
             list_age = [self.cycles_since_update[e] for e in nonvalid_idx]
-            return nonvalid_idx.index(max(list_age))
+            return nonvalid_idx[list_age.index(max(list_age))]
 
     # Solve values for busses if wake up is required
     def _update_with_wakeup(self):
@@ -221,6 +231,7 @@ class SVRStreamsGenerator:
                 # Search for index to enforce
                 idx2upd = self._resolve_oldest_invalid_busses()
                 self._enforce_valid_bus(idx2upd)
+                self.dead_cycles = 0
                 self._log("[Generator.WAKE_UP]: enforce validity on stream {}".format(idx2upd))
 
     def _resolve_transactions_done(self):
@@ -233,28 +244,16 @@ class SVRStreamsGenerator:
             # Wait the following RisingEdge
             await RisingEdge(self.clk)
             # First update, based on transactions
-            self._update_with_transactions()
+            upd = self._update_with_transactions()
+            if upd > 0:
+                self._update_invalid_busses()
             # Second update, based on wake up
             self._update_with_wakeup()
             await FallingEdge(self.clk)
             self._resolve_transactions_done()
+            # Update dead cycle
+            self.dead_cycles += 1
             
-    ## Async run used to generate the value, per cycle
-    ## respect the "stick" behavior of the valid signal
-    #async def run(self):
-    #    while True:
-    #        # Wait the following RisingEdge
-    #        await RisingEdge(self.clk)
-    #        if self.transaction_done or (self.stream.valid.value == 0):
-    #            # Need to sample fresh data
-    #            self.stream.sample_random()
-    #            self.transaction_done = False
-    #        # Wait for the FallingEdge
-    #        await FallingEdge(self.clk)
-    #        # Resolve the transaction
-    #        if (self.stream.ready.value == 1) and (self.stream.valid.value == 1):
-    #            self.transaction_done = True
-
 
 class FunctionnalException(Exception):
     def __init__(self, message):
@@ -351,11 +350,11 @@ class SMAesHPacketProcessor:
 
     def _init_state(self):
         self.key_shares = []
-        self.key_size = None
-        self.inverse = None
+        self.key_size = 0 # default
+        self.inverse = 0
 
     def _key_initialized(self):
-        return (self.key_size != None)
+        return (len(self.key_shares)!=0)
 
     def _key_bytes_remaining(self):
         return (self.nshares*utils_smaesh.MAP_CFG_KSIZE[self.key_size]//8)-len(self.key_shares)
@@ -383,6 +382,7 @@ class SMAesHPacketProcessor:
             self.key_shares = m.data.datas["data"].data
             self.key_size = int(m.data.datas["size"].data[0])
             self.inverse = int(m.data.datas["inverse"].data[0])
+            self._log("[Processor.proc_key]: New key starts ({},{})".format(self.key_size,self.inverse))
         else:
             # Simply append fresh data.
             # Configuration not considered here
@@ -393,9 +393,23 @@ class SMAesHPacketProcessor:
         # First, unmask data to process 
         sharing_key = utils_smaesh.Sharing(self.key_shares, self.nshares, encoding="stridded")
         sharing_din = utils_smaesh.Sharing(din, self.nshares, encoding="stridded")
+        umsk_key = sharing_key.recombine2bytes()
+        umsk_din = sharing_din.recombine2bytes()
+        # Processus
         self._log("[Processor.exec]: kcfg={} inverse={}".format(self.key_size, self.inverse))   
-        self._log("key: {}".format(sharing_key.recombine2bytes().hex()))
-        self._log("din: {}".format(sharing_din.recombine2bytes().hex()))
+        self._log("key: {}".format(umsk_key.hex()))
+        self._log("din: {}".format(umsk_din.hex()))
+        if len(umsk_key)!=0:
+            cipher = Cipher(algorithms.AES(umsk_key), modes.ECB())
+            if self.inverse:
+                core = cipher.decryptor()
+            else:
+                core = cipher.encryptor()
+            umsk_dout = core.update(umsk_din)
+            self.output_fifo.push(umsk_dout)
+            self._log("dout: {}".format(umsk_dout.hex()))
+        else:
+            self.output_fifo.push(None)
 
     def _proc_data(self, m):
         # TODO: refactorize: data.datas stuff is heavy
@@ -419,8 +433,43 @@ class SMAesHPacketProcessor:
                 raise Exception("Message Type unsupported")
             
 
+# SMAesH Verifie         
+class SMAesHVerifier:
+    def __init__(self, dut, ref_processor, nshares, logger=None):
+        self.dut = dut
+        self.ref_processor = ref_processor
+        self.nshares = nshares
+        self.logger = logger
+
+    def _log(self, m:str):
+        if self.logger is not None:
+            self.logger.info(m)
+
+    async def run(self):
+        # Currently constant fetching
+        # TODO: add a reader with back pressure
+        # then add compartor on top of it
+        self.dut.out_ready.value = 1
+        while True:
+            await FallingEdge(self.dut.clk)
+            if self.dut.out_valid.value == 1:
+                # Compare value
+                self._log("[Verifier.verify]")
+                sharing_dout = utils_smaesh.Sharing.from_int(
+                        int(self.dut.out_shares_data.value), 
+                        16,
+                        self.nshares, 
+                        encoding="stridded"
+                        )  
+                umsk_dout = sharing_dout.recombine2bytes()
+                umsk_ref = self.ref_processor.output_fifo.pop()
+                self._log("dut.dout: {}".format(umsk_dout.hex()))
+                self._log("ref.dout: {}".format(umsk_ref.hex()))
+                assert umsk_dout == umsk_ref, "Verification failed"
                 
 
+
+        
         
 
 

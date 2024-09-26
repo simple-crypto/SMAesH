@@ -7,6 +7,7 @@ from cocotb.triggers import Timer, RisingEdge, FallingEdge
 import functools as ft
 import math
 import utils_fuzzing
+import random
 
 # Logger for global debug
 myl = logging.getLogger(__name__)
@@ -324,7 +325,55 @@ class ClockGenerator:
 # Test of same guy configured
 # Test of randomized transaction
 
+# Basic generator, driving the dut 
+# in order to perform the following flow 
+# for the list of executions cases provided
+# - reset (done only once)
+# - send the seed (done only once)
+# - configure the key
+# - send the data
+class SVRStreamsSimpleGenerator:
+    def __init__(self, 
+            dut,
+            list_cases,
+            inverse,
+            nshares,
+            logger = None
+            ):
+        self.dut = dut
+        self.list_cases = list_cases
+        self.inverse = inverse
+        self.nshares = nshares
+        self.logger = logger
 
+    def _log(self, m:str):
+        if self.logger is not None:
+            self.logger.info(m)
+
+    def _get_inverse(self):
+        if self.inverse not in [0,1]:
+            return random.randint(0,1)
+        else:
+            return self.inverse
+
+    async def run(self):
+        await set_valid_external_control(self.dut)
+        await reset_dut(self.dut)
+        await wait_ncycles(self.dut.clk, 2)
+        await svrs_seed_transaction(self.dut, 0xdeadbeefdeadbeef)
+        for c in self.list_cases:
+            # Key configuration
+            inverse_status = self._get_inverse()
+            await svrs_key_procedure(self.dut, c.key.bytes, inverse_status, self.nshares)
+            # Start execution with input data
+            if inverse_status==0:
+                datain = c.plaintext.int
+            else:
+                datain = c.ciphertext.int
+            await svrs_input_data_transaction(
+                    self.dut, 
+                    utils_smaesh.Sharing.from_int_umsk(datain, 16, self.nshares).to_int(),
+                    )
 
 @cocotb.test()
 async def basic_fuzzying(dut):
@@ -336,24 +385,13 @@ async def basic_fuzzying(dut):
     clkgen = ClockGenerator(dut.clk, ncycles=None) 
 
     # Instanciate the svrs_generator 
-    svrs_bus_data = utils_fuzzing.SVRStreamBus(
-            dut.in_data_valid,
-            dut.in_data_ready,
-            [dut.in_shares_data]
-            )
-    svrs_bus_key = utils_fuzzing.SVRStreamBus(
-            dut.in_key_valid,
-            dut.in_key_ready,
-            [dut.in_key_data,dut.in_key_size_cfg,dut.in_key_mode_inverse]
-            )
-    svrs_bus_seed = utils_fuzzing.SVRStreamBus(
-            dut.in_seed_valid,
-            dut.in_seed_ready,
-            [dut.in_seed]
-            )
-
-    svrs_generator = utils_fuzzing.SVRStreamsGenerator(
-            dut.clk,[svrs_bus_seed,svrs_bus_key,svrs_bus_data]
+    list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_256_FILES)
+    svrs_generator = SVRStreamsSimpleGenerator(
+            dut,
+            list_cases[:10],
+            0,
+            NSHARES,
+            logger=tl,
             )  
     
     # Create the packetizer
@@ -366,6 +404,14 @@ async def basic_fuzzying(dut):
     # Create the reference processor
     ref_model = utils_fuzzing.SMAesHPacketProcessor(
             packetizer,
+            NSHARES,
+            logger=tl
+            )
+
+    # Create the Verifier
+    verifier = utils_fuzzing.SMAesHVerifier(
+            dut,
+            ref_model,
             NSHARES,
             logger=tl
             )
@@ -397,11 +443,12 @@ async def basic_fuzzying(dut):
     await cocotb.start(svrs_generator.run())
     await cocotb.start(packetizer.run())
     await cocotb.start(ref_model.run())
-    await cocotb.start(monitor.run())
+    await cocotb.start(verifier.run())
+    #await cocotb.start(monitor.run())
     await clkgen.start()
 
     # Simulate for several cycle
-    await wait_ncycles(dut.clk,100)  
+    await wait_ncycles(dut.clk,1000)
 
 
 
