@@ -3,6 +3,7 @@
 ## Source settings
 NSHARES=${NSHARES:-2}
 KEY_SIZE=${KEY_SIZE:-128}
+INVERSE=${INVERSE:-0}
 HDL_ROOT_DIR=../hdl
 DIR_MATCHI_ROOT=~/tools/fullverif
 
@@ -62,6 +63,7 @@ ${IVERILOG:=iverilog} \
     -D DUMPFILE=\"$VCD_PATH\" \
     -D RUN_AM=1 \
     -D CONTINUOUS=1 \
+    -D INVERSE=$INVERSE \
     -D NSHARES=$NSHARES \
     -D KEY_SIZE=$KEY_SIZE \
     $SYNTH_BASE.v $TB_PATH || exit

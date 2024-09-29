@@ -9,6 +9,9 @@
 // Please see the CERN-OHL-P v2 for applicable conditions.
 `timescale 1ns/1ps
 
+`ifndef INVERSE
+`define INVERSE 0
+`endif
 `ifndef NSHARES
 `define NSHARES 2
 `endif
@@ -40,14 +43,13 @@ reg syn_rst;
 reg dut_in_valid;
 wire dut_in_ready;
 
-wire [128*d-1:0] dut_shares_plaintext;
+wire [128*d-1:0] dut_shares_plaintext, dut_shares_ciphertext, dut_shares_out;
 wire [256*d-1:0] dut_shares_key;
 
 reg dut_seed_valid;
 wire dut_seed_ready;
 reg [127:0] dut_seed;
 
-wire [128*d-1:0] dut_shares_ciphertext;
 wire dut_out_valid;
 wire dut_out_ready;
 
@@ -62,12 +64,18 @@ reg dut_mode192;
 wire dut_in_ready_rnd;
 
 // Encoding of the shares
-wire [128*d-1:0] dut_sh_plaintext, dut_sh_ciphertext;
+wire [128*d-1:0] dut_sh_plaintext, dut_sh_ciphertext, dut_sh_in, dut_sh_out;
 wire [256*d-1:0] dut_sh_key; 
 shares2shbus #(.d(d),.count(128))
 switch_encoding_pt(
     .shares(dut_shares_plaintext),
     .shbus(dut_sh_plaintext)
+);
+
+shares2shbus #(.d(d),.count(128))
+switch_encoding_ct(
+    .shares(dut_shares_ciphertext),
+    .shbus(dut_sh_ciphertext)
 );
 
 shares2shbus #(.d(d),.count(256))
@@ -77,10 +85,12 @@ switch_encoding_key(
 );
 
 shbus2shares #(.d(d),.count(128))
-switch_encoding_ct(
-    .shbus(dut_sh_ciphertext),
-    .shares(dut_shares_ciphertext)
+switch_encoding_out(
+    .shbus(dut_sh_out),
+    .shares(dut_shares_out)
 );
+
+assign dut_sh_in = `INVERSE ? dut_sh_ciphertext : dut_sh_plaintext;
 
 // Generate the clock
 always #Td clk=~clk;
@@ -106,9 +116,9 @@ dut(
     .last_key_pre_valid(dut_last_key_valid),
     .mode_256(dut_mode256),
     .mode_192(dut_mode192),
-    .sh_data_in(dut_sh_plaintext),
+    .sh_data_in(dut_sh_in),
     .sh_key(dut_sh_key),
-    .sh_data_out(dut_sh_ciphertext),
+    .sh_data_out(dut_sh_out),
     .rnd_bus0w({(4*rnd_bus0){1'b0}}),
     .rnd_bus1w({(4*rnd_bus1){1'b0}}),
     .rnd_bus2w({(4*rnd_bus2){1'b0}}),
@@ -125,29 +135,21 @@ reg read_last_in;
 reg read_last_out;
 
 assign dut_shares_plaintext[128 +: (d-1)*128] = 0;
-`ifdef HCODED_CASE
-    `ifdef DECRYPTION
-        `ifdef MODE256
-            assign dut_shares_plaintext[127:0] = 128'h8960494b_9049fcea_bf456751_cab7a28e;
-        `else
-            assign dut_shares_plaintext[127:0] = 128'h5ac5b470_80b7cdd8_30047b6a_d8e0c469;
-        `endif
-    `else
-        `ifdef MODE256
-            assign dut_shares_plaintext[127:0] = 128'hffeeddcc_bbaa9988_77665544_33221100;
-        `else
-            assign dut_shares_plaintext[127:0] = 128'hffeeddcc_bbaa9988_77665544_33221100;
-        `endif
-    `endif
-`else
-    endian_reverse #(
+assign dut_shares_ciphertext[128 +: (d-1)*128] = 0;
+endian_reverse #(
         .BSIZE(128),
         .WIDTH(8)
     ) er_plaintext (
         .bus_in(read_plaintext),
         .bus_out(dut_shares_plaintext[127:0])
     );
-`endif
+endian_reverse #(
+        .BSIZE(128),
+        .WIDTH(8)
+    ) er_ciphertext (
+        .bus_in(read_umsk_ciphertext),
+        .bus_out(dut_shares_ciphertext[127:0])
+    );
 
 assign dut_shares_key[256 +: (d-1)*256] = 0;
 generate
@@ -155,21 +157,6 @@ if(KSIZE==128) begin: ksize
     assign dut_shares_key[128 +: 128] = 128'b0;
 end
 endgenerate
-`ifdef HCODED_CASE
-    `ifdef DECRYPTION
-        `ifdef MODE256
-            assign dut_shares_key[255:0] = 256'heacdf8cd_aa2b577e_e04ff2a9_99665a4e_36de686d_3cc21a37_e97909bf_cc79fc24;
-        `else
-            assign dut_shares_key[127:0] = 128'hc5302b4d_8ba707f3_174a94e3_7f1d1113;
-        `endif
-    `else
-        `ifdef MODE256
-            assign dut_shares_key[255:0] = 256'h1f1e1d1c_1b1a1918_17161514_13121110_0f0e0d0c_0b0a0908_07060504_03020100;
-        `else
-            assign dut_shares_key[127:0] = 128'h0f0e0d0c_0b0a0908_07060504_03020100;
-        `endif
-    `endif
-`else
     endian_reverse #(
         .BSIZE(KSIZE),
         .WIDTH(8)
@@ -177,23 +164,23 @@ endgenerate
         .bus_in(read_umsk_key),
         .bus_out(dut_shares_key[KSIZE-1:0])
     );
-`endif
 
-wire [127:0] ref_umsk_ciphertext;
+wire [127:0] ref_read_umsk_out = `INVERSE ? read_umsk_ciphertext : read_plaintext;
+wire [127:0] ref_umsk_out;
 endian_reverse #(
     .BSIZE(128),
     .WIDTH(8)
-) er_ciphertext (
-    .bus_in(read_umsk_ciphertext),
-    .bus_out(ref_umsk_ciphertext)
+) er_umsk_out (
+    .bus_in(ref_read_umsk_out),
+    .bus_out(ref_umsk_out)
 );
 
 // Recombine unit 
-wire [127:0] rec_dut_ciphertext;
+wire [127:0] rec_dut_out;
 recombine_shares_unit #(.d(d),.count(128))
 ru(
-    .shares_in(dut_shares_ciphertext),
-    .out(rec_dut_ciphertext)
+    .shares_in(dut_shares_out),
+    .out(rec_dut_out)
 );
 
 ////// RUN 
@@ -253,11 +240,7 @@ initial begin
     dut_seed_valid = 0;
 
     // Set status
-    `ifdef DECRYPTION
-        dut_inverse = 1;
-    `else
-        dut_inverse = 0;
-    `endif
+    dut_inverse = `INVERSE;
     dut_key_schedule_only = 0;
 
     if (KSIZE==256) begin
@@ -365,10 +348,10 @@ initial begin
             #T;
         end
         // Verification
-        if(ref_umsk_ciphertext!==rec_dut_ciphertext[127:0]) begin
+        if(ref_umsk_out!==rec_dut_out[127:0]) begin
             $display("FAILURE for case %d",id_out);
-            $display("Ciphertext computed:\n%x\n",rec_dut_ciphertext[127:0]);
-            $display("Expected ciphertext:\n%x\n",read_umsk_ciphertext);
+            $display("Ciphertext computed:\n%x\n",rec_dut_out[127:0]);
+            $display("Expected ciphertext:\n%x\n",ref_umsk_out);
             $finish;
         end
         $display("%d/%d done!",cnt_out+1,RUN_AM);
