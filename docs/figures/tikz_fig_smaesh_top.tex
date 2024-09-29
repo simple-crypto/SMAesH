@@ -151,56 +151,55 @@ dot/.default = 6pt % size of the circle diameter
     \portW{#1/busy}{box/W11}{\fontS \portKHBusy}
 }
 
+
+% Arbitrer bloc
+% #1: id
+% #2: pos TR
+\newcommand{\blocArbitrer}[2]{
+    %% Draw the rectangle
+    \rectangleC[line width = 0.6mm]{box}{#2}{($ #2 + (-10,-15)$)}{14}{14}{1}{1};
+    \draw node[rectangle,draw,line width=0.6mm,anchor=north west] at (box/TL) {\fontS \topModArbitrer};
+    %% Draw the IO ports
+    % Draw W
+    \portW{#1/in_key_valid}{box/W2}{\fontS \svrsKeyValid}
+    \portW{#1/in_key_ready}{box/W3}{\fontS \svrsKeyReady}
+    \portW{#1/in_data_valid}{box/W5}{\fontS \svrsInValid}
+    \portW{#1/in_data_ready}{box/W6}{\fontS \svrsInReady}
+    \portW{#1/in_seed_valid}{box/W8}{\fontS \svrsSeedValid}
+    \portW{#1/in_seed_ready}{box/W9}{\fontS \svrsSeedReady}
+    % Draw E
+    \portE{#1/KSU_busy}{box/E2}{\fontS \portArbKHBusy}
+    \portE{#1/KSU_in_ready}{box/E3}{\fontS \portArbKSUReady}
+    \portE{#1/KSU_start_fetch}{box/E4}{\fontS \portArbKSUStartFetch}
+    \portE{#1/KSU_lkey_req}{box/E5}{\fontS \portArbKSULastKeyReq}
+    \portE{#1/aes_in_ready}{box/E7}{\fontS \portArbAESReady}
+    \portE{#1/aes_valid_in}{box/E8}{\fontS \portArbAESValidIn}
+    \portE{#1/aes_busy}{box/E9}{\fontS \portArbAESBusy}
+    \portE{#1/prng_busy}{box/E11}{\fontS \portArbPrngBusy}
+    \portE{#1/prng_seeded}{box/E12}{\fontS \portArbPrngSeeded}
+    \portE{#1/prng_start_reseed}{box/E13}{\fontS \portArbPrngStartReseed}
+
+
+}
+
 %%% Draw AES block
 \blocAES{aesModule}{(0,0)}
 
 %%% Draw PRNG
 \blocPRNG{prngMod}{(-18,-21)}
 
+%%% Draw arbitrer
+\blocArbitrer{arbitrer}{(-30,-10)}
+
 %%% Draw Kholder
 \blocKU{keyHolder}{(-15,0)}
+
 
 %%% Draw the and at the input of the inverse signal to AES
 \node[and port, anchor=in 1,xshift=1cm](and2_aes_inverse) at (keyHolder/mode_inverse){};
 \node at (and2_aes_inverse.bin 2) [ocirc, left]{};
 
-%%% Draw the and at hte input og the start_reseed procedure
-\node[and port,number inputs=4,anchor=out,xshift=-1cm](and4_start_reseed) at (prngMod/start_reseed){};
-\node at (and4_start_reseed.bin 1) [ocirc, left]{};
-\node at (and4_start_reseed.bin 2) [ocirc, left]{};
-\node at (and4_start_reseed.bin 3) [ocirc, left]{};
-
-%%% Draw the and at hte input og the start_fetch_procedure (KH unit)
-\node[and port,number inputs=5,anchor=out,xshift=-1cm](and5_start_fetch) at (keyHolder/start_fetch){};
-\node at (and5_start_fetch.bin 1) [ocirc, left]{};
-\node at (and5_start_fetch.bin 2) [ocirc, left]{};
-\node at (and5_start_fetch.bin 3) [ocirc, left]{};
-\node at (and5_start_fetch.bin 4) [ocirc, left]{};
-
-%%% Draw the control logic at the input of valid_in
-\node[and port, anchor=out,xshift=-2cm](and2_aes_valid_in) at (aesModule/in_valid){};
-\node[or port, anchor=out,xshift=-0.5cm,yshift=1.2cm](or2_aes_valid_in) at (and2_aes_valid_in.in 1){};
-\node[and port, anchor=out,xshift=-0.5cm,yshift=0.5cm](and2_aes_valid_in_I) at (or2_aes_valid_in.in 1){};
-\node at (and2_aes_valid_in_I.bin 1) [ocirc, left]{};
-\node[and port, anchor=out,xshift=-0.5cm,yshift=-0.5cm](and2_aes_valid_in_II) at (or2_aes_valid_in.in 2){};
-\node at (and2_aes_valid_in_II.bin 2) [ocirc, left]{};
-
-%%% Draw the control logc at the output data_in_ready
-\node[and port, anchor=in 2,number inputs=4,xshift=-23cm,rotate=180](and4_ready_in) at (aesModule/in_ready){};
-\node at (and4_ready_in.bin 3) [ocirc, right]{};
-\node at (and4_ready_in.bin 4) [ocirc, right]{};
-
-%%% Draw the register structure for the PRNG ready
-\node [and port,anchor=in 2,xshift=-3cm,yshift=-1.5cm](and2_seed_ready) at (prngMod/busy){};
-\node at (and2_seed_ready.bin 2) [ocirc, left]{} ;
-\DFF{dff_prev_prng_busy}{($(and2_seed_ready.in 2)+(-2,0)$)}{1}{2}
-
-
 %%%%%%% DRAW INTERNAL connexion
-%% prng_ready
-\draw [line width=\sizeW,->] (prngMod/busy) -- ++(-6,0) |- (dff_prev_prng_busy/D);
-\draw [line width=\sizeW,->] (prngMod/busy) -- ++(-4,0) |- (and2_seed_ready.in 1);
-\draw [line width=\sizeW,->] (dff_prev_prng_busy/Q) -- (and2_seed_ready.in 2);
 
 %% KS <-> AES
 \draw [line width=\sizeW, ->] (aesModule/in_last_key_col) -- (keyHolder/out_last_key_col);
@@ -215,88 +214,15 @@ dot/.default = 6pt % size of the circle diameter
 \draw [line width=\sizeW, ->] (keyHolder/sh_data_out) -- (aesModule/in_key);
 \draw [line width=\sizeW, ->] (aesModule/busy) -- ++(-0.7,0) |- (keyHolder/aes_busy);
 
-
-%% AES valid in structure
-\draw [line width=\sizeW, ->] (keyHolder/last_key_required) -- ++(0.7,0) |- ($(and2_aes_valid_in_I.in 1)+(-1.5,1)$) |- (and2_aes_valid_in_II.in 1);
-\draw [fill=black] ($(keyHolder/last_key_required)+(0.7,0)$) circle (\dotRad);
-\draw [line width=\sizeW, ->] (aesModule/busy) -| ($(and2_aes_valid_in_II.in 2)+(-0.5,0)$) -- (and2_aes_valid_in_II.in 2);
-\draw [line width=\sizeW, ->] (keyHolder/busy) -- ++(-0.5,0) |- (and2_aes_valid_in_I.in 1);
-\draw [line width=\sizeW, ->] (and2_aes_valid_in_I.out) |- (or2_aes_valid_in.in 1);
-\draw [line width=\sizeW, ->] (and2_aes_valid_in_II.out) |- (or2_aes_valid_in.in 2);
-\draw [line width=\sizeW, ->] (or2_aes_valid_in.out) |- (and2_aes_valid_in.in 1);
-\draw [line width=\sizeW, ->] (and2_aes_valid_in.out) |- (aesModule/in_valid);
-\draw [line width=\sizeW, <-] (and2_aes_valid_in.in 2) -- ++(-0.5,0) |- (prngMod/out_valid);
-
-%% in ready structure 
-\draw [line width=\sizeW, ->] (keyHolder/last_key_required) -- ++(0.7,0) |- ($(and2_aes_valid_in_I.in 1)+(-1.5,1)$) |- (and4_ready_in.in 3);
-\draw [line width=\sizeW, ->] (keyHolder/busy) -- ++(-0.5,0) |- (and4_ready_in.in 4);
-\draw [line width=\sizeW, ->] (and2_aes_valid_in.in 2) -- ++(-0.5,0) |- (and4_ready_in.in 1);
-\draw [line width=\sizeW, ->] (aesModule/in_ready) -- (and4_ready_in.in 2);
-
-%%% DRAW PORT
-%% Data in
-\node [xshift=-22cm,anchor=east,color=colorIN] (svrs_in_data_valid) at (and2_aes_valid_in_I.in 2) {$\svrsInDataValid$};
-\path let \p1=(svrs_in_data_valid.east),\p2=(and4_ready_in.out) in coordinate (east_svrs_in_data_ready) at (\x1,\y2);
-\node [anchor=east,color=colorIN] (svrs_in_data_ready) at (east_svrs_in_data_ready) {$\svrsInDataReady$};
-\path let \p1=(svrs_in_data_valid.east),\p2=(aesModule/in_data) in coordinate (east_svrs_in_data) at (\x1,\y2);
-\node [anchor=east,color=colorIN] (svrs_in_data) at (east_svrs_in_data) {$\svrsInData$};
-%% KEY
-\path let \p1=(svrs_in_data_valid.east),\p2=(keyHolder/data_in_valid) in coordinate (east_svrs_key_valid) at (\x1,\y2);
-\node [anchor=east,color=colorKEY] (svrs_key_valid) at (east_svrs_key_valid) {$\svrsKeyValid$};
-\path let \p1=(svrs_in_data_valid.east),\p2=(keyHolder/data_in_ready) in coordinate (east_svrs_key_ready) at (\x1,\y2);
-\node [anchor=east,color=colorKEY] (svrs_key_ready) at (east_svrs_key_ready) {$\svrsKeyReady$};
-\path let \p1=(svrs_in_data_valid.east),\p2=(keyHolder/data_in) in coordinate (east_svrs_key_data) at (\x1,\y2);
-\node [anchor=east,color=colorKEY] (svrs_key_data) at (east_svrs_key_data) {$\svrsKey$};
-\path let \p1=(svrs_in_data_valid.east),\p2=(keyHolder/in_key_size_cfg) in coordinate (east_svrs_key_size_cfg) at (\x1,\y2);
-\node [anchor=east,color=colorKEY] (svrs_key_size_cfg) at (east_svrs_key_size_cfg) {$\svrsKeySizeCfg$};
-\path let \p1=(svrs_in_data_valid.east),\p2=(keyHolder/in_mode_inverse) in coordinate (east_svrs_mode_inverse) at (\x1,\y2);
-\node [anchor=east,color=colorKEY] (svrs_mode_inverse) at (east_svrs_mode_inverse) {$\svrsKeyModeInverse$};
-%% REseed
-\path let \p1=(svrs_in_data_valid.east),\p2=(and4_start_reseed.in 4) in coordinate (east_svrs_reseed_in) at (\x1,\y2);
-\node [anchor=east,color=colorSEED] (svrs_seed_valid) at (east_svrs_reseed_in) {$\svrsSeedValid$};
-\path let \p1=(svrs_in_data_valid.east),\p2=(prngMod/in_seed) in coordinate (east_svrs_seed_in) at (\x1,\y2);
-\node [anchor=east,color=colorSEED] (svrs_seed_in) at (east_svrs_seed_in) {$\svrsSeed$};
-\path let \p1=(svrs_in_data_valid.east),\p2=(prngMod/busy) in coordinate (east_svrs_seed_ready) at (\x1,\y2);
-\node [anchor=east,color=colorSEED] (svrs_seed_ready) at (east_svrs_seed_ready) {$\svrsSeedReady$};
 %% Output
 \node[xshift=5cm, anchor=west,color=colorOUT] (svrs_out_data_valid) at (aesModule/out_valid) {$\svrsOutValid$};
 \path let \p1=(svrs_out_data_valid.west),\p2=(aesModule/out_ready) in coordinate (west_svrs_out_data_ready) at (\x1,\y2);
 \node [anchor=west,color=colorOUT] (svrs_out_data_ready) at (west_svrs_out_data_ready) {$\svrsOutReady$};
 \path let \p1=(svrs_out_data_valid.west),\p2=(aesModule/out_data) in coordinate (west_svrs_out_data) at (\x1,\y2);
 \node [anchor=west,color=colorOUT] (svrs_out_data) at (west_svrs_out_data) {$\svrsOutData$};
-
-%%% Draw the encoding node
-%% node for the input
-\path let \p1=(and4_ready_in.in 1), \p2=(svrs_in_data) in coordinate (shares2sh_in_loc) at (\x1, \y2);
-\node [draw,rectangle] (shares2sh_in) at (shares2sh_in_loc) {\texttt{shares2shbus}};
 \node [draw,rectangle,xshift=1cm,anchor=west] (shares2sh_out) at (aesModule/out_data) {\texttt{shbus2shares}};
 
-%% Draw the remaining connexions
-%% Key ports
-% key valid
-\draw [line width=\sizeW, ->, color=colorKEY] (svrs_key_valid.east) -- ++(\portOff+1, 0) |- (and5_start_fetch.in 5);
-\draw [line width=\sizeW, ->, color=colorKEY] (svrs_key_valid.east) -- (keyHolder/data_in_valid);
-% key others
-\draw [line width=\sizeW, ->, color=colorKEY] (keyHolder/data_in_ready) -- (svrs_key_ready.east);
-\draw [line width=\sizeW, ->, color=colorKEY] (svrs_key_data.east) -- (keyHolder/data_in);
-\draw [line width=\sizeW, ->, color=colorKEY] (svrs_key_size_cfg.east) -- (keyHolder/in_key_size_cfg);
-\draw [line width=\sizeW, ->, color=colorKEY] (svrs_mode_inverse) -- (keyHolder/in_mode_inverse);
-% data in
-\draw [line width=\sizeW, ->, color=colorIN] (svrs_in_data_valid) -- (and2_aes_valid_in_I.in 2);
-\draw [line width=\sizeW, ->, color=colorIN] (svrs_in_data_valid.east) -- ++(\portOff+1.5, 0) |- (and5_start_fetch.in 1);
-\draw [line width=\sizeW, ->, color=colorIN] (svrs_in_data_valid.east) -- ++(\portOff+1.5, 0) |- (and4_start_reseed.in 3);
-\draw [fill=colorIN] ($(svrs_in_data_valid.east)+(\portOff+1.5,0)$) circle (\dotRad);
-\draw [line width=\sizeW, ->, color=colorIN] (and4_ready_in.out) -- (svrs_in_data_ready);
-\draw [line width=\sizeW, ->, color=colorIN] (svrs_in_data) -- (shares2sh_in.west);
-\draw [line width=\sizeW, ->, color=colorIN] (shares2sh_in.east) -- (aesModule/in_data);
-% seed
-\draw [line width=\sizeW, ->, color=colorSEED] (svrs_seed_valid.east) -- (and4_start_reseed.in 4);
-\draw [line width=\sizeW, ->, color=colorSEED] (svrs_seed_valid.east) -- ++(\portOff+2, 0) |- (and5_start_fetch.in 2);
-\draw [line width=\sizeW, ->, color=colorSEED] (svrs_seed_in.east) -- (prngMod/in_seed);
-\coordinate (loc_seed_ready_tmp) at ($(and2_seed_ready.out)+(0.5,-2)$);
-\draw [line width=\sizeW, color=colorSEED] (and2_seed_ready.out) -| (loc_seed_ready_tmp);
-\draw [line width=\sizeW, color=colorSEED, <-] (svrs_seed_ready.east) -- ++(\portOff,0) |- (loc_seed_ready_tmp);
-% rndaomness
+% randomness
 \draw [line width=\sizeW, ->] (aesModule/rnd_ready) |- (prngMod/out_ready);
 \draw [line width=\sizeW, ->] (prngMod/out_rnd) -| (aesModule/rnd);
 \coordinate (loc_rnd_to_KU_tmp) at ($(prngMod/TR)+(\portOff,\portOff)$);
@@ -307,21 +233,96 @@ dot/.default = 6pt % size of the circle diameter
 \draw [line width=\sizeW, ->, color=colorOUT] (aesModule/out_ready) |- (svrs_out_data_ready.west);
 \draw [line width=\sizeW, color=colorOUT] (aesModule/out_data) -- (shares2sh_out.west);
 \draw [line width=\sizeW, ->, color=colorOUT] (shares2sh_out.east) -- (svrs_out_data.west);
+
+
+%% AES valid in structure
+%\draw [line width=\sizeW, ->] (keyHolder/last_key_required) -- ++(0.7,0) |- ($(and2_aes_valid_in_I.in 1)+(-1.5,1)$) |- (and2_aes_valid_in_II.in 1);
+%\draw [fill=black] ($(keyHolder/last_key_required)+(0.7,0)$) circle (\dotRad);
+%\draw [line width=\sizeW, ->] (aesModule/busy) -| ($(and2_aes_valid_in_II.in 2)+(-0.5,0)$) -- (and2_aes_valid_in_II.in 2);
+%\draw [line width=\sizeW, ->] (keyHolder/busy) -- ++(-0.5,0) |- (and2_aes_valid_in_I.in 1);
+%\draw [line width=\sizeW, ->] (and2_aes_valid_in_I.out) |- (or2_aes_valid_in.in 1);
+%\draw [line width=\sizeW, ->] (and2_aes_valid_in_II.out) |- (or2_aes_valid_in.in 2);
+%\draw [line width=\sizeW, ->] (or2_aes_valid_in.out) |- (and2_aes_valid_in.in 1);
+%\draw [line width=\sizeW, ->] (and2_aes_valid_in.out) |- (aesModule/in_valid);
+%\draw [line width=\sizeW, <-] (and2_aes_valid_in.in 2) -- ++(-0.5,0) |- (prngMod/out_valid);
+
+%% in ready structure 
+%\draw [line width=\sizeW, ->] (keyHolder/last_key_required) -- ++(0.7,0) |- ($(and2_aes_valid_in_I.in 1)+(-1.5,1)$) |- (and4_ready_in.in 3);
+%\draw [line width=\sizeW, ->] (keyHolder/busy) -- ++(-0.5,0) |- (and4_ready_in.in 4);
+%\draw [line width=\sizeW, ->] (and2_aes_valid_in.in 2) -- ++(-0.5,0) |- (and4_ready_in.in 1);
+%\draw [line width=\sizeW, ->] (aesModule/in_ready) -- (and4_ready_in.in 2);
+
+%%% DRAW PORT
+%% Data in
+%\node [xshift=-22cm,anchor=east,color=colorIN] (svrs_in_data_valid) at (and2_aes_valid_in_I.in 2) {$\svrsInDataValid$};
+%\path let \p1=(svrs_in_data_valid.east),\p2=(and4_ready_in.out) in coordinate (east_svrs_in_data_ready) at (\x1,\y2);
+%\node [anchor=east,color=colorIN] (svrs_in_data_ready) at (east_svrs_in_data_ready) {$\svrsInDataReady$};
+%\path let \p1=(svrs_in_data_valid.east),\p2=(aesModule/in_data) in coordinate (east_svrs_in_data) at (\x1,\y2);
+%\node [anchor=east,color=colorIN] (svrs_in_data) at (east_svrs_in_data) {$\svrsInData$};
+%% KEY
+%\path let \p1=(svrs_in_data_valid.east),\p2=(keyHolder/data_in_valid) in coordinate (east_svrs_key_valid) at (\x1,\y2);
+%\node [anchor=east,color=colorKEY] (svrs_key_valid) at (east_svrs_key_valid) {$\svrsKeyValid$};
+%\path let \p1=(svrs_in_data_valid.east),\p2=(keyHolder/data_in_ready) in coordinate (east_svrs_key_ready) at (\x1,\y2);
+%\node [anchor=east,color=colorKEY] (svrs_key_ready) at (east_svrs_key_ready) {$\svrsKeyReady$};
+%\path let \p1=(svrs_in_data_valid.east),\p2=(keyHolder/data_in) in coordinate (east_svrs_key_data) at (\x1,\y2);
+%\node [anchor=east,color=colorKEY] (svrs_key_data) at (east_svrs_key_data) {$\svrsKey$};
+%\path let \p1=(svrs_in_data_valid.east),\p2=(keyHolder/in_key_size_cfg) in coordinate (east_svrs_key_size_cfg) at (\x1,\y2);
+%\node [anchor=east,color=colorKEY] (svrs_key_size_cfg) at (east_svrs_key_size_cfg) {$\svrsKeySizeCfg$};
+%\path let \p1=(svrs_in_data_valid.east),\p2=(keyHolder/in_mode_inverse) in coordinate (east_svrs_mode_inverse) at (\x1,\y2);
+%\node [anchor=east,color=colorKEY] (svrs_mode_inverse) at (east_svrs_mode_inverse) {$\svrsKeyModeInverse$};
+%% REseed
+%\path let \p1=(svrs_in_data_valid.east),\p2=(and4_start_reseed.in 4) in coordinate (east_svrs_reseed_in) at (\x1,\y2);
+%\node [anchor=east,color=colorSEED] (svrs_seed_valid) at (east_svrs_reseed_in) {$\svrsSeedValid$};
+%\path let \p1=(svrs_in_data_valid.east),\p2=(prngMod/in_seed) in coordinate (east_svrs_seed_in) at (\x1,\y2);
+%\node [anchor=east,color=colorSEED] (svrs_seed_in) at (east_svrs_seed_in) {$\svrsSeed$};
+%\path let \p1=(svrs_in_data_valid.east),\p2=(prngMod/busy) in coordinate (east_svrs_seed_ready) at (\x1,\y2);
+%\node [anchor=east,color=colorSEED] (svrs_seed_ready) at (east_svrs_seed_ready) {$\svrsSeedReady$};
+
+%%% Draw the encoding node
+%% node for the input
+%\path let \p1=(and4_ready_in.in 1), \p2=(svrs_in_data) in coordinate (shares2sh_in_loc) at (\x1, \y2);
+%\node [draw,rectangle] (shares2sh_in) at (shares2sh_in_loc) {\texttt{shares2shbus}};
+
+%% Draw the remaining connexions
+%% Key ports
+% key valid
+%\draw [line width=\sizeW, ->, color=colorKEY] (svrs_key_valid.east) -- ++(\portOff+1, 0) |- (and5_start_fetch.in 5);
+%\draw [line width=\sizeW, ->, color=colorKEY] (svrs_key_valid.east) -- (keyHolder/data_in_valid);
+% key others
+%\draw [line width=\sizeW, ->, color=colorKEY] (keyHolder/data_in_ready) -- (svrs_key_ready.east);
+%\draw [line width=\sizeW, ->, color=colorKEY] (svrs_key_data.east) -- (keyHolder/data_in);
+%\draw [line width=\sizeW, ->, color=colorKEY] (svrs_key_size_cfg.east) -- (keyHolder/in_key_size_cfg);
+%\draw [line width=\sizeW, ->, color=colorKEY] (svrs_mode_inverse) -- (keyHolder/in_mode_inverse);
+% data in
+%\draw [line width=\sizeW, ->, color=colorIN] (svrs_in_data_valid) -- (and2_aes_valid_in_I.in 2);
+%\draw [line width=\sizeW, ->, color=colorIN] (svrs_in_data_valid.east) -- ++(\portOff+1.5, 0) |- (and5_start_fetch.in 1);
+%\draw [line width=\sizeW, ->, color=colorIN] (svrs_in_data_valid.east) -- ++(\portOff+1.5, 0) |- (and4_start_reseed.in 3);
+%\draw [fill=colorIN] ($(svrs_in_data_valid.east)+(\portOff+1.5,0)$) circle (\dotRad);
+%\draw [line width=\sizeW, ->, color=colorIN] (and4_ready_in.out) -- (svrs_in_data_ready);
+%\draw [line width=\sizeW, ->, color=colorIN] (svrs_in_data) -- (shares2sh_in.west);
+%\draw [line width=\sizeW, ->, color=colorIN] (shares2sh_in.east) -- (aesModule/in_data);
+% seed
+%\draw [line width=\sizeW, ->, color=colorSEED] (svrs_seed_valid.east) -- (and4_start_reseed.in 4);
+%\draw [line width=\sizeW, ->, color=colorSEED] (svrs_seed_valid.east) -- ++(\portOff+2, 0) |- (and5_start_fetch.in 2);
+%\draw [line width=\sizeW, ->, color=colorSEED] (svrs_seed_in.east) -- (prngMod/in_seed);
+%\coordinate (loc_seed_ready_tmp) at ($(and2_seed_ready.out)+(0.5,-2)$);
+%\draw [line width=\sizeW, color=colorSEED] (and2_seed_ready.out) -| (loc_seed_ready_tmp);
+%\draw [line width=\sizeW, color=colorSEED, <-] (svrs_seed_ready.east) -- ++(\portOff,0) |- (loc_seed_ready_tmp);
 % KSU busy
-\coordinate (anchor_ksu_busy) at ($(and4_ready_in.in 4)+(3,0)$);
-\draw [line width=\sizeW, ->] (anchor_ksu_busy) |- (and4_start_reseed.in 1);
+%\coordinate (anchor_ksu_busy) at ($(and4_ready_in.in 4)+(3,0)$);
+%\draw [line width=\sizeW, ->] (anchor_ksu_busy) |- (and4_start_reseed.in 1);
 % aes busy
-\path let \p1=(anchor_ksu_busy), \p2=(aesModule/busy) in coordinate (anchor_aes_busy) at ($(\x1,\y2)+(-0.5,0)$);
-\draw [line width=\sizeW] (aesModule/busy) -- (anchor_aes_busy);
-\draw [line width=\sizeW,->] (anchor_aes_busy) |- (and4_start_reseed.in 2);
-\draw [line width=\sizeW,->] (anchor_aes_busy) |- (and5_start_fetch.in 4);
+%\path let \p1=(anchor_ksu_busy), \p2=(aesModule/busy) in coordinate (anchor_aes_busy) at ($(\x1,\y2)+(-0.5,0)$);
+%\draw [line width=\sizeW] (aesModule/busy) -- (anchor_aes_busy);
+%\draw [line width=\sizeW,->] (anchor_aes_busy) |- (and4_start_reseed.in 2);
+%\draw [line width=\sizeW,->] (anchor_aes_busy) |- (and5_start_fetch.in 4);
 % PRNG busy
-\path let \p1=(anchor_aes_busy), \p2=(prngMod/busy) in coordinate (anchor_prng_busy) at ($(\x1,\y2)+(-0.5,0)$);
-\draw [line width=\sizeW,->] (anchor_prng_busy) |- (and5_start_fetch.in 3);
+%\path let \p1=(anchor_aes_busy), \p2=(prngMod/busy) in coordinate (anchor_prng_busy) at ($(\x1,\y2)+(-0.5,0)$);
+%\draw [line width=\sizeW,->] (anchor_prng_busy) |- (and5_start_fetch.in 3);
 
 %% DRAw output of and5
-\draw [line width=\sizeW,->] (and4_start_reseed.out) -- (prngMod/start_reseed);
-\draw [line width=\sizeW,->] (and5_start_fetch.out) -- (keyHolder/start_fetch);
+%\draw [line width=\sizeW,->] (and4_start_reseed.out) -- (prngMod/start_reseed);
+%\draw [line width=\sizeW,->] (and5_start_fetch.out) -- (keyHolder/start_fetch);
 
 
 

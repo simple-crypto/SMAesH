@@ -24,6 +24,7 @@
 \newcommand{\topModAES}{\ensuremath{\texttt{MSKaes\_32bits\_core}}}
 \newcommand{\topModPRNG}{\ensuremath{\texttt{prng\_top}}}
 \newcommand{\topModKHOLD}{\ensuremath{\texttt{MSKkey\_holder}}}
+\newcommand{\topModArbitrer}{\ensuremath{\texttt{smaesh\_arbitrer}}}
 \newcommand{\topModReseedCtrl}{\ensuremath{\texttt{reseed\_controller}}}
 \newcommand{\topModsvrsCtrl}{\ensuremath{\texttt{reseed\_controller}}}
 \newcommand{\SB}{\ensuremath{\texttt{SubBytes}}}
@@ -92,6 +93,16 @@
 \newcommand{\portKHInverse}{\ensuremath{\texttt{aes\_mode\_inverse}}}
 
 
+\newcommand{\portArbKHBusy}{\ensuremath{\texttt{KH\_busy}}}
+\newcommand{\portArbAESBusy}{\ensuremath{\texttt{aes\_busy}}}
+\newcommand{\portArbPrngBusy}{\ensuremath{\texttt{prng\_busy}}}
+\newcommand{\portArbKSUReady}{\ensuremath{\texttt{KSU\_in\_ready}}}
+\newcommand{\portArbAESReady}{\ensuremath{\texttt{aes\_in\_ready}}}
+\newcommand{\portArbPrngSeeded}{\ensuremath{\texttt{prng\_seeded}}}
+\newcommand{\portArbPrngStartReseed}{\ensuremath{\texttt{prng\_start\_reseed}}}
+\newcommand{\portArbKSUStartFetch}{\ensuremath{\texttt{KSU\_start\_fetch\_procedure}}}
+\newcommand{\portArbKSULastKeyReq}{\ensuremath{\texttt{KSU\_last\_key\_computation\_required}}}
+\newcommand{\portArbAESValidIn}{\ensuremath{\texttt{aes\_valid\_in}}}
 
 % AES submodule
 \newcommand{\modAESdpState}{\ensuremath{\texttt{MSKaes\_32bits\_state\_datapath}}}
