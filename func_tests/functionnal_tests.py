@@ -385,14 +385,42 @@ async def basic_fuzzying(dut):
     clkgen = ClockGenerator(dut.clk, ncycles=None) 
 
     # Instanciate the svrs_generator 
-    list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_256_FILES)
-    svrs_generator = SVRStreamsSimpleGenerator(
-            dut,
-            list_cases[:10],
-            0,
-            NSHARES,
-            logger=tl,
-            )  
+    svrs_seed_gen = utils_fuzzing.SVRStreamGeneratorWithRandomDelay(
+            dut.clk,
+            utils_fuzzing.SVRStreamBus(
+                dut.in_seed_valid,
+                dut.in_seed_ready,
+                [dut.in_seed]
+                ),
+            2000,
+            latency_min_bound = 800,
+            #logger = tl,
+            logprefix = "StreamSeed"
+            )
+    svrs_key_gen = utils_fuzzing.SVRStreamGeneratorWithRandomDelay(
+            dut.clk,
+            utils_fuzzing.SVRStreamBus(
+                dut.in_key_valid,
+                dut.in_key_ready,
+                [dut.in_key_data, dut.in_key_size_cfg, dut.in_key_mode_inverse]
+                ),
+            200,
+            latency_min_bound = 50,
+            #logger = tl,
+            logprefix = "StreamKey"
+            )
+    svrs_data_gen = utils_fuzzing.SVRStreamGeneratorWithRandomDelay(
+            dut.clk,
+            utils_fuzzing.SVRStreamBus(
+                dut.in_data_valid,
+                dut.in_data_ready,
+                [dut.in_shares_data]
+                ),
+            10,
+            latency_min_bound = 0,
+            #logger = tl,
+            logprefix = "Streamdata"
+            )
     
     # Create the packetizer
     packetizer = utils_fuzzing.SMAesHPacketizer(
@@ -440,7 +468,9 @@ async def basic_fuzzying(dut):
     await clkgen.stop()
 
     # Start the simulation flow
-    await cocotb.start(svrs_generator.run())
+    await cocotb.start(svrs_seed_gen.run())
+    await cocotb.start(svrs_key_gen.run())
+    await cocotb.start(svrs_data_gen.run())
     await cocotb.start(packetizer.run())
     await cocotb.start(ref_model.run())
     await cocotb.start(verifier.run())
@@ -448,7 +478,9 @@ async def basic_fuzzying(dut):
     await clkgen.start()
 
     # Simulate for several cycle
-    await wait_ncycles(dut.clk,1000)
+    await wait_ncycles(dut.clk,10000)
+
+    tl.info(ref_model.stats)
 
 
 
