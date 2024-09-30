@@ -47,11 +47,17 @@ $(HDL_DONE): $(SBOX_FILE)
 
 hdl: $(HDL_DONE)
 
-FUNC_RESULTS=$(WORKDIR)/functests/results.xml
-$(FUNC_RESULTS): $(VE_INSTALLED) $(HDL_DONE)
-	$(PYTHON_VE); make -C func_tests NSHARES=$(NSHARES) WORK_CASE=$(WORKDIR)/functests RTL_DIR_HDL=$(DIR_HDL) simu
+# Functionnal testing
+FUNC_LOG=$(WORKDIR)/functests/simu.log
+FUNC_SUCCESS=$(WORKDIR)/functests/success
+$(FUNC_LOG): $(VE_INSTALLED) $(HDL_DONE)
+	$(PYTHON_VE); make -C func_tests NSHARES=$(NSHARES) WORK_CASE=$(WORKDIR)/functests RTL_DIR_HDL=$(DIR_HDL) simu | tee $@ 
 
-func-tests: $(FUNC_RESULTS)
+# Mark simulation success (simulation always return a zero exit code).
+%/success: %/simu.log
+	grep -q -s FAIL=0 $< && touch $@ || exit 1
+
+func-tests: $(FUNC_SUCCESS)
 
 
 clean:
