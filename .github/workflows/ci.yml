@@ -44,3 +44,18 @@ jobs:
             release/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+  functest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: List files in the repository
+        run: |
+          ls ${{ github.workspace }}
+      - name: Install Iverilog
+        uses: supplypike/setup-bin@v4
+        with:
+          uri: 'https://github.com/stnolting/icarus-verilog-prebuilt/releases/download/v1.0.0/iverilog-27082022.tar.gz'
+      - run: iverilog
+            
