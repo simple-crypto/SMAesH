@@ -319,6 +319,8 @@ integer id_in;
 integer rnd_time_before_valid_in;
 integer k, dr;
 integer cnt_lock;
+integer loop_generation, loop_reading;
+integer NENC = 5;
 initial begin
     `ifdef DUMPFILE
         // Open dumping file
@@ -389,44 +391,47 @@ initial begin
         #Td;
 
         // ######### FIRST, run the encryption #########
-        for(k=0;k<KWORDS;k=k+1) begin
-            dut_in_key_data = ref_umsk_key[k*32 +: 32];
-            dut_in_key_mode_inverse = 0;
-            dut_in_key_valid = 1;
-            while(dut_in_key_ready!==1) begin
-                #T;
-            end
-            #T;
-        end
-        for(dr=0;dr<d-1;dr=dr+1) begin
+        for (loop_generation = 0; loop_generation<NENC; loop_generation=loop_generation+1) begin
             for(k=0;k<KWORDS;k=k+1) begin
-                dut_in_key_data = 32'b0;
+                dut_in_key_data = ref_umsk_key[k*32 +: 32];
+                dut_in_key_mode_inverse = 0;
                 dut_in_key_valid = 1;
                 while(dut_in_key_ready!==1) begin
                     #T;
                 end
                 #T;
             end
-        end
-        dut_in_key_valid = 0;
+            for(dr=0;dr<d-1;dr=dr+1) begin
+                for(k=0;k<KWORDS;k=k+1) begin
+                    dut_in_key_data = 32'b0;
+                    dut_in_key_valid = 1;
+                    while(dut_in_key_ready!==1) begin
+                        #T;
+                    end
+                    #T;
+                end
+            end
+            dut_in_key_valid = 0;
 
-        // Generate random timing before asserting valid
-        if (CONTINUOUS===1) begin
-            rnd_time_before_valid_in = 0;
-        end else begin
-            rnd_time_before_valid_in = {$random} % RND_RANGE_LAT_IN;
-        end
-        for(i=0;i<rnd_time_before_valid_in;i=i+1) begin
+            // Generate random timing before asserting valid
+            if (CONTINUOUS===1) begin
+                rnd_time_before_valid_in = 0;
+            end else begin
+                rnd_time_before_valid_in = {$random} % RND_RANGE_LAT_IN;
+            end
+            for(i=0;i<rnd_time_before_valid_in;i=i+1) begin
+                #T;
+            end
+            // Assert valid in with the plaintext
+            dut_in_shares_data_share0 = ref_umsk_plaintext;
+            dut_in_data_valid = 1;
+            while(dut_in_data_ready!==1) begin
+                #T;
+            end
+            #T;
+            dut_in_data_valid = 0;
             #T;
         end
-        // Assert valid in with the plaintext
-        dut_in_shares_data_share0 = ref_umsk_plaintext;
-        dut_in_data_valid = 1;
-        while(dut_in_data_ready!==1) begin
-            #T;
-        end
-        #T;
-        dut_in_data_valid = 0;
 
 
         // #### DELAY before starting the decryption ####
@@ -536,18 +541,20 @@ initial begin
         // read case output
         read_next_out_words(id_tv_out,read_umsk_ciphertext,read_last_out);
         // (1. ENCRYPTION) Wait for next fetch at the output 
-        while((dut_out_valid!==1) | (dut_out_ready!==1)) begin
+        for (loop_reading=0;loop_reading<NENC;loop_reading=loop_reading+1) begin
+            while((dut_out_valid!==1) | (dut_out_ready!==1)) begin
+                #T;
+            end
+            // Verification
+            if(ref_umsk_ciphertext!==rec_dut_ciphertext[127:0]) begin
+                $display("FAILURE for case %d",id_out);
+                $display("Ciphertext computed:\n%x\n",rec_dut_ciphertext[127:0]);
+                $display("Expected ciphertext:\n%x\n",read_umsk_ciphertext);
+                $finish;
+            end
+            $display(" [ENCRYPT] %d/%d done!",cnt_out+1,RUN_AM);
             #T;
         end
-        // Verification
-        if(ref_umsk_ciphertext!==rec_dut_ciphertext[127:0]) begin
-            $display("FAILURE for case %d",id_out);
-            $display("Ciphertext computed:\n%x\n",rec_dut_ciphertext[127:0]);
-            $display("Expected ciphertext:\n%x\n",read_umsk_ciphertext);
-            $finish;
-        end
-        $display(" [ENCRYPT] %d/%d done!",cnt_out+1,RUN_AM);
-        #T;
 
         // (1. DECRYPTION) Wait for next fetch at the output 
         while((dut_out_valid!==1) | (dut_out_ready!==1)) begin

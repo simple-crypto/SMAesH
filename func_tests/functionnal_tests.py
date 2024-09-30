@@ -207,47 +207,37 @@ async def AES_BC_DEC_TEMPLATE(dut, list_cases, timeout_cycles, nshares):
         rec_output_int = utils_smaesh.Sharing.from_int(out_shares_data,16, nshares).recombine2int()
         assert rec_output_int == c.plaintext.int, "Execution failure for case {}".format(c)
 
-### Test for the AES-128 encryption KAT
-#@cocotb.test()
-#async def AES_128_ENC_KAT(dut):
-#    # Load the test cases
-#    list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_128_FILES)
-#    await AES_BC_ENC_TEMPLATE(dut, list_cases, 50000, NSHARES)
-#
-## Test for the AES-128 execution
-#@cocotb.test()
-#async def AES_128_DEC_KAT(dut):
-#    # Load the test cases
-#    list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_128_FILES)
-#    await AES_BC_DEC_TEMPLATE(dut, list_cases, 150000, NSHARES)
-#
-## Test for the AES-92 encryption KAT
-#@cocotb.test()
-#async def AES_192_ENC_KAT(dut):
-#    # Load the test cases
-#    list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_192_FILES)
-#    await AES_BC_ENC_TEMPLATE(dut, list_cases, 100000, NSHARES)
-#
-## Test for the AES-128 execution
-#@cocotb.test()
-#async def AES_192_DEC_KAT(dut):
-#    # Load the test cases
-#    list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_192_FILES)
-#    await AES_BC_DEC_TEMPLATE(dut, list_cases, 300000, NSHARES)
-#
-## Test for the AES-92 encryption KAT
-#@cocotb.test()
-#async def AES_256_ENC_KAT(dut):
-#    # Load the test cases
-#    list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_256_FILES)
-#    await AES_BC_ENC_TEMPLATE(dut, list_cases, 100000, NSHARES)
-#
-## Test for the AES-128 execution
-#@cocotb.test()
-#async def AES_256_DEC_KAT(dut):
-#    # Load the test cases
-#    list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_256_FILES)
-#    await AES_BC_DEC_TEMPLATE(dut, list_cases, 300000, NSHARES)
+
+async def KSU_features_TEMPLATE(dut, case, inverse:bool, repeat, nshares):
+    # Start the clock
+    await cocotb.start(generate_clock(dut,ncycles=repeat*1000))  # run the clock "in the background"
+    # Reset the core
+    await reset_dut(dut)
+    # Wait some delay 
+    await wait_ncycles(dut.clk, 5)
+    # Reseed
+    await svrs_seed_transaction(dut, 0xdeadbeefdeadbeef)
+    # Key configuration
+    await svrs_key_procedure(dut, case.key.bytes, int(inverse), nshares)
+    for i in range(repeat):
+        if inverse:
+            din =  utils_smaesh.Sharing.from_int_umsk(case.ciphertext.int, 16, nshares).to_int() 
+            dout =  utils_smaesh.Sharing.from_int_umsk(case.plaintext.int, 16, nshares).to_int() 
+        else:
+            din =  utils_smaesh.Sharing.from_int_umsk(case.plaintext.int, 16, nshares).to_int() 
+            dout =  utils_smaesh.Sharing.from_int_umsk(case.ciphertext.int, 16, nshares).to_int()
+        # Start execution with din 
+        key_before = dut.KSU_sh_key_out.value
+        await svrs_input_data_transaction(
+                dut, 
+                din,
+                )
+        # Wait for output
+        out_shares_data = await svrs_output_data_transaction(dut)
+        key_after = dut.KSU_sh_key_out.value
+        rec_output_int = utils_smaesh.Sharing.from_int(out_shares_data,16, nshares).recombine2int()
+        assert rec_output_int == dout, "Execution failure for case {}".format(i)
+        assert key_before != key_after, "The key seems to not have been refreshed."
 
 # Monitor signals on the posedge of the provided clock
 class SyncMonitor:
@@ -375,6 +365,73 @@ class SVRStreamsSimpleGenerator:
                     utils_smaesh.Sharing.from_int_umsk(datain, 16, self.nshares).to_int(),
                     )
 
+############################################################
+#### TESTS #################################################
+
+## Simple tests for KATs verif first
+### Test for the AES-128 encryption KAT
+#@cocotb.test()
+#async def AES_128_ENC_KAT(dut):
+#    # Load the test cases
+#    list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_128_FILES)
+#    await AES_BC_ENC_TEMPLATE(dut, list_cases, 50000, NSHARES)
+#
+## Test for the AES-128 execution
+#@cocotb.test()
+#async def AES_128_DEC_KAT(dut):
+#    # Load the test cases
+#    list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_128_FILES)
+#    await AES_BC_DEC_TEMPLATE(dut, list_cases, 150000, NSHARES)
+#
+## Test for the AES-92 encryption KAT
+#@cocotb.test()
+#async def AES_192_ENC_KAT(dut):
+#    # Load the test cases
+#    list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_192_FILES)
+#    await AES_BC_ENC_TEMPLATE(dut, list_cases, 100000, NSHARES)
+#
+## Test for the AES-128 execution
+#@cocotb.test()
+#async def AES_192_DEC_KAT(dut):
+#    # Load the test cases
+#    list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_192_FILES)
+#    await AES_BC_DEC_TEMPLATE(dut, list_cases, 300000, NSHARES)
+#
+## Test for the AES-92 encryption KAT
+#@cocotb.test()
+#async def AES_256_ENC_KAT(dut):
+#    # Load the test cases
+#    list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_256_FILES)
+#    await AES_BC_ENC_TEMPLATE(dut, list_cases, 100000, NSHARES)
+#
+## Test for the AES-128 execution
+#@cocotb.test()
+#async def AES_256_DEC_KAT(dut):
+#    # Load the test cases
+#    list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_256_FILES)
+#    await AES_BC_DEC_TEMPLATE(dut, list_cases, 300000, NSHARES)
+
+########## Test to validate basic functionality of the KSU
+
+@cocotb.test()
+async def KSU_features_AES128(dut):
+    list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_128_FILES)
+    await KSU_features_TEMPLATE(dut, list_cases[0], False, 3, NSHARES)
+    await KSU_features_TEMPLATE(dut, list_cases[0], True, 3, NSHARES)
+
+@cocotb.test()
+async def KSU_features_AES192(dut):
+    list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_192_FILES)
+    await KSU_features_TEMPLATE(dut, list_cases[0], False, 3, NSHARES)
+    await KSU_features_TEMPLATE(dut, list_cases[0], True, 3, NSHARES)
+
+@cocotb.test()
+async def KSU_features_AES256(dut):
+    list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_256_FILES)
+    await KSU_features_TEMPLATE(dut, list_cases[0], False, 3, NSHARES)
+    await KSU_features_TEMPLATE(dut, list_cases[0], True, 3, NSHARES)
+
+########### More advanced test, relying on basic fuzzing 
 @cocotb.test()
 async def basic_fuzzying(dut):
     # Logger for this test
@@ -478,7 +535,7 @@ async def basic_fuzzying(dut):
     await clkgen.start()
 
     # Simulate for several cycle
-    await wait_ncycles(dut.clk,10000)
+    await wait_ncycles(dut.clk,20000)
 
     tl.info(ref_model.stats)
 
