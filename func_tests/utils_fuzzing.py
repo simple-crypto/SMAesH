@@ -105,6 +105,7 @@ class SVRStreamBus:
         self.valid = valid_sig
         self.ready = ready_sig
         self.data_list = data_list
+        self.valid.value = 0
 
     # Generate fresh (random) value on the different data signals of the Bus
     def sample_random_data(self):
@@ -116,10 +117,16 @@ class SVRStreamBus:
         self.sample_random_data()
         self.valid.value = random.randint(0,1)
 
+    def set_valid(self):
+        self.valid.value = 1
+
+    def reset_valid(self):
+        self.valid.value = 0
+
     # Enforce a new fresh (random) data with valid asserted 
     def enforce_fresh_valid(self):
         self.sample_random_data()
-        self.valid.value = 1
+        self.set_valid()
 
     # When sample, return tje status of an ongoing trnasaction.
     @property 
@@ -131,129 +138,75 @@ class DeadlockException(Exception):
     def __init__(self):
         super().__init__("A deadlock occured in the simulation")
 
-
-# Object used to generate a randomized streams following the SVRS protocol.
-# The instance takes parallel SVRStream instances and control them in parallel in
-# a randomized way, but following the protocol (i.e., the sticky behavior of the valid
-# signal is ensured).
-#
-# The signal generation follows the following rules:
-# - the original state of the busses are drawn randomly. 
-# - the state of a bus is redrawn randomly each time a transaction occurs
-# - the state of each bus not asserting validity are redrawn randomly if 
-#   a single transaction occurs on a stream
-#
-# Additionnal feature:
-# - to avoid continuous deadlock that may occurs if initialization phase is not 
-#   performed properlly due to the randomized behaviour, a wake up signal can be configured 
-#   once the states of every busses did not change during a configurable amount of cycles. 
-#   This has the effect of enforcing validity on the oldest invalid bus. 
-class SVRStreamsGenerator:
-    def __init__(self, 
-            clk_sig: cocotb.handle.ModifiableObject, 
-            streams: list[SVRStreamBus],
-            wake_up = None,
-            logger = None
+class SVRStreamGeneratorWithRandomDelay:
+    def __init__(
+            self,
+            clk: cocotb.handle.ModifiableObject,
+            stream: SVRStreamBus,
+            latency_max_bound: int,
+            latency_min_bound = 0,
+            logger= None,
+            logprefix = "GeneratorDelay"
             ):
+        self.clk = clk
+        self.stream = stream
+        self.latency_min_bound = latency_min_bound
+        self.latency_max_bound = latency_max_bound
         self.logger = logger
-        self.clk = clk_sig
-        self.streams = streams
-        self.wake_up = wake_up
-
-        #### Internal data 
-        # To keep track of transactions on busses. Init to True to enforce update
-        self.transaction_done = len(self.streams)*[True]
-        # To keep track of dead cycles
-        self.dead_cycles = 0
-        self.cycles_since_update = len(self.streams)*[0]
-
-        #### Init the busses states with 0 
-        self._init_busses()
+        self.logprefix = logprefix
+        # Counter for the amount of cycles to wait
+        self.transaction_done = False
+        self.cnt_cycles = 0
+        self.current_latency = 0
+        self._update_latency()
 
     def _log(self, m):
         if self.logger is not None:
             self.logger.info(m)
 
-    # Init the busses with a validity signal to 0
-    def _init_busses(self):
-        for s in self.streams:
-            s.valid.value = 0
+    def _update_latency(self):
+        self.current_latency = random.randint(
+                self.latency_min_bound,
+                self.latency_max_bound
+                )
+        self._log("[{}]: latency update with value {}".format(
+            self.logprefix,self.current_latency))
 
-    def _sample_random_bus(self, bi):
-        self.streams[bi].sample_random()
-        self.cycles_since_update[bi] = 0
-        self.dead_cycles = 0
+    def _update_validity(self):
+        if (self.cnt_cycles >= self.current_latency) and (self.stream.valid.value == 0):
+            self._log("[{}]: {} cycles remaining ...".format(
+            self.logprefix, self.current_latency - self.cnt_cycles))
+            # Set the validity
+            self.stream.set_valid()
+            self._log("[{}]: Wait is over! Enforce stream validity.".format(self.logprefix))
 
-    def _enforce_valid_bus(self, bi):
-        self.streams[bi].enforce_fresh_valid()
-        self.cycles_since_update[bi] = 0
+    def _update_stream(self):
+        if (self.stream.valid.value == 0):
+            self.stream.sample_random_data()
+        self._update_validity()
 
-    # Solve values for busses on which a transaction occured
-    def _update_with_transactions(self):
-        cntupd = 0
-        for bi, tstatus in enumerate(self.transaction_done):
-            # Update the data
-            if tstatus:
-                self._log("[Generator.PTRANS]: post transaction on bus {}".format(bi))
-                self.transaction_done[bi] = False
-                self._sample_random_bus(bi)
-                cntupd += 1
-        return cntupd
+    def _update_transaction_done(self):
+        if (self.stream.valid.value == 1) and (self.stream.ready.value == 1):
+            self.transaction_done = True
+            self._log("[{}]: A transaction happens!".format(self.logprefix))
 
-    # Used to resolve the busses that are not valid
-    def _resolve_invalid_busses_idx(self):
-        # First resolve the inde that are non-valid
-        idx_valid = []
-        for si, s in enumerate(self.streams):
-            if s.valid.value == 0:
-                idx_valid.append(si)
-        return idx_valid
+    def _resolve_transaction_done(self):
+        if self.transaction_done:
+            # Redraw a random delay
+            self._update_latency()
+            # Reset counter
+            self.cnt_cycles = 0
+            self.stream.reset_valid()
+            self.transaction_done = False
 
-    # Used to resample busses that are not valid
-    def _update_invalid_busses(self):
-        for bidx in self._resolve_invalid_busses_idx():
-            self.streams[bidx].sample_random()
-
-    # Used to find the index of the oldest invalid busses in case of
-    # deadlock resolution (wake up)
-    def _resolve_oldest_invalid_busses(self):
-        nonvalid_idx = self._resolve_invalid_busses_idx()
-        if len(nonvalid_idx) == 0:
-            raise DeadlockException()
-        else:
-            list_age = [self.cycles_since_update[e] for e in nonvalid_idx]
-            return nonvalid_idx[list_age.index(max(list_age))]
-
-    # Solve values for busses if wake up is required
-    def _update_with_wakeup(self):
-        if self.wake_up is not None:
-            if self.dead_cycles > self.wake_up:
-                # Search for index to enforce
-                idx2upd = self._resolve_oldest_invalid_busses()
-                self._enforce_valid_bus(idx2upd)
-                self.dead_cycles = 0
-                self._log("[Generator.WAKE_UP]: enforce validity on stream {}".format(idx2upd))
-
-    def _resolve_transactions_done(self):
-        for bi, bus in enumerate(self.streams):
-            self.transaction_done[bi] = bus.in_transaction
-
-    # Run the generation, sync on the clk signal
     async def run(self):
         while True:
-            # Wait the following RisingEdge
             await RisingEdge(self.clk)
-            # First update, based on transactions
-            upd = self._update_with_transactions()
-            if upd > 0:
-                self._update_invalid_busses()
-            # Second update, based on wake up
-            self._update_with_wakeup()
+            self._resolve_transaction_done()
+            self._update_stream()
             await FallingEdge(self.clk)
-            self._resolve_transactions_done()
-            # Update dead cycle
-            self.dead_cycles += 1
-            
+            self._update_transaction_done()
+            self.cnt_cycles += 1
 
 class FunctionnalException(Exception):
     def __init__(self, message):
@@ -335,6 +288,36 @@ class SMAesHPacketizer:
                 self._log("[Packet.remaining]: {} packet(s) left.".format(len(self.packets)))
                 self.msg_ready.set()
 
+
+class SMAesHStats:
+    def __init__(self):
+        self.seed_cfg = 0
+        self.key_cfg = 0
+        self.data_cfg = 0
+
+    def inc_seed(self):
+        self.seed_cfg += 1
+
+    def inc_key(self):
+        self.key_cfg += 1
+
+    def inc_data(self):
+        self.data_cfg += 1
+
+    def get_stats(self):
+        return dict(
+                seed = self.seed_cfg,
+                key = self.key_cfg,
+                data = self.data_cfg
+                )
+
+    def __str__(self):
+        return "-- STATS --\n seeds:{}\nkey:{}\ndata:{}\n".format(
+                self.seed_cfg,
+                self.key_cfg,
+                self.data_cfg
+                )
+
 # PacketProcessor
 # Take serial message rom Packetizer and simulate the 
 # expected behaviour of the SMAesH IP.  
@@ -345,6 +328,7 @@ class SMAesHPacketProcessor:
         self.output_fifo = SimpleFIFO()
         self.logger = logger
         self.event_new_message = None
+        self.stats = SMAesHStats()
         # Init internal state
         self._init_state()         
 
@@ -370,8 +354,7 @@ class SMAesHPacketProcessor:
             self.logger.info(m)
 
     def _proc_seed(self, m):
-        # Nothing to do yet
-        return 
+        self.stats.inc_seed()
 
     def _proc_key(self, m):
         # If 
@@ -388,6 +371,8 @@ class SMAesHPacketProcessor:
             # Configuration not considered here
             self.key_shares += m.data.datas["data"].data
             self._log("[Processor.proc_key]: {} words remaining".format(self._key_bytes_remaining()//4))
+            if self._key_configured():
+                self.stats.inc_key()
 
     def _execute(self, din:bytes):
         # First, unmask data to process 
@@ -396,6 +381,7 @@ class SMAesHPacketProcessor:
         umsk_key = sharing_key.recombine2bytes()
         umsk_din = sharing_din.recombine2bytes()
         # Processus
+        self.stats.inc_data()
         self._log("[Processor.exec]: kcfg={} inverse={}".format(self.key_size, self.inverse))   
         self._log("key: {}".format(umsk_key.hex()))
         self._log("din: {}".format(umsk_din.hex()))
