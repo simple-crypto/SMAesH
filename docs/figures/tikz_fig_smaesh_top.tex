@@ -126,7 +126,7 @@ dot/.default = 6pt % size of the circle diameter
 % #2: pos TR
 \newcommand{\blocKU}[2]{
     %% Draw the rectangle
-    \rectangleC[line width = 0.6mm]{box}{#2}{($ #2 + (-11,-12)$)}{11}{11}{1}{5};
+    \rectangleC[line width = 0.6mm]{box}{#2}{($ #2 + (-11,-18)$)}{17}{17}{1}{5};
     \draw node[rectangle,draw,line width=0.6mm,anchor=north west] at (box/TL) {\fontS \topModKHOLD};
     %% Draw the IO ports
     % Draw E
@@ -142,12 +142,12 @@ dot/.default = 6pt % size of the circle diameter
     % Draw S
     \portS{#1/rnd_rfrsh}{box/S1}{\fontS \portKHRndIn}
     % Draw W
-    \portW{#1/start_fetch}{box/W2}{\fontS \portKHStartFetch}
-    \portW{#1/data_in_valid}{box/W3}{\fontS \portKHDataInValid}
-    \portW{#1/data_in_ready}{box/W4}{\fontS \portKHDataInReady}
-    \portW{#1/data_in}{box/W5}{\fontS \portKHDataIn}
-    \portW{#1/in_key_size_cfg}{box/W6}{\fontS \portKHSizeCfg}
-    \portW{#1/in_mode_inverse}{box/W7}{\fontS \portKHInInverse}
+    \portW{#1/data_in}{box/W2}{\fontS \portKHDataIn}
+    \portW{#1/in_key_size_cfg}{box/W3}{\fontS \portKHSizeCfg}
+    \portW{#1/in_mode_inverse}{box/W4}{\fontS \portKHInInverse}
+    \portW{#1/start_fetch}{box/W5}{\fontS \portKHStartFetch}
+    \portW{#1/data_in_valid}{box/W6}{\fontS \portKHDataInValid}
+    \portW{#1/data_in_ready}{box/W7}{\fontS \portKHDataInReady}
     \portW{#1/busy}{box/W11}{\fontS \portKHBusy}
 }
 
@@ -163,17 +163,18 @@ dot/.default = 6pt % size of the circle diameter
     % Draw W
     \portW{#1/in_key_valid}{box/W2}{\fontS \svrsKeyValid}
     \portW{#1/in_key_ready}{box/W3}{\fontS \svrsKeyReady}
-    \portW{#1/in_data_valid}{box/W5}{\fontS \svrsInValid}
-    \portW{#1/in_data_ready}{box/W6}{\fontS \svrsInReady}
-    \portW{#1/in_seed_valid}{box/W8}{\fontS \svrsSeedValid}
-    \portW{#1/in_seed_ready}{box/W9}{\fontS \svrsSeedReady}
+    \portW{#1/in_data_valid}{box/W6}{\fontS \svrsInValid}
+    \portW{#1/in_data_ready}{box/W7}{\fontS \svrsInReady}
+    \portW{#1/in_seed_valid}{box/W9}{\fontS \svrsSeedValid}
+    \portW{#1/in_seed_ready}{box/W10}{\fontS \svrsSeedReady}
     % Draw E
-    \portE{#1/KSU_busy}{box/E2}{\fontS \portArbKHBusy}
+    \portE{#1/KSU_start_fetch}{box/E2}{\fontS \portArbKSUStartFetch}
     \portE{#1/KSU_in_ready}{box/E3}{\fontS \portArbKSUReady}
-    \portE{#1/KSU_start_fetch}{box/E4}{\fontS \portArbKSUStartFetch}
+    \portE{#1/KSU_busy}{box/E4}{\fontS \portArbKHBusy}
     \portE{#1/KSU_lkey_req}{box/E5}{\fontS \portArbKSULastKeyReq}
-    \portE{#1/aes_in_ready}{box/E7}{\fontS \portArbAESReady}
-    \portE{#1/aes_valid_in}{box/E8}{\fontS \portArbAESValidIn}
+    \portE{#1/KSU_valid_in}{box/E6}{\fontS \portArbKSUValidIn}
+    \portE{#1/aes_valid_in}{box/E7}{\fontS \portArbAESValidIn}
+    \portE{#1/aes_in_ready}{box/E8}{\fontS \portArbAESReady}
     \portE{#1/aes_busy}{box/E9}{\fontS \portArbAESBusy}
     \portE{#1/prng_busy}{box/E11}{\fontS \portArbPrngBusy}
     \portE{#1/prng_seeded}{box/E12}{\fontS \portArbPrngSeeded}
@@ -189,7 +190,7 @@ dot/.default = 6pt % size of the circle diameter
 \blocPRNG{prngMod}{(-18,-21)}
 
 %%% Draw arbitrer
-\blocArbitrer{arbitrer}{(-30,-10)}
+\blocArbitrer{arbitrer}{(-30,-5)}
 
 %%% Draw Kholder
 \blocKU{keyHolder}{(-15,0)}

@@ -25,7 +25,8 @@ module smaesh_arbitrer
     output prng_start_reseed,
     output KSU_start_fetch_procedure,
     input KSU_last_key_computation_required,
-    output aes_valid_in
+    output aes_valid_in,
+    output KSU_valid_in
 );
 
 //// Lock wire
@@ -60,6 +61,7 @@ assign in_key_ready = KSU_in_ready & ~lock_key_stream;
 // (1) under key configuration, if last round key must be computed and prng is seeded
 // (2) otherwise, if the key stream is not locked and valid is asserted
 assign aes_valid_in = KSU_busy ? (prng_seeded & KSU_last_key_computation_required) : in_data_valid & ~lock_data_stream;
+assign KSU_valid_in = in_key_valid;
 assign in_data_ready = aes_in_ready & ~lock_data_stream;
 
 

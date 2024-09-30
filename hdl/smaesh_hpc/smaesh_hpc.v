@@ -112,13 +112,14 @@ wire KSU_aes_mode_256;
 wire KSU_aes_mode_192;
 wire KSU_aes_mode_inverse;
 wire KSU_in_ready;
+wire KSU_valid_in;
 
 MSKkey_holder #(.d(d))
 key_storage_unit(
     .clk(clk),
     .rst(rst),
     .data_in(in_key_data),
-    .data_in_valid(in_key_valid),
+    .data_in_valid(KSU_valid_in),
     .data_in_ready(KSU_in_ready),
     .sh_last_key_col(KSU_sh_last_key_col),
     .sh_last_key_col_pre_valid(KSU_last_key_pre_valid),
@@ -218,7 +219,8 @@ smaesh_arbitrer arbitrer(
     .prng_start_reseed(prng_start_reseed),
     .KSU_start_fetch_procedure(KSU_start_fetch_procedure),
     .KSU_last_key_computation_required(KSU_last_key_computation_required),
-    .aes_valid_in(aes_valid_in)
+    .aes_valid_in(aes_valid_in),
+    .KSU_valid_in(KSU_valid_in)
 );
 
 // Output signal: just forward
