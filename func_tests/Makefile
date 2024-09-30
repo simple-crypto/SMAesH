@@ -8,7 +8,7 @@ RTL_DIR_HDL?=$(WORK_CASE)/smaesh_hdl_d$(NSHARES)
 
 ####### Verilator related
 VERILATOR_MDIR=$(WORK_CASE)/verilator
-VERILATOR_BUILD_PROC?=8
+VERILATOR_BUILD_PROC?=1
 
 ####### COCOTB related
 # defaults
@@ -19,21 +19,20 @@ export TOPLEVEL_LANG ?= verilog
 export SIM_BUILD ?= $(WORK_CASE)
 # Sources related
 export VERILOG_INCLUDE_DIRS?= $(RTL_DIR_HDL)
-export VERILOG_SOURCES ?= $(shell ls $(RTL_DIR_HDL)/*.v)
+export VERILOG_SOURCES ?= $(RTL_DIR_HDL)/*.v
 # TOPLEVEL is the name of the toplevel module in your Verilog or VHDL file
 export TOPLEVEL ?= smaesh_hpc
 # MODULE is the basename of the Python test file
 export MODULE ?= functionnal_tests
 # Logging level
 export COCOTB_LOG_LEVEL ?= INFO
+# Results
+export COCOTB_RESULTS_FILE = $(WORK_CASE)/result.xml
 
 # include cocotb's make rules to take care of the simulator setup
 COCOTB_DIR_MAKEFILES=$(shell cocotb-config --makefiles)
 
-$(RTL_DIR_HDL):
-	NSHARES=$(NSHARES) DIR_HDL=$(RTL_DIR_HDL) make -C ../hdl all
-
-simu: $(RTL_DIR_HDL)
+simu:
 	make -f $(COCOTB_DIR_MAKEFILES)/Makefile.sim
 
 clean:
