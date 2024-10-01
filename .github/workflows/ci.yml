@@ -65,6 +65,7 @@ jobs:
       - run: sudo apt-get install -y yosys verilator iverilog
       - run: mkdir verif-tools
       - run: wget https://github.com/cassiersg/matchi/releases/download/v0.1.0/matchi -P ./verif-tools
+      - run: chmod +x ${{ github.workspace }}/verif-tools/matchi
       - run: (cd verif-tools && wget https://github.com/cassiersg/matchi/archive/refs/tags/v0.1.0.tar.gz -qO- | tar zxf -)
       - run: make formal-tests MATCHI_CELLS=${{ github.workspace }}/verif-tools/matchi-0.1.0/matchi_cells MATCHI_BIN=${{ github.workspace }}/verif-tools/matchi
 

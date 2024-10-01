@@ -66,7 +66,6 @@ async def simple_execution(dut):
     din = utils_smaesh.Sharing.from_int_umsk(
                 int.from_bytes(bytes_din,byteorder='little'), 16, NSHARES
                 ).to_int()
-    myl.info("DEBGU: {}".format(hex(din)))
     # Start the execution
     await svrs_input_data_transaction(dut, din)
     # Wait for the end
