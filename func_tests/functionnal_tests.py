@@ -368,48 +368,48 @@ class SVRStreamsSimpleGenerator:
 ############################################################
 #### TESTS #################################################
 
-## Simple tests for KATs verif first
-### Test for the AES-128 encryption KAT
-#@cocotb.test()
-#async def AES_128_ENC_KAT(dut):
-#    # Load the test cases
-#    list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_128_FILES)
-#    await AES_BC_ENC_TEMPLATE(dut, list_cases, 50000, NSHARES)
-#
-## Test for the AES-128 execution
-#@cocotb.test()
-#async def AES_128_DEC_KAT(dut):
-#    # Load the test cases
-#    list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_128_FILES)
-#    await AES_BC_DEC_TEMPLATE(dut, list_cases, 150000, NSHARES)
-#
-## Test for the AES-92 encryption KAT
-#@cocotb.test()
-#async def AES_192_ENC_KAT(dut):
-#    # Load the test cases
-#    list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_192_FILES)
-#    await AES_BC_ENC_TEMPLATE(dut, list_cases, 100000, NSHARES)
-#
-## Test for the AES-128 execution
-#@cocotb.test()
-#async def AES_192_DEC_KAT(dut):
-#    # Load the test cases
-#    list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_192_FILES)
-#    await AES_BC_DEC_TEMPLATE(dut, list_cases, 300000, NSHARES)
-#
-## Test for the AES-92 encryption KAT
-#@cocotb.test()
-#async def AES_256_ENC_KAT(dut):
-#    # Load the test cases
-#    list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_256_FILES)
-#    await AES_BC_ENC_TEMPLATE(dut, list_cases, 100000, NSHARES)
-#
-## Test for the AES-128 execution
-#@cocotb.test()
-#async def AES_256_DEC_KAT(dut):
-#    # Load the test cases
-#    list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_256_FILES)
-#    await AES_BC_DEC_TEMPLATE(dut, list_cases, 300000, NSHARES)
+# Simple tests for KATs verif first
+## Test for the AES-128 encryption KAT
+@cocotb.test()
+async def AES_128_ENC_KAT(dut):
+    # Load the test cases
+    list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_128_FILES)
+    await AES_BC_ENC_TEMPLATE(dut, list_cases, 50000, NSHARES)
+
+# Test for the AES-128 execution
+@cocotb.test()
+async def AES_128_DEC_KAT(dut):
+    # Load the test cases
+    list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_128_FILES)
+    await AES_BC_DEC_TEMPLATE(dut, list_cases, 150000, NSHARES)
+
+# Test for the AES-92 encryption KAT
+@cocotb.test()
+async def AES_192_ENC_KAT(dut):
+    # Load the test cases
+    list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_192_FILES)
+    await AES_BC_ENC_TEMPLATE(dut, list_cases, 100000, NSHARES)
+
+# Test for the AES-128 execution
+@cocotb.test()
+async def AES_192_DEC_KAT(dut):
+    # Load the test cases
+    list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_192_FILES)
+    await AES_BC_DEC_TEMPLATE(dut, list_cases, 300000, NSHARES)
+
+# Test for the AES-92 encryption KAT
+@cocotb.test()
+async def AES_256_ENC_KAT(dut):
+    # Load the test cases
+    list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_256_FILES)
+    await AES_BC_ENC_TEMPLATE(dut, list_cases, 100000, NSHARES)
+
+# Test for the AES-128 execution
+@cocotb.test()
+async def AES_256_DEC_KAT(dut):
+    # Load the test cases
+    list_cases = utils_KAT.load_AES_BC_KAT_files(utils_KAT.KAT_AES_BC_256_FILES)
+    await AES_BC_DEC_TEMPLATE(dut, list_cases, 300000, NSHARES)
 
 ########## Test to validate basic functionality of the KSU
 

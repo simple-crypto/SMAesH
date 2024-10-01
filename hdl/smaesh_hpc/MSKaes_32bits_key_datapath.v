@@ -42,7 +42,7 @@ module MSKaes_32bits_key_datapath
     sh_4bytes_rot_to_SB,
     sh_4bytes_from_SB,
     sh_4bytes_to_AK,
-    sh_3bytes_to_AK_inverse,
+    sh_3bytes_to_AK_inverse
 );
 
 input clk;

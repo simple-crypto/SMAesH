@@ -51,7 +51,8 @@ hdl: $(HDL_DONE)
 FUNC_LOG=$(WORKDIR)/functests/simu.log
 FUNC_SUCCESS=$(WORKDIR)/functests/success
 $(FUNC_LOG): $(VE_INSTALLED) $(HDL_DONE)
-	$(PYTHON_VE); make -C func_tests NSHARES=$(NSHARES) WORK_CASE=$(WORKDIR)/functests RTL_DIR_HDL=$(DIR_HDL) simu | tee $@ 
+	mkdir $(dir $(FUNC_LOG))
+	$(PYTHON_VE); make -C func_tests NSHARES=$(NSHARES) WORK_CASE=$(WORKDIR)/functests RTL_DIR_HDL=$(DIR_HDL) simu | tee $@
 
 # Mark simulation success (simulation always return a zero exit code).
 %/success: %/simu.log
