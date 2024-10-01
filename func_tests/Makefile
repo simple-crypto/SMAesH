@@ -12,8 +12,8 @@ VERILATOR_BUILD_PROC?=1
 
 ####### COCOTB related
 # defaults
-export SIM ?= icarus
-#export EXTRA_ARGS ?= -Wno-NULLPORT -Wno-PINMISSING -Wno-WIDTH -j $(VERILATOR_BUILD_PROC)
+export SIM ?= verilator
+export EXTRA_ARGS ?= -Wno-NULLPORT -Wno-PINMISSING -Wno-WIDTH -j $(VERILATOR_BUILD_PROC) #--trace --trace-structs
 export TOPLEVEL_LANG ?= verilog
 # Scratch directory
 export SIM_BUILD ?= $(WORK_CASE)

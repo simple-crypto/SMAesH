@@ -387,7 +387,6 @@ always@(*) begin
         end
         IN_REFRESH: begin
             in_refresh = 1;
-            ll_enable_from_ksched = 1; 
             if(rnd_rfrsh_in_valid) begin
                 inc_count_words = 1;
                 ll_enable_mask = 1; 
@@ -408,7 +407,7 @@ always@(*) begin
 
     // LL data holder
     ll_fetch_in = 0; // Mux taking data from input instead of refresh shift
-    ll_enable_from_ksched = 0; // data at the input comes from the key scheduling
+    ll_enable_from_ksched = in_fetch_last_key | in_refresh; // data at the input comes from the key scheduling
     enforce_data_in_zero = 0;
 
     // Logic for branch_compute_last
@@ -418,7 +417,6 @@ always@(*) begin
         branch_compute_last = IDLE;
     end
 
-    ll_enable_from_ksched = in_fetch_last_key;
     data_in_from_buffer = in_fetch_from_buffer; 
     fetch_key_lcol_high = word_idx[0];
     if (in_padding) begin
