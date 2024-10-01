@@ -73,9 +73,13 @@ $(FUNC_LOG): $(VE_INSTALLED) $(HDL_DONE)
 func-tests: $(FUNC_SUCCESS)
 
 ## Formal composition verification using matchi (SCA security)
+KEY_SIZE = 128 192 256
 DIR_FORMAL_VERIF=$(WORKDIR)/formal-verif
 formal-tests: $(DIR_HDL)
-	$(PYTHON_VE); make -C ./formal_verif NSHARES=$(NSHARES) MATCHI_CELLS=$(MATCHI_CELLS) MATCHI_BIN=$(MATCHI_BIN) WORKDIR=$(DIR_FORMAL_VERIF) HDL_DIR=$(DIR_HDL) matchi-run
+	# Verify encryption
+	$(foreach ksize,$(KEY_SIZE),$(PYTHON_VE); make -C ./formal_verif NSHARES=$(NSHARES) KEY_SIZE=$(ksize) INVERSE=0 MATCHI_CELLS=$(MATCHI_CELLS) MATCHI_BIN=$(MATCHI_BIN) WORKDIR=$(DIR_FORMAL_VERIF) HDL_DIR=$(DIR_HDL) matchi-run || exit 1;)
+	# Verify decryption
+	$(foreach ksize,$(KEY_SIZE),$(PYTHON_VE); make -C ./formal_verif NSHARES=$(NSHARES) KEY_SIZE=$(ksize) INVERSE=1 MATCHI_CELLS=$(MATCHI_CELLS) MATCHI_BIN=$(MATCHI_BIN) WORKDIR=$(DIR_FORMAL_VERIF) HDL_DIR=$(DIR_HDL) matchi-run || exit 1;)
 
 
 clean:

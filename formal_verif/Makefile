@@ -14,21 +14,23 @@ MATCHI_BIN?=$(DIR_MATCHI_ROOT)/matchi/target/release/matchi
 
 WORK?=work
 WORKDIR?=$(dir $(WORK))$(WORK)
-WORK_CASE=$(WORKDIR)/d$(NSHARES)-$(KEY_SIZE)-$(INVERSE)
+
+WORK_SYNTH=$(WORKDIR)/d$(NSHARES)-synth
+WORK_CASE=$(WORKDIR)/d$(NSHARES)-KSIZE$(KEY_SIZE)-INVERSE$(INVERSE)
 
 HDL_DIR?=./hdl # Expected to fail as is, passed from top level
 
 ####### Synthesis
 ### Synthesis related
-SYNTH_LOG_FILE=$(WORK_CASE)/synth.log
+SYNTH_LOG_FILE=$(WORK_SYNTH)/synth.log
 SYNTH_MAIN_MODULE=MSKaes_32bits_core
-SYNTH_NETLIST_JSON=$(WORK_CASE)/$(SYNTH_MAIN_MODULE)_synth.json
+SYNTH_NETLIST_JSON=$(WORK_SYNTH)/$(SYNTH_MAIN_MODULE)_synth.json
 YOSYS?=yosys
 SYNTH_SCRIPT=./synth.tcl
-SYNTH_NETLIST_VERILOG=$(WORK_CASE)/$(SYNTH_MAIN_MODULE)_synth.v
+SYNTH_NETLIST_VERILOG=$(WORK_SYNTH)/$(SYNTH_MAIN_MODULE)_synth.v
 $(SYNTH_NETLIST_JSON): 
 	mkdir -p $(dir $(SYNTH_LOG_FILE))
-	OUT_DIR=$(WORK_CASE) MAIN_MODULE=$(SYNTH_MAIN_MODULE) IMPLEM_DIR=$(HDL_DIR) NSHARES=$(NSHARES) MATCHI_CELLS=$(MATCHI_CELLS) $(YOSYS) -c $(SYNTH_SCRIPT) > $(SYNTH_LOG_FILE) || exit 1 
+	OUT_DIR=$(WORK_SYNTH) MAIN_MODULE=$(SYNTH_MAIN_MODULE) IMPLEM_DIR=$(HDL_DIR) NSHARES=$(NSHARES) MATCHI_CELLS=$(MATCHI_CELLS) $(YOSYS) -c $(SYNTH_SCRIPT) > $(SYNTH_LOG_FILE) || exit 1 
 
 synth: $(SYNTH_NETLIST_JSON)
 
@@ -45,7 +47,7 @@ export SIM ?= verilator
 export EXTRA_ARGS ?= -Wno-NULLPORT -Wno-PINMISSING -Wno-WIDTH -j $(VERILATOR_BUILD_PROC) --trace --trace-structs -DCORE_SYNTHESIZED=1
 export TOPLEVEL_LANG ?= verilog
 # Scratch directory
-export SIM_BUILD ?= $(WORK_CASE)
+export SIM_BUILD ?= $(WORK_SYNTH)
 # Sources related
 export VERILOG_INCLUDE_DIRS?= $(HDL_DIR)
 export VERILOG_SOURCES ?= $(HDL_DIR)/smaesh_hpc.v $(SYNTH_NETLIST_VERILOG) 
@@ -72,6 +74,7 @@ GEN_BEH_SIMU_VCD=dump.vcd
 BEH_SIMU_VCD=$(WORK_CASE)/beh_simu.vcd
 
 $(BEH_SIMU_LOG): $(SYNTH_NETLIST_JSON)
+	mkdir -p $(WORK_CASE)
 	make -f $(COCOTB_DIR_MAKEFILES)/Makefile.sim | tee $@
 
 $(BEH_SIMU_VCD): $(BEH_SIMU_LOG)
@@ -95,4 +98,5 @@ matchi-run: $(MATCHI_SUCCESS)
 
 clean:
 	@if [ -d $(WORK_CASE) ]; then rm -r $(WORK_CASE); fi
+	@if [ -d $(WORK_SYNTH) ]; then rm -r $(WORK_SYNTH); fi
 
