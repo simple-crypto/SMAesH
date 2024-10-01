@@ -9,6 +9,15 @@ VE=$(abspath $(WORKDIR)/ve)
 VE_INSTALLED=$(VE)/installed
 PYTHON_VE=source $(VE)/bin/activate
 
+### Matchi configuration
+# Path to the clone repo of matchi verification tool
+DIR_MATCHI_ROOT?=$(dir ~/tools/)matchi
+# Prefix to the file matchi_cells.v and matchi_cells.lib
+MATCHI_CELLS?=$(DIR_MATCHI_ROOT)/matchi_cells
+# Path to the mathci bin
+MATCHI_BIN?=$(DIR_MATCHI_ROOT)/matchi/target/release/matchi
+
+### HDL configuration
 # Directory created containing all the HDL files
 DIR_HDL?=$(WORKDIR)/hdl
 HDL_DONE = $(DIR_HDL)/.gather
@@ -25,6 +34,7 @@ DIR_SMAESH_HDL=hdl/smaesh_hpc
 
 .PHONY: sbox hdl
 
+## Python venv setting
 $(VE)/pyvenv.cfg:
 	mkdir -p $(WORKDIR)
 	python3 -m venv $(VE)
@@ -33,11 +43,13 @@ $(VE_INSTALLED): $(VE)/pyvenv.cfg
 	${PYTHON_VE}; python -m pip install -r func_tests/requirements.txt
 	touch $(VE_INSTALLED)
 
+## Sbox generation with compress
 $(SBOX_FILE):
 	make -C sboxes-compress WORK=$(COMPRESS_WORKDIR) DS=$(NSHARES) 
 
 sbox: $(SBOX_FILE)
 
+## HDL directory building
 $(HDL_DONE): $(SBOX_FILE) 
 	OUT_DIR=${DIR_HDL} ./gather_sources.sh $(DIR_SMAESH_HDL) $(DIR_COMPRESS_GADGETS)/BIN $(DIR_COMPRESS_GADGETS)/MSK
 	cp $(SBOX_FILE) $(DIR_HDL)/canright_aes_sbox_dual.v
@@ -47,7 +59,7 @@ $(HDL_DONE): $(SBOX_FILE)
 
 hdl: $(HDL_DONE)
 
-# Functionnal testing
+## Functionnal testing
 FUNC_LOG=$(WORKDIR)/functests/simu.log
 FUNC_SUCCESS=$(WORKDIR)/functests/success
 $(FUNC_LOG): $(VE_INSTALLED) $(HDL_DONE)
@@ -60,6 +72,11 @@ $(FUNC_LOG): $(VE_INSTALLED) $(HDL_DONE)
 
 func-tests: $(FUNC_SUCCESS)
 
+## Formal composition verification using matchi (SCA security)
+DIR_FORMAL_VERIF=$(WORKDIR)/formal-verif
+formal-tests: $(DIR_HDL)
+	$(PYTHON_VE); make -C ./formal_verif NSHARES=$(NSHARES) MATCHI_CELLS=$(MATCHI_CELLS) MATCHI_BIN=$(MATCHI_BIN) WORKDIR=$(DIR_FORMAL_VERIF) HDL_DIR=$(DIR_HDL) matchi-run
+
 
 clean:
-	if [ -d $(DIR_HDL) ]; then rm -r $(DIR_HDL); fi
+	if [ -d $(WORKDIR) ]; then rm -r $(WORKDIR); fi

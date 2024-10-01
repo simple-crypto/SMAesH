@@ -1,10 +1,10 @@
 set IMPLEM_DIR $::env(IMPLEM_DIR)
 set MAIN_MODULE $::env(MAIN_MODULE)
 set OUT_DIR $::env(OUT_DIR)
+set MATCHI_CELLS $::env(MATCHI_CELLS) 
 
 set MAIN_PATH $IMPLEM_DIR/$MAIN_MODULE.v
-set MATCHI_DIR $::env(DIR_MATCHI_ROOT)
-set LIB $MATCHI_DIR/matchi_cells
+set LIB $MATCHI_CELLS
 set LIB_V $LIB.v
 set LIB $LIB.lib
 
