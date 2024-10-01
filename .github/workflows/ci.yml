@@ -46,13 +46,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
   functest:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
         with:
           submodules: true
-      - run: sudo apt-get install -y iverilog yosys 
+      - run: sudo apt-get install -y yosys verilator iverilog
       - run: make func-tests 
 
 
