@@ -72,7 +72,7 @@ module MSKaes_32bits_core
     rnd_bus0_valid_for_rfrsh
 );
 
-`include "design.vh"
+`include "canright_aes_sbox_dual.vh"
 
 // IOs Ports
 (* matchi_type="control" *)
