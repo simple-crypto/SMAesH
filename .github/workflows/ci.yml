@@ -100,7 +100,7 @@ jobs:
       - run: wget https://github.com/cassiersg/matchi/releases/download/v0.1.0/matchi -P ./verif-tools
       - run: chmod +x ${{ github.workspace }}/verif-tools/matchi
       - run: (cd verif-tools; curl -L https://github.com/cassiersg/matchi/archive/refs/tags/v0.1.0.tar.gz | tar xz)
-      - run: (curl -L https://github.com/simple-crypto/hw-devtools/releases/download/v241002-3/hw-devtools.tar.gz | tar xz; sudo apt install ./hw-devtools/*.deb)
+      - run: (curl -L https://github.com/simple-crypto/hw-devtools/releases/download/v241002-4/hw-devtools.tar.gz | tar xz; sudo apt install ./hw-devtools/*.deb)
       - run: make formal-tests MATCHI_CELLS=${{ github.workspace }}/verif-tools/matchi-0.1.0/matchi_cells MATCHI_BIN=${{ github.workspace }}/verif-tools/matchi
 
   release:
