@@ -11,7 +11,10 @@ PYTHON_VE=source $(VE)/bin/activate
 
 ### Matchi configuration
 # Path to the clone repo of matchi verification tool
-DIR_MATCHI_ROOT?=$(dir ~/tools/)matchi
+ifndef DIR_MATCHI_ROOT
+$(error DIR_MATCHI_ROOT is not set)
+endif
+
 # Prefix to the file matchi_cells.v and matchi_cells.lib
 MATCHI_CELLS?=$(DIR_MATCHI_ROOT)/matchi_cells
 # Path to the mathci bin
