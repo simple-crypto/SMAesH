@@ -44,13 +44,13 @@ VERILATOR_BUILD_PROC?=1
 
 # defaults
 export SIM ?= verilator
-export EXTRA_ARGS ?= -Wno-NULLPORT -Wno-PINMISSING -Wno-WIDTH -j $(VERILATOR_BUILD_PROC) --trace --trace-structs -DCORE_SYNTHESIZED=1
+export EXTRA_ARGS ?= -Wno-NULLPORT -Wno-PINMISSING -Wno-WIDTH -j $(VERILATOR_BUILD_PROC) --trace --trace-depth 3 --trace-structs -DCORE_SYNTHESIZED=1 -y $(HDL_DIR)
 export TOPLEVEL_LANG ?= verilog
 # Scratch directory
 export SIM_BUILD ?= $(WORK_SYNTH)
 # Sources related
 export VERILOG_INCLUDE_DIRS?= $(HDL_DIR)
-export VERILOG_SOURCES ?= $(HDL_DIR)/smaesh_hpc.v $(SYNTH_NETLIST_VERILOG) 
+export VERILOG_SOURCES ?= $(SYNTH_NETLIST_VERILOG) $(HDL_DIR)/smaesh_hpc.v 
 # TOPLEVEL is the name of the toplevel module in your Verilog or VHDL file
 export TOPLEVEL ?= smaesh_hpc
 # MODULE is the basename of the Python test file
