@@ -60,7 +60,7 @@ jobs:
         with:
           key: "sbox-compress-v1-d${{ matrix.nshares }}-${{ hashFiles('sboxes-compress/canright_aes_sbox_dual.v') }}-${{ steps.compress-version.outputs.cv }}"
           path: work/d${{ matrix.nshares }}/sbox
-      - run: make sbox
+      - run: make sbox DIR_MATCHI_ROOT=.
       - name: Upload COMPRESS sbox
         uses: actions/upload-artifact@v4
         with:
@@ -86,7 +86,7 @@ jobs:
           name: sbox_${{ matrix.nshares }}
           path: work/d${{ matrix.nshares }}/sbox
       - run: sudo apt-get install -y yosys verilator iverilog
-      - run: make func-tests
+      - run: make func-tests DIR_MATCHI_ROOT=.
 
   formal_verif_matchi:
     runs-on: ubuntu-24.04
@@ -101,7 +101,7 @@ jobs:
       - run: chmod +x ${{ github.workspace }}/verif-tools/matchi
       - run: (cd verif-tools; curl -L https://github.com/cassiersg/matchi/archive/refs/tags/v0.1.0.tar.gz | tar xz)
       - run: (curl -L https://github.com/simple-crypto/hw-devtools/releases/download/v241002-5/hw-devtools.tar.gz | tar xz; sudo apt install ./hw-devtools/*.deb)
-      - run: make formal-tests MATCHI_CELLS=${{ github.workspace }}/verif-tools/matchi-0.1.0/matchi_cells MATCHI_BIN=${{ github.workspace }}/verif-tools/matchi
+      - run: make formal-tests DIR_MATCHI_ROOT=. MATCHI_CELLS=${{ github.workspace }}/verif-tools/matchi-0.1.0/matchi_cells MATCHI_BIN=${{ github.workspace }}/verif-tools/matchi
 
   release:
     needs: [build_latex, functest]

@@ -6,7 +6,6 @@ KEY_SIZE?=128
 INVERSE?=0
 
 # Path to the clone repo of matchi verification tool
-DIR_MATCHI_ROOT?=$(dir ~/tools/)matchi
 # Prefix to the file matchi_cells.v and matchi_cells.lib
 MATCHI_CELLS?=$(dir $(DIR_MATCHI_ROOT))matchi_cells
 # Path to the mathci bin
