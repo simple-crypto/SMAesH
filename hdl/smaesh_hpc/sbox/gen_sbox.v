@@ -33,7 +33,7 @@ module gen_sbox
 );
 
 
-`include "design.vh"
+`include "canright_aes_sbox_dual.vh"
 
 // Inputs ports
 input clk;

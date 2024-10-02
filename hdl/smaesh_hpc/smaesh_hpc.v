@@ -68,7 +68,7 @@ output [128*d-1:0] out_shares_data;
 output out_valid;
 input out_ready;
 
-`include "design.vh" 
+`include "canright_aes_sbox_dual.vh" 
 
 /* =========== Aes core =========== */
 wire aes_busy;

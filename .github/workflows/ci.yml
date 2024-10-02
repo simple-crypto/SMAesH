@@ -15,23 +15,85 @@ jobs:
     steps:
       - name: Set up Git repository
         uses: actions/checkout@v4
+      - name: Cache documentation build
+        uses: actions/cache@v4
+        with:
+          key: "doc-pdf-v1-${{ hashFiles('docs/**') }}"
+          restore-keys: "doc-pdf-v1"
+          path: docs/build
+      - name: Touch source to ensure at least 1 build
+        run: touch docs/SMAesH.tex
       - name: Compile LaTeX document
         uses: xu-cheng/latex-action@v3
         with:
           working_directory: docs
           root_file: SMAesH.tex
+          args: -auxdir=build -pdf -file-line-error -halt-on-error -interaction=nonstopmode
       - name: Upload PDF file
         uses: actions/upload-artifact@v4
         with:
           name: docs
-          path: docs/SMAesH.pdf
+          path: docs/build/SMAesH.pdf
+
+  sbox:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: true
+      matrix:
+        nshares: [2]
+    env:
+      NSHARES: "${{ matrix.nshares }}"
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Get COMPRESS version
+        id: compress-version
+        run: |
+          echo "cv=$(git -C sboxes-compress/compress show-ref HEAD | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - run: sudo apt-get install -y yosys
+      - name: Cache COMPRESS Sbox
+        uses: actions/cache@v4
+        with:
+          key: "sbox-compress-v1-d${{ matrix.nshares }}-${{ hashFiles('sboxes-compress/canright_aes_sbox_dual.v') }}-${{ steps.compress-version.outputs.cv }}"
+          path: work/d${{ matrix.nshares }}/sbox
+      - run: make sbox
+      - name: Upload COMPRESS sbox
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbox_${{ matrix.nshares }}
+          path: work/d${{ matrix.nshares }}/sbox/*
+
+  functest:
+    needs: [sbox]
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: true
+      matrix:
+        nshares: [2]
+    env:
+      NSHARES: "${{ matrix.nshares }}"
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: sbox_${{ matrix.nshares }}
+          path: work/d${{ matrix.nshares }}/sbox
+      - run: sudo apt-get install -y yosys verilator iverilog
+      - run: make func-tests
 
   release:
-    needs: [build_latex]
+    needs: [build_latex, functest]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: docs
           path: release
@@ -44,17 +106,3 @@ jobs:
             release/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    
-  functest:
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Check out repository code
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-      - run: sudo apt-get install -y yosys verilator iverilog
-      - run: make func-tests 
-
-
-
-            

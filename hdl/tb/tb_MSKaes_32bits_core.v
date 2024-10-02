@@ -33,7 +33,7 @@ localparam wait_delay = 100*T;
 localparam init_delay=Td/2.0;
 
 `include "utils.vh"
-`include "design.vh"
+`include "canright_aes_sbox_dual.vh"
 
 localparam Td = T/2.0;
 
