@@ -95,11 +95,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: true
-      - run: sudo apt-get install -y yosys iverilog
-      - run: mkdir verif-tools
-      - run: wget https://github.com/cassiersg/matchi/releases/download/v0.1.0/matchi -P ./verif-tools
+      - run: sudo apt-get install -y yosys iverilog python3.12-venv
+      - run: mkdir ${{ github.workspace }}/verif-tools
+      - run: wget https://github.com/cassiersg/matchi/releases/download/v0.1.0/matchi -P ${{ github.workspace }}/verif-tools
       - run: chmod +x ${{ github.workspace }}/verif-tools/matchi
-      - run: (cd verif-tools; curl -L https://github.com/cassiersg/matchi/archive/refs/tags/v0.1.0.tar.gz | tar xz)
+      - run: (cd ${{ github.workspace }}/verif-tools; curl -L https://github.com/cassiersg/matchi/archive/refs/tags/v0.1.0.tar.gz | tar xz)
       - run: (curl -L https://github.com/simple-crypto/hw-devtools/releases/download/v241002-5/hw-devtools.tar.gz | tar xz; sudo apt install ./hw-devtools/*.deb)
       - run: mkdir work
       - run: verilator --version > work/verilator_version
