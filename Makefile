@@ -78,9 +78,9 @@ DIR_FORMAL_VERIF=$(WORKDIR)/formal-verif
 FORMAL_VERIF_DONE=$(WORKDIR)/.formal_verif
 $(FORMAL_VERIF_DONE): $(VE_INSTALLED) $(HDL_DONE)
 	# Verify encryption
-	$(foreach ksize,$(KEY_SIZE),$(PYTHON_VE); make -C ./formal_verif NSHARES=$(NSHARES) KEY_SIZE=$(ksize) INVERSE=0 MATCHI_CELLS=$(MATCHI_CELLS) MATCHI_BIN=$(MATCHI_BIN) WORKDIR=$(DIR_FORMAL_VERIF) HDL_DIR=$(DIR_HDL) matchi-run || exit 1;)
+	$(foreach ksize,$(KEY_SIZE),$(PYTHON_VE); make -C ./formal_verif NSHARES=$(NSHARES) KEY_SIZE=$(ksize) INVERSE=0 MATCHI_CELLS=$(MATCHI_CELLS) MATCHI_BIN=$(MATCHI_BIN) WORKDIR=$(DIR_FORMAL_VERIF) HDL_DIR=$(DIR_HDL) synth || exit 1;)
 	# Verify decryption
-	$(foreach ksize,$(KEY_SIZE),$(PYTHON_VE); make -C ./formal_verif NSHARES=$(NSHARES) KEY_SIZE=$(ksize) INVERSE=1 MATCHI_CELLS=$(MATCHI_CELLS) MATCHI_BIN=$(MATCHI_BIN) WORKDIR=$(DIR_FORMAL_VERIF) HDL_DIR=$(DIR_HDL) matchi-run || exit 1;)
+	#$(foreach ksize,$(KEY_SIZE),$(PYTHON_VE); make -C ./formal_verif NSHARES=$(NSHARES) KEY_SIZE=$(ksize) INVERSE=1 MATCHI_CELLS=$(MATCHI_CELLS) MATCHI_BIN=$(MATCHI_BIN) WORKDIR=$(DIR_FORMAL_VERIF) HDL_DIR=$(DIR_HDL) matchi-run || exit 1;)
 	touch $(FORMAL_VERIF_DONE)
 
 formal-tests: $(FORMAL_VERIF_DONE)

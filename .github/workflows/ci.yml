@@ -101,12 +101,15 @@ jobs:
       - run: chmod +x ${{ github.workspace }}/verif-tools/matchi
       - run: (cd verif-tools; curl -L https://github.com/cassiersg/matchi/archive/refs/tags/v0.1.0.tar.gz | tar xz)
       - run: (curl -L https://github.com/simple-crypto/hw-devtools/releases/download/v241002-5/hw-devtools.tar.gz | tar xz; sudo apt install ./hw-devtools/*.deb)
+      - run: mkdir work
+      - run: verilator --version > work/verilator_version
+      - run: yosys --version > work/yosys_version
+      - run: make formal-tests DIR_MATCHI_ROOT=. MATCHI_CELLS=${{ github.workspace }}/verif-tools/matchi-0.1.0/matchi_cells MATCHI_BIN=${{ github.workspace }}/verif-tools/matchi
       - name: Upload working directory
         uses: actions/upload-artifact@v4
         with:
           name: formal_verif_workdir
           path: work/
-      - run: make formal-tests DIR_MATCHI_ROOT=. MATCHI_CELLS=${{ github.workspace }}/verif-tools/matchi-0.1.0/matchi_cells MATCHI_BIN=${{ github.workspace }}/verif-tools/matchi
 
   release:
     needs: [build_latex, functest]
