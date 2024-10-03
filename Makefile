@@ -75,15 +75,31 @@ func-tests: $(FUNC_SUCCESS)
 ## Formal composition verification using matchi (SCA security)
 KEY_SIZE = 128 192 256
 DIR_FORMAL_VERIF=$(WORKDIR)/formal-verif
-FORMAL_VERIF_DONE=$(WORKDIR)/.formal_verif
+FORMAL_VERIF_DONE=$(DIR_FORMAL_VERIF)/.formal_verif
 $(FORMAL_VERIF_DONE): $(VE_INSTALLED) $(HDL_DONE)
 	# Verify encryption
-	$(foreach ksize,$(KEY_SIZE),$(PYTHON_VE); make -C ./formal_verif NSHARES=$(NSHARES) KEY_SIZE=$(ksize) INVERSE=0 MATCHI_CELLS=$(MATCHI_CELLS) MATCHI_BIN=$(MATCHI_BIN) WORKDIR=$(DIR_FORMAL_VERIF) HDL_DIR=$(DIR_HDL) synth || exit 1;)
+	$(foreach ksize,$(KEY_SIZE),$(PYTHON_VE); make -C ./formal_verif NSHARES=$(NSHARES) KEY_SIZE=$(ksize) INVERSE=0 MATCHI_CELLS=$(MATCHI_CELLS) MATCHI_BIN=$(MATCHI_BIN) WORKDIR=$(DIR_FORMAL_VERIF) HDL_DIR=$(DIR_HDL) matchi-run || exit 1;)
 	# Verify decryption
-	#$(foreach ksize,$(KEY_SIZE),$(PYTHON_VE); make -C ./formal_verif NSHARES=$(NSHARES) KEY_SIZE=$(ksize) INVERSE=1 MATCHI_CELLS=$(MATCHI_CELLS) MATCHI_BIN=$(MATCHI_BIN) WORKDIR=$(DIR_FORMAL_VERIF) HDL_DIR=$(DIR_HDL) matchi-run || exit 1;)
+	$(foreach ksize,$(KEY_SIZE),$(PYTHON_VE); make -C ./formal_verif NSHARES=$(NSHARES) KEY_SIZE=$(ksize) INVERSE=1 MATCHI_CELLS=$(MATCHI_CELLS) MATCHI_BIN=$(MATCHI_BIN) WORKDIR=$(DIR_FORMAL_VERIF) HDL_DIR=$(DIR_HDL) matchi-run || exit 1;)
 	touch $(FORMAL_VERIF_DONE)
 
-formal-tests: $(FORMAL_VERIF_DONE)
+###### DEBUG
+FORMAL1_DONE=$(DIR_FORMAL_VERIF)/.formal1
+$(FORMAL1_DONE): $(VE_INSTALLED) $(HDL_DONE)
+	mkdir $(DIR_FORMAL_VERIF)
+	$(PYTHON_VE); make -C ./formal_verif NSHARES=$(NSHARES) KEY_SIZE=128 INVERSE=0 MATCHI_CELLS=$(MATCHI_CELLS) MATCHI_BIN=$(MATCHI_BIN) WORKDIR=$(DIR_FORMAL_VERIF) HDL_DIR=$(DIR_HDL) synth && touch $(FORMAL1_DONE) || exit 1;
+
+FORMAL2_DONE=$(DIR_FORMAL_VERIF)/.formal2
+$(FORMAL2_DONE): $(FORMAL1_DONE)
+	$(PYTHON_VE); make -C ./formal_verif NSHARES=$(NSHARES) KEY_SIZE=128 INVERSE=0 MATCHI_CELLS=$(MATCHI_CELLS) MATCHI_BIN=$(MATCHI_BIN) WORKDIR=$(DIR_FORMAL_VERIF) HDL_DIR=$(DIR_HDL) matchi-run && touch $(FORMAL2_DONE) || exit 1;
+######
+
+formal1: $(FORMAL1_DONE)
+
+formal2: $(FORMAL2_DONE)
+
+formal-tests: $(FORMAL1_DONE) $(FORMAL2_DONE)
+
 
 clean:
 	if [ -d $(WORKDIR) ]; then rm -r $(WORKDIR); fi
