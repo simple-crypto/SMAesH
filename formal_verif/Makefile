@@ -84,6 +84,7 @@ simu: $(BEH_SIMU_VCD)
 ### MATCHI RUN
 MATCHI_VCD=$(WORK_CASE)/matchi.vcd
 MATCHI_SUCCESS=$(WORK_CASE)/.matchi_success
+MATCHI_LOG=$(WORK_CASE)/matchi_log
 
 $(MATCHI_SUCCESS): $(BEH_SIMU_VCD)
 	$(MATCHI_BIN) \
@@ -91,7 +92,7 @@ $(MATCHI_SUCCESS): $(BEH_SIMU_VCD)
 	    --vcd $(BEH_SIMU_VCD) \
 	    --dut top.smaesh_hpc.aes_core \
 	    --gname $(SYNTH_MAIN_MODULE) \
-	    --output-vcd $(MATCHI_VCD) && touch $(MATCHI_SUCCESS) || exit 1
+	    --output-vcd $(MATCHI_VCD) > $(MATCHI_LOG) 2> $(MATCHI_LOG).error && touch $(MATCHI_SUCCESS) || exit 1
 
 matchi-run: $(MATCHI_SUCCESS)
 
