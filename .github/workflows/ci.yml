@@ -104,13 +104,7 @@ jobs:
       - run: mkdir work
       - run: verilator --version > work/verilator_version
       - run: yosys --version > work/yosys_version
-      - run: make formal1 DIR_MATCHI_ROOT=. MATCHI_CELLS=${{ github.workspace }}/verif-tools/matchi-0.1.0/matchi_cells MATCHI_BIN=${{ github.workspace }}/verif-tools/matchi
-      - name: Upload working directory
-        uses: actions/upload-artifact@v4
-        with:
-          name: formal_verif_workdir
-          path: work/
-      - run: make formal2 DIR_MATCHI_ROOT=. MATCHI_CELLS=${{ github.workspace }}/verif-tools/matchi-0.1.0/matchi_cells MATCHI_BIN=${{ github.workspace }}/verif-tools/matchi
+      - run: make formal-tests DIR_MATCHI_ROOT=. MATCHI_CELLS=${{ github.workspace }}/verif-tools/matchi-0.1.0/matchi_cells MATCHI_BIN=${{ github.workspace }}/verif-tools/matchi
 
   release:
     needs: [build_latex, functest]

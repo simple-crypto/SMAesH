@@ -9,17 +9,6 @@ VE=$(abspath $(WORKDIR)/ve)
 VE_INSTALLED=$(VE)/installed
 PYTHON_VE=source $(VE)/bin/activate
 
-### Matchi configuration
-# Path to the clone repo of matchi verification tool
-ifndef DIR_MATCHI_ROOT
-$(error DIR_MATCHI_ROOT is not set)
-endif
-
-# Prefix to the file matchi_cells.v and matchi_cells.lib
-MATCHI_CELLS?=$(DIR_MATCHI_ROOT)/matchi_cells
-# Path to the mathci bin
-MATCHI_BIN?=$(DIR_MATCHI_ROOT)/matchi/target/release/matchi
-
 ### HDL configuration
 # Directory created containing all the HDL files
 DIR_HDL?=$(WORKDIR)/hdl
@@ -75,8 +64,19 @@ func-tests: $(FUNC_SUCCESS)
 ## Formal composition verification using matchi (SCA security)
 KEY_SIZE = 128 192 256
 DIR_FORMAL_VERIF=$(WORKDIR)/formal-verif
+
+### Matchi configuration
+# Path to the clone repo of matchi verification tool
+# Prefix to the file matchi_cells.v and matchi_cells.lib
+MATCHI_CELLS?=$(DIR_MATCHI_ROOT)/matchi_cells
+# Path to the mathci bin
+MATCHI_BIN?=$(DIR_MATCHI_ROOT)/matchi/target/release/matchi
+
+matchi_configured: 
+	@set e; if [ -z $${DIR_MATCHI_ROOT+x} ]; then echo "DIR_MATCHI_ROOT must be set for formal verification" && exit 1; else echo "DIR_MATCHI_ROOT=${DIR_MATCHI_ROOT}"; fi
+
 FORMAL_VERIF_DONE=$(DIR_FORMAL_VERIF)/.formal_verif
-$(FORMAL_VERIF_DONE): $(VE_INSTALLED) $(HDL_DONE)
+$(FORMAL_VERIF_DONE): $(VE_INSTALLED) $(HDL_DONE) matchi_configured
 	# Verify encryption
 	$(foreach ksize,$(KEY_SIZE),$(PYTHON_VE); make -C ./formal_verif NSHARES=$(NSHARES) KEY_SIZE=$(ksize) INVERSE=0 MATCHI_CELLS=$(MATCHI_CELLS) MATCHI_BIN=$(MATCHI_BIN) WORKDIR=$(DIR_FORMAL_VERIF) HDL_DIR=$(DIR_HDL) matchi-run || exit 1;)
 	# Verify decryption
