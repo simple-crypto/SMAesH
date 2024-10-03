@@ -9,6 +9,7 @@ VE=$(abspath $(WORKDIR)/ve)
 VE_INSTALLED=$(VE)/installed
 PYTHON_VE=source $(VE)/bin/activate
 
+### HDL configuration
 # Directory created containing all the HDL files
 DIR_HDL?=$(WORKDIR)/hdl
 HDL_DONE = $(DIR_HDL)/.gather
@@ -25,6 +26,7 @@ DIR_SMAESH_HDL=hdl/smaesh_hpc
 
 .PHONY: sbox hdl
 
+## Python venv setting
 $(VE)/pyvenv.cfg:
 	mkdir -p $(WORKDIR)
 	python3 -m venv $(VE)
@@ -46,7 +48,7 @@ $(HDL_DONE): $(SBOX_FILE)
 
 hdl: $(HDL_DONE)
 
-# Functionnal testing
+## Functionnal testing
 FUNC_LOG=$(WORKDIR)/functests/simu.log
 FUNC_SUCCESS=$(WORKDIR)/functests/success
 $(FUNC_LOG): $(VE_INSTALLED) $(HDL_DONE)
@@ -59,6 +61,30 @@ $(FUNC_LOG): $(VE_INSTALLED) $(HDL_DONE)
 
 func-tests: $(FUNC_SUCCESS)
 
+## Formal composition verification using matchi (SCA security)
+KEY_SIZE = 128 192 256
+DIR_FORMAL_VERIF=$(WORKDIR)/formal-verif
+
+### Matchi configuration
+# Path to the clone repo of matchi verification tool
+# Prefix to the file matchi_cells.v and matchi_cells.lib
+MATCHI_CELLS?=$(DIR_MATCHI_ROOT)/matchi_cells
+# Path to the mathci bin
+MATCHI_BIN?=$(DIR_MATCHI_ROOT)/matchi/target/release/matchi
+
+matchi_configured: 
+	@set e; if [ -z $${DIR_MATCHI_ROOT+x} ]; then echo "DIR_MATCHI_ROOT must be set for formal verification" && exit 1; else echo "DIR_MATCHI_ROOT=${DIR_MATCHI_ROOT}"; fi
+
+FORMAL_VERIF_DONE=$(DIR_FORMAL_VERIF)/.formal_verif
+$(FORMAL_VERIF_DONE): $(VE_INSTALLED) $(HDL_DONE) matchi_configured
+	# Verify encryption
+	$(foreach ksize,$(KEY_SIZE),$(PYTHON_VE); make -C ./formal_verif NSHARES=$(NSHARES) KEY_SIZE=$(ksize) INVERSE=0 MATCHI_CELLS=$(MATCHI_CELLS) MATCHI_BIN=$(MATCHI_BIN) WORKDIR=$(DIR_FORMAL_VERIF) HDL_DIR=$(DIR_HDL) matchi-run || exit 1;)
+	# Verify decryption
+	$(foreach ksize,$(KEY_SIZE),$(PYTHON_VE); make -C ./formal_verif NSHARES=$(NSHARES) KEY_SIZE=$(ksize) INVERSE=1 MATCHI_CELLS=$(MATCHI_CELLS) MATCHI_BIN=$(MATCHI_BIN) WORKDIR=$(DIR_FORMAL_VERIF) HDL_DIR=$(DIR_HDL) matchi-run || exit 1;)
+	touch $(FORMAL_VERIF_DONE)
+
+formal-tests: $(FORMAL_VERIF_DONE)
+
 
 clean:
-	if [ -d $(DIR_HDL) ]; then rm -r $(DIR_HDL); fi
+	if [ -d $(WORKDIR) ]; then rm -r $(WORKDIR); fi
