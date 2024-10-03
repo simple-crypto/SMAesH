@@ -34,6 +34,7 @@ yosys write_json $OUT_DIR/${MAIN_MODULE}_synth.json
 
 yosys write_verilog -norename $OUT_DIR/${MAIN_MODULE}_synth.v;
 yosys write_verilog -noattr -norename $OUT_DIR/${MAIN_MODULE}_synth_noattr.v;
+yosys write_verilog -noattr $OUT_DIR/${MAIN_MODULE}_synth_noattr_renamed.v;
 yosys write_verilog -attr2comment -norename $OUT_DIR/${MAIN_MODULE}_synth_attr2comment.v;
 
 
