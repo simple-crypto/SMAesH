@@ -89,19 +89,28 @@ jobs:
       - run: make func-tests DIR_MATCHI_ROOT=.
 
   formal_verif_matchi:
+    needs: [sbox]
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: true
+      matrix:
+        nshares: [2]
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
         with:
           submodules: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: sbox_${{ matrix.nshares }}
+          path: work/d${{ matrix.nshares }}/sbox
       - run: sudo apt-get install -y yosys iverilog python3.12-venv
-      - run: mkdir ${{ github.workspace }}/verif-tools
+      - run: mkdir -p ${{ github.workspace }}/verif-tools
       - run: wget https://github.com/cassiersg/matchi/releases/download/v0.1.0/matchi -P ${{ github.workspace }}/verif-tools
       - run: chmod +x ${{ github.workspace }}/verif-tools/matchi
       - run: (cd ${{ github.workspace }}/verif-tools; curl -L https://github.com/cassiersg/matchi/archive/refs/tags/v0.1.0.tar.gz | tar xz)
       - run: (curl -L https://github.com/simple-crypto/hw-devtools/releases/download/v241002-5/hw-devtools.tar.gz | tar xz; sudo apt install ./hw-devtools/*.deb)
-      - run: mkdir work
+      - run: mkdir -p work
       - run: verilator --version > work/verilator_version
       - run: yosys --version > work/yosys_version
       - run: make formal-tests DIR_MATCHI_ROOT=. MATCHI_CELLS=${{ github.workspace }}/verif-tools/matchi-0.1.0/matchi_cells MATCHI_BIN=${{ github.workspace }}/verif-tools/matchi
