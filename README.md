@@ -44,7 +44,9 @@ The main useful variables to configure the workflows are:
 The Makefile enables the following commands: 
 
 - `make sbox`: Generate the sbox module using COMPRESS.  
-- `make hdl`: 
+- `make hdl`: Generate the directory located at `$WORKDIR/hdl`, containing the HDL files of the core.
+- `func-tests`: Perform the functionnal tests of the architecture. 
+- `formal-tests`: Perform the formal security checks with MATCHI (requires `DIR_MATCHI_ROOT` to be done). 
 
 ## Contact
 

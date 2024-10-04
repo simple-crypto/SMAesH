@@ -21,6 +21,9 @@
              \multicolumn{5}{c}{\color{colorKEY} SVRS Key interface} \\
              \svrsKey & data & input & 32 & Key share material (SVRS \texttt{data} signal). \\
              \svrsKeySizeCfg & control & input & 2 & Key size configuration. \\ 
+                            &   & & & - 2'b0: 128-bit \\
+                            &   & & & - 2'b1: 192-bit \\
+                            &   & & & - 2'b2: 256-bit \\
              \svrsKeyModeInverse & control & input & 1 & Active high inverse mode configuration. \\
              \svrsKeyValid & control & input & 1 & SVRS \texttt{valid} signal. \\
              \svrsKeyReady & control & output & 1 & SVRS \texttt{ready} signal. \\
