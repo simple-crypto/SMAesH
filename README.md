@@ -24,7 +24,7 @@ See PDF [technical documentation](https://simple-crypto.org/outputs) and [prelim
 - `func_tests`: Scripts for functionnal verification, using the [cocotb](https://www.cocotb.org/) framework and the [Verilator](https://www.veripool.org/verilator/) simulator.
 - `formal_verif`: Scripts for formal security analysis using [MATCHI](https://github.com/cassiersg/matchi).
 - `synth`: Script to perform the synsthesis using [Yosys](https://yosyshq.net/yosys/) and the [nangate45 PDK](https://github.com/The-OpenROAD-Project-Attic/PEX/tree/master/kits/nangate45). 
-- `docs`: Sources of the [technical documentation](https://simple-crypto.org/outputs).
+- `docs`: Sources of the [technical documentation](https://github.com/simple-crypto/SMAesH/releases/download/latest/SMAesH.pdf).
 
 ## Usage
 
