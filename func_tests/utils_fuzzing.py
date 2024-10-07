@@ -123,6 +123,12 @@ class SVRStreamBus:
     def reset_valid(self):
         self.valid.value = 0
 
+    def set_ready(self):
+        self.ready.value = 1
+
+    def reset_ready(self):
+        self.ready.value = 0
+
     # Enforce a new fresh (random) data with valid asserted 
     def enforce_fresh_valid(self):
         self.sample_random_data()
@@ -435,10 +441,9 @@ class SMAesHVerifier:
         # Currently constant fetching
         # TODO: add a reader with back pressure
         # then add compartor on top of it
-        self.dut.out_ready.value = 1
         while True:
             await FallingEdge(self.dut.clk)
-            if self.dut.out_valid.value == 1:
+            if (self.dut.out_valid.value == 1) and (self.dut.out_ready.value == 1):
                 # Compare value
                 self._log("[Verifier.verify]")
                 sharing_dout = utils_smaesh.Sharing.from_int(
@@ -455,8 +460,72 @@ class SMAesHVerifier:
                 
 
 
+# SVRS random reader 
+class SVRSDigesterRandomDelay:
+    def __init__(self, 
+            clk, 
+            stream, 
+            latency_max_bound: int,
+            latency_min_bound = 0,
+            logger=None,
+            logprefix = "Digester"
+            ):
+        self.clk = clk
+        self.stream = stream
+        self.min_bound = latency_min_bound
+        self.max_bound = latency_max_bound
+        self.logger = logger
+        self.logprefix = logprefix
+        # Init reading control
+        self.stream.reset_ready()
+
+        # Internal states
+        self.transaction_done = False
+        self.cnt_cycles = 0
+        self.sample_random_delay()
+
+
+    def _log(self, m:str):
+        if self.logger is not None:
+            self.logger.info(m)
+
+    def sample_random_delay(self):
+        self.current_delay = random.randint(
+                self.min_bound,
+                self.max_bound
+                )
+
+    def resolve_new_ready(self):
+        if self.transaction_done:
+            self.stream.reset_ready()
+            self.transaction_done = False
+        if self.cnt_cycles >= self.current_delay:
+            self.stream.set_ready()  
+        else:
+            self._log("[{}]: Back pressure encountered... ({} cycles remaining)".format(
+                    self.logprefix,
+                    self.current_delay - self.cnt_cycles
+                ))
+
+    def resolve_transaction(self):
+        if self.stream.in_transaction:
+            self.transaction_done = True
+            self.cnt_cycles = 0
+            self.sample_random_delay()
+
+    async def run(self):
+        while True:
+            # Wait for Posedge
+            await RisingEdge(self.clk)
+            # Random assertion of ready
+            self.resolve_new_ready()
+            # Wait for Nedgedge
+            await FallingEdge(self.clk)
+            self.resolve_transaction()
+            self.cnt_cycles += 1
+
         
-        
+
 
 
 

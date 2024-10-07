@@ -54,9 +54,8 @@ This document describes SIMPLE-Crypto's Masked AES in Hardware (SMAesH),
 implemented in the $\topName$ hardware IP. 
 
 \section{History}
-\todo[inline]{Fix release date at release.}
 \begin{description}
-    \item[2.0.0 (2024-10-??)] Major (breaking API) update: add AES-192, AES-256 and decryption .
+    \item[2.0.0 (2024-10-08)] Major (breaking API) update: add AES-192, AES-256 and decryption .
     \item[1.1.0 (2024-09-02)] 4 cycles Canright S-box (new optimized architecture).
     \item[1.0.1 (2023-06-15)] Fix latency in Section 5.4 (documentation change only).
     \item[1.0.0 (2023-05-01)] Initial release.
@@ -1066,49 +1065,55 @@ performance metric.
 
 \section{Core Verification}
 \label{section:verif}
-\paragraph{Functionality}
-The functional tests performed are currently split in three levels. First,
-the Known-Answer Tests of the NIST ``Advanced Encryption Standard Algorithm
-Validation List'' are verified with the provided
-testbench\footnote{https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program/block-ciphers}.
+\subsection{Functional tests}
+The functional tests performed are currently split in three levels, detailed next. 
+
+\paragraph{KAT verification}The Known-Answer Tests of the NIST
+``Advanced Encryption Standard Algorithm Validation List'' are verified
+\footnote{https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program/block-ciphers}.
 In particular, all the testvectors contained in the files
 \texttt{ECBGFSbox*.rsp}, \texttt{ECBKeySbox*.rsp}, \texttt{ECBVarKey128.rsp}
 and \texttt{ECBVarTxt*.rsp} are tested at the RTL level, both in encryption and
-decryption for the three different variants.  
+decryption for the three variants of the algorithm.  
 
-Second, the key storage unit is tested in order to ensure that the value of the
-stored key remains the same for multiple executions. Additionally, a basic
-verification is performed to verify that the value of the share have been
-refreshed between two consecutive execution. 
+\paragraph{Key storage unit}The key storage unit is tested in order to
+ensure that the value of the stored key remains the same across multiple
+sequential executions. Additionally, a basic verification is performed to check
+that the shares values are refreshed between two consecutive execution. 
 
-Finally, a basic fuzzing strategy is used in order to compare the results
+\paragraph{Fuzzing Strategy}A basic fuzzing strategy is used in order to compare the results
 obtained between the executions of the core and a reference model implemented in
 Python under the cocotb framework~\footnote{https://www.cocotb.org/}.
-In particular, the verification is organized around different process.  
+In particular, the verification is organized around different processes.  
 
 The first task is the generation of randomized input patterns. More into the
 details, the three inputs streams are generated independently in a randomized
 manner: the core idea of the randomization is that the validity control signal
-of the SRV protocol are asserted with a delay (in term of clock cycles) drawn
+of the SRVS protocol are asserted with a delay (in term of clock cycles) drawn
 randomly between each assertion. Once asserted, the stream generator respects
-the sticky property of the latter and ensures that the signal remains valid
-until the completion of a transaction. The range of the value that the delay
-can take has been chosen in order to try to achieve the same proportion of seed
-configuration, key configuration or execution starts. 
+the sticky property by ensuring that the signal remains valid until the
+completion of a transaction. The delay's range has been chosen trying to
+achieve the same proportion of seed configuration, key configuration or
+execution starts during the cycles simulated. 
 
-The main process is the simulation of the design based on the input pattern
+The main process is the simulation of the design based on the input patterns
 generated. This is achieved through the cocotb framework by directly driving
 the ports of the design under tests. 
 
 In parallel, the inputs streams are monitored by a SRVS protocol interpreter.
 Due to the fact that a single configuration can occur at a time following the
-core usage presented in Section~\ref{section:core_usage}, the latter builds a
-sequence of commands at a higher abstraction level (i.e., configuring a new
-seed, configuring a new key or starting a new execution). These commands are
+core usage presented in Section~\ref{section:core_usage}, the latter can build a
+sequence of commands that can be used at a higher abstraction level (i.e., configuring a new
+seed, configuring a new key or starting a new execution). These are
 forwarded to a reference model that simulates the expected evolution of the
-core's (unmasked) internal states considering the input patterns applied.  When
+core's (unmasked) internal states resulting from the input patterns applied. When
 an execution finishes, the expected output value if forwarded to a FIFO in
 order to validate in-order the data outputted by the design under test.
+
+At the output interface of the core, a randomized digester is used to handle the
+output SVRS protocol, while simulating back-pressure. In particular, a strategy
+similar to the randomized delay one used for stream generation is used in order
+to assert the ready signal of the output stream. 
 
 Finally, the core's validation is in practice performed by monitoring the
 the output stream of the core. In particular, each time a transaction occurs,
@@ -1118,7 +1123,7 @@ mismatch occurs at this step. The overall verification consists in running this
 framework for an arbitrary amount of clock cycles.  The verification is
 considered as successful if no error occurred at the end of the simulation. 
 
-\paragraph{Side-channel security}
+\subsection{Side-channel security}
 This core has been formally verified for security in the glitch+transition
 robust probing model using the \texttt{MATCHI}%
 tool~\cite{DBLP:journals/tc/CassiersGLS21,DBLP:journals/tches/CassiersS21}\footnote{\url{https://github.com/cassiersg/fullverif}}.

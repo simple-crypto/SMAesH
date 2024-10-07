@@ -15,7 +15,7 @@ Main features:
 - The core stores the long-term key shares, and refreshes the latter at each execution. 
 
 
-See PDF [technical documentation](https://simple-crypto.org/outputs) and [preliminary evaluation report](https://simple-crypto.org/outputs) for additional details.
+See PDF [technical documentation](https://github.com/simple-crypto/SMAesH/releases/latest/download/SMAesH.pdf) and [preliminary evaluation report](https://simple-crypto.org/outputs) for additional details.
 
 ## Contents
 
