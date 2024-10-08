@@ -1,4 +1,5 @@
 # SIMPLE-Crypto's Masked AES in Hardware (SMAesH)
+![CI passing](https://github.com/simple-crypto/SMAesH/actions/workflows/ci.yml/badge.svg)
 
 An optimized masked hardware implementation of AES using HPC. 
 
