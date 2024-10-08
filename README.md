@@ -15,7 +15,7 @@ Main features:
 - The core stores the long-term key shares, and refreshes the latter at each execution. 
 
 
-See PDF [technical documentation](https://simple-crypto.org/outputs) and [preliminary evaluation report](https://simple-crypto.org/outputs) for additional details.
+See PDF [technical documentation](https://github.com/simple-crypto/SMAesH/releases/latest/download/SMAesH.pdf) and [preliminary evaluation report](https://www.simple-crypto.org/pdfs/SMAesH_preliminary_eval.pdf) for additional details.
 
 ## Contents
 
@@ -24,7 +24,7 @@ See PDF [technical documentation](https://simple-crypto.org/outputs) and [prelim
 - `func_tests`: Scripts for functionnal verification, using the [cocotb](https://www.cocotb.org/) framework and the [Verilator](https://www.veripool.org/verilator/) simulator.
 - `formal_verif`: Scripts for formal security analysis using [MATCHI](https://github.com/cassiersg/matchi).
 - `synth`: Script to perform the synsthesis using [Yosys](https://yosyshq.net/yosys/) and the [nangate45 PDK](https://github.com/The-OpenROAD-Project-Attic/PEX/tree/master/kits/nangate45). 
-- `docs`: Sources of the [technical documentation](https://simple-crypto.org/outputs).
+- `docs`: Sources of the [technical documentation](https://github.com/simple-crypto/SMAesH/releases/download/latest/SMAesH.pdf).
 
 ## Usage
 
@@ -44,7 +44,9 @@ The main useful variables to configure the workflows are:
 The Makefile enables the following commands: 
 
 - `make sbox`: Generate the sbox module using COMPRESS.  
-- `make hdl`: 
+- `make hdl`: Generate the HDL files of the design (in `$WORK/hdl`).
+- `make func-tests`: Perform the functional tests of the architecture. 
+- `make formal-tests`: Perform the formal security verification with MATCHI (requires `DIR_MATCHI_ROOT` to be set: root directory of the MATCHI repository). 
 
 ## Contact
 

@@ -493,6 +493,19 @@ async def basic_fuzzying(dut):
             logger=tl
             )
 
+    # Create the randomized digestion process
+    digester = utils_fuzzing.SVRSDigesterRandomDelay(
+            dut.clk,
+            utils_fuzzing.SVRStreamBus(
+                dut.out_valid,
+                dut.out_ready,
+                dut.out_shares_data
+                ),
+            150,
+            latency_min_bound = 0,
+            logger = tl
+            )
+
     # Create the Verifier
     verifier = utils_fuzzing.SMAesHVerifier(
             dut,
@@ -530,6 +543,7 @@ async def basic_fuzzying(dut):
     await cocotb.start(svrs_data_gen.run())
     await cocotb.start(packetizer.run())
     await cocotb.start(ref_model.run())
+    await cocotb.start(digester.run())
     await cocotb.start(verifier.run())
     #await cocotb.start(monitor.run())
     await clkgen.start()

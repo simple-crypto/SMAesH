@@ -1,8 +1,19 @@
 # CHANGELOG
 
 ## Not released
+## v2.0.0
 
-- Build doc on CI
+- Extend SMAesH IP to support AES128/192/256 in encryption and decyption.
+- Add internal long-term key storage unit. 
+- Add Sbox generation using COMPRESS.
+- Move to cocotb based functional verification procedure.
+- Move from fullverif to MATCHI based formal verification procedure. 
+- Add CI featuring:
+    - Generation of sbox
+    - functionnal tests (using cocotb + verilator)
+    - formal tests (using cocotb + verilator + MATCHI)
+    - Doc generation. 
+- Refactorisation of the repo (removing useless files)
 
 ## v1.1.0 (2024-09-02)
 
