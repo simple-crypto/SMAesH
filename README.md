@@ -15,7 +15,7 @@ Main features:
 - The core stores the long-term key shares, and refreshes the latter at each execution. 
 
 
-See PDF [technical documentation](https://github.com/simple-crypto/SMAesH/releases/latest/download/SMAesH.pdf) and [preliminary evaluation report](https://simple-crypto.org/outputs) for additional details.
+See PDF [technical documentation](https://github.com/simple-crypto/SMAesH/releases/latest/download/SMAesH.pdf) and [preliminary evaluation report](https://www.simple-crypto.org/pdfs/SMAesH_preliminary_eval.pdf) for additional details.
 
 ## Contents
 
@@ -44,9 +44,9 @@ The main useful variables to configure the workflows are:
 The Makefile enables the following commands: 
 
 - `make sbox`: Generate the sbox module using COMPRESS.  
-- `make hdl`: Generate the directory located at `$WORKDIR/hdl`, containing the HDL files of the core.
-- `func-tests`: Perform the functionnal tests of the architecture. 
-- `formal-tests`: Perform the formal security checks with MATCHI (requires `DIR_MATCHI_ROOT` to be done). 
+- `make hdl`: Generate the HDL files of the design (in `$WORK/hdl`).
+- `make func-tests`: Perform the functional tests of the architecture. 
+- `make formal-tests`: Perform the formal security verification with MATCHI (requires `DIR_MATCHI_ROOT` to be set: root directory of the MATCHI repository). 
 
 ## Contact
 

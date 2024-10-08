@@ -1,5 +1,6 @@
 # CHANGELOG
 
+## Not released
 ## v2.0.0
 
 - Extend SMAesH IP to support AES128/192/256 in encryption and decyption.

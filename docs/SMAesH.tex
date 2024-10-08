@@ -1126,17 +1126,17 @@ considered as successful if no error occurred at the end of the simulation.
 \subsection{Side-channel security}
 This core has been formally verified for security in the glitch+transition
 robust probing model using the \texttt{MATCHI}%
-tool~\cite{DBLP:journals/tc/CassiersGLS21,DBLP:journals/tches/CassiersS21}\footnote{\url{https://github.com/cassiersg/fullverif}}.
+tool~\cite{DBLP:journals/tc/CassiersGLS21,DBLP:journals/tches/CassiersS21}\footnote{\url{https://github.com/cassiersg/matchi}}.
 The scripts for this verification are provided along with the implementation.
 
 A preliminary physical analysis of the core can be found at
 \url{https://www.simple-crypto.org/activities/smaesh/}.  Additionnally, the
-core (v1.0, limited to AES-128 encryption) undergone a public empirical
-evaluation in the context of the CHES23 challenge. The public evaluation is
-ongoing and more details are available at
-\url{https://smaesh-challenge.simple-crypto.org/}.  The goal was to recover the
-value of the key from the power traces collected for FPGAs implementation of
-the core. Note that this evaluation is device-specific.
+core (v1.0, limited to AES-128 encryption) went through a public empirical
+evaluation in the context of the CHES23 challenge. The public evaluation
+is still open and more details are available at
+\url{https://smaesh-challenge.simple-crypto.org/}.  The adversary's goal is to
+recover the value of the key from the power traces collected for FPGAs
+implementation of the core. Note that this evaluation is device-specific.
 
 \section{Copyright}
 
