@@ -115,6 +115,27 @@ jobs:
       - run: yosys --version > work/yosys_version
       - run: make formal-tests DIR_MATCHI_ROOT=. MATCHI_CELLS=${{ github.workspace }}/verif-tools/matchi-0.1.0/matchi_cells MATCHI_BIN=${{ github.workspace }}/verif-tools/matchi
 
+  lint_verif:
+    needs: [sbox]
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: true
+      matrix:
+        nshares: [2]
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: sbox_${{ matrix.nshares }}
+          path: work/d${{ matrix.nshares }}/sbox
+      - run: sudo apt-get install -y yosys iverilog python3.12-venv
+      - run: mkdir -p ${{ github.workspace }}/verif-tools
+      - run: (curl -L https://github.com/simple-crypto/hw-devtools/releases/download/v241002-5/hw-devtools.tar.gz | tar xz; sudo apt install ./hw-devtools/*.deb)
+      - run: make lint-tests
+
   release:
     needs: [build_latex, functest]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
