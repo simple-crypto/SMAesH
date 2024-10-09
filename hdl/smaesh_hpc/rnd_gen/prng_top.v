@@ -108,7 +108,7 @@ always @(*) begin
             core_update = 1;
             // Stay in RESEED for LAT_INIT+1 cycles.
             // The +1 stands for the cycle for the output to go through reg_rnd_out.
-            if (cnt_fsm == LAT_INIT) begin
+            if (cnt_fsm == (ADDR'(LAT_INIT))) begin
                 nextstate = RUNNING;
             end
         end

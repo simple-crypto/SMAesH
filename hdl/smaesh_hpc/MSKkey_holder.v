@@ -239,9 +239,9 @@ reg in_branch_compute_last, in_padding, in_fetch_new_key, in_fetch_last_key, in_
 // Assign the words_per_share_bound
 always@(*) begin
     case(cfg_key_size)
-        KSIZE_192: words_per_share_bound = in_padding ? NW_OFFSET192-1 : AMW_192-1;
-        KSIZE_256: words_per_share_bound = AMW_256-1;
-        default: words_per_share_bound = AMW_128-1;
+        KSIZE_192: words_per_share_bound = in_padding ? (SIZE_CNT'(NW_OFFSET192-1)) : (SIZE_CNT'(AMW_192-1));
+        KSIZE_256: words_per_share_bound = (SIZE_CNT'(AMW_256-1));
+        default: words_per_share_bound = (SIZE_CNT'(AMW_128-1));
     endcase
 end
 
@@ -262,7 +262,7 @@ always@(*) begin
     // through the pipeline. 
     case(cfg_key_size)
         KSIZE_192: begin
-            last_refresh_word = (share_idx == 1) & (word_idx == NW_OFFSET192-1);
+            last_refresh_word = (share_idx == 1) & (word_idx == (SIZE_CNT'(NW_OFFSET192-1)));
         end
         KSIZE_256: begin
             last_refresh_word = (share_idx == 0) & (word_idx == words_per_share_bound);
