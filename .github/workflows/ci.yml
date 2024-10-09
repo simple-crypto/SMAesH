@@ -137,7 +137,7 @@ jobs:
       - run: make lint-tests
 
   release:
-    needs: [build_latex, functest]
+    needs: [build_latex, functest, formal_verif_matchi, lint_verif]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
