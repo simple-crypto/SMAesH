@@ -1,16 +1,16 @@
 module serial_shares_words_counter
 #
 (
-    parameter NBITS = 4,
-    parameter MAX_WORDS_PER_SHARE = 8,
-    parameter d = 2
+    parameter integer NBITS = 4,
+    parameter integer MAX_WORDS_PER_SHARE = 8,
+    parameter integer d = 2
 )
 (
     clk,
     rst, // Active high reset
     inc, // Active high increment
-    words_per_share_bound, // Bound of the amount of words per share to consider when counting 
-    share_idx, 
+    words_per_share_bound, // Bound of the amount of words per share to consider when counting
+    share_idx,
     word_idx
 );
 
@@ -35,12 +35,12 @@ assign soft_reset = inc & inc_share_needed;
 
 // Counter fpr the shares
 reg [NBITS-1:0] cnt_shares;
-always@(posedge clk) 
+always@(posedge clk)
 if(rst) begin
-    cnt_shares <= 0;        
+    cnt_shares <= 0;
 end else if (inc & inc_share_needed) begin
     cnt_shares <= cnt_shares + 1;
-end 
+end
 
 assign share_idx = cnt_shares;
 assign word_idx = cnt_words;

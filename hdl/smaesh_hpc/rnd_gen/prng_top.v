@@ -21,13 +21,13 @@ module prng_top
 #
 (
     // Number of bits of randomness generated at each clock cycle
-    parameter RND=`DEFAULTRND,
+    parameter integer RND=`DEFAULTRND,
     // Number of shifts executed during the reseed procedure.
     // Default is the standard for Trivium.
-    parameter NINIT=4*288,
+    parameter integer NINIT=4*288,
     // Maximum of unrolling (in bits) for a single PRNG instance
     // Default gives low logic depth for Trivium.
-    parameter MAX_UNROLL=1024
+    parameter integer MAX_UNROLL=1024
 )
 (
     // Active high, reset for the control (does no reseed !).
@@ -49,9 +49,9 @@ module prng_top
     output [RND-1:0] out_rnd
 );
 
-// Generation parameters 
-localparam N_PRNGS = $rtoi($ceil($itor(RND) / MAX_UNROLL));
-localparam UNROLL = $rtoi($ceil($itor(RND) / N_PRNGS));
+// Generation parameters
+localparam integer N_PRNGS = $rtoi($ceil($itor(RND) / MAX_UNROLL));
+localparam integer UNROLL = $rtoi($ceil($itor(RND) / N_PRNGS));
 
 // PRNG global control
 reg core_feed_seed;
@@ -60,17 +60,16 @@ wire [UNROLL*N_PRNGS-1:0] random_bits;
 
 // Number of cycles required to init the PRNGs with new randomness
 // We ensure to do at least NINIT shifts.
-localparam LAT_INIT = $rtoi($ceil($itor(NINIT) / UNROLL));
+localparam integer LAT_INIT = $rtoi($ceil($itor(NINIT) / UNROLL));
 
 // FSM state
-localparam
-    INIT=0,
-    RUNNING=1,
-    RESEED=2;
-reg [1:0] state, nextstate;
+localparam integer SSTATE=2;
+localparam integer INIT=0, RUNNING=1, RESEED=2;
+
+reg [SSTATE-1:0] state, nextstate;
 always @(posedge clk) begin
     if (rst) begin
-        state <= INIT;
+        state <= (SSTATE'(INIT));
     end else begin
         state <= nextstate;
     end
@@ -95,10 +94,10 @@ always @(*) begin
     core_update = 0;
     core_feed_seed = 0;
 
-    case (state)
+    case ((32'(state)))
         INIT: begin
             if (start_reseed) begin
-                nextstate = RESEED;
+                nextstate = (SSTATE'(RESEED));
                 core_feed_seed = 1;
             end
         end
@@ -109,7 +108,7 @@ always @(*) begin
             // Stay in RESEED for LAT_INIT+1 cycles.
             // The +1 stands for the cycle for the output to go through reg_rnd_out.
             if (cnt_fsm == (ADDR'(LAT_INIT))) begin
-                nextstate = RUNNING;
+                nextstate = (SSTATE'(RUNNING));
             end
         end
         RUNNING: begin
@@ -119,21 +118,22 @@ always @(*) begin
                 core_update = 1;
             end
             if (start_reseed) begin
-                nextstate = RESEED;
+                nextstate = (SSTATE'(RESEED));
                 core_feed_seed = 1;
             end
         end
+        default: nextstate=(SSTATE'(INIT));
     endcase
 end
 
-// Generate output 
-assign out_valid = (state==RUNNING);
-assign busy = (state==RESEED);
+// Generate output
+assign out_valid = (state==(SSTATE'(RUNNING)));
+assign busy = (state==(SSTATE'(RESEED)));
 
 //// Generate the PRNG instances
 genvar i;
 generate
-for(i=0;i<N_PRNGS;i=i+1) begin: prng_inst
+for(i=0;i<N_PRNGS;i=i+1) begin: gen_prng_inst
     wire [79:0] iv_trivium = i;
     trivium_prng #(.RND(UNROLL))
     trivium_core(

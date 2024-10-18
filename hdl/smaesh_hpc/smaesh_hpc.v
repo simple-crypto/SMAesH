@@ -17,14 +17,14 @@
 module smaesh_hpc
 #
 (
-    parameter d = `DEFAULTSHARES,
-    parameter PRNG_MAX_UNROLL = 512
+    parameter integer d = `DEFAULTSHARES,
+    parameter integer PRNG_MAX_UNROLL = 512
 )
 (
     clk,
     // synchronous, active high
     rst,
-    // valid/ready data stream input 
+    // valid/ready data stream input
     in_data_valid,
     in_data_ready,
     in_shares_data,
@@ -68,7 +68,7 @@ output [128*d-1:0] out_shares_data;
 output out_valid;
 input out_ready;
 
-`include "canright_aes_sbox_dual.vh" 
+`include "canright_aes_sbox_dual.vh"
 
 /* =========== Aes core =========== */
 wire aes_busy;
@@ -83,7 +83,7 @@ wire [4*rnd_bus3-1:0] rnd_bus3w;
 
 wire aes_in_ready_rnd;
 
-// Modify shares encoding to sequential shared bit instead of 
+// Modify shares encoding to sequential shared bit instead of
 // sequential shares for each bit of the plaintext and ciphertext.
 wire [128*d-1:0] sh_data_in;
 shares2shbus #(.d(d),.count(128))
@@ -138,9 +138,9 @@ key_storage_unit(
 );
 
 // Inner AES core
-wire aes_inverse = KSU_last_key_computation_required ? 1'b0 : KSU_aes_mode_inverse; 
-wire aes_key_schedule_only = KSU_last_key_computation_required; 
-wire aes_mode_256 = KSU_aes_mode_256; 
+wire aes_inverse = KSU_last_key_computation_required ? 1'b0 : KSU_aes_mode_inverse;
+wire aes_key_schedule_only = KSU_last_key_computation_required;
+wire aes_mode_256 = KSU_aes_mode_256;
 wire aes_mode_192 = KSU_aes_mode_192;
 
 MSKaes_32bits_core
@@ -175,9 +175,9 @@ aes_core(
 );
 
 /* =========== PRNG =========== */
-localparam NINIT=4*288;
-localparam RND_AM = 4*(rnd_bus0+rnd_bus1+rnd_bus2+rnd_bus3);
-wire [RND_AM-1:0] rnd; 
+localparam integer NINIT=4*288;
+localparam integer RND_AM = 4*(rnd_bus0+rnd_bus1+rnd_bus2+rnd_bus3);
+wire [RND_AM-1:0] rnd;
 
 wire prng_start_reseed;
 wire prng_out_valid;
@@ -224,7 +224,7 @@ smaesh_arbitrer arbitrer(
 );
 
 // Output signal: just forward
-assign aes_out_ready = out_ready; 
+assign aes_out_ready = out_ready;
 assign out_valid = aes_out_valid;
 
 

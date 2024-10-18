@@ -14,13 +14,13 @@
 
 // This is a simple implementation of the trivium cipher, unrolled to shift by RND per cycle.
 // No nonce/key handling, it should be initialized either:
-// - with full 288 bit entropy 
+// - with full 288 bit entropy
 // - with enough entropy, then shifted enough without using the output to
 // properly initialize the state (we recommend 4*288 shifts, as in the original trivium).
 module trivium_prng
 #
 (
-    parameter RND = 1
+    parameter integer RND = 1
 )
 (
     clk,
@@ -60,7 +60,7 @@ assign seed[287:285] = 3'b111;
 
 always @(posedge clk) begin
     if (feed_seed) begin
-        state <= seed;    
+        state <= seed;
     end else if (update) begin
         state <= new_state;
     end
@@ -69,15 +69,15 @@ end
 // Main Trivium shift/update logic logic
 genvar i;
 generate
-for (i=0; i<RND; i=i+1) begin: update_step
+for (i=0; i<RND; i=i+1) begin: gen_update_step
     // use 1-based indexing to match spec at
     // https://www.ecrypt.eu.org/stream/p3ciphers/trivium/trivium_p3.pdf
     wire [`TRIVINUM_BITS:1] s, snew;
 
-    if (i == 0) begin
+    if (i == 0) begin: gen_input_state_init
         assign s = state;
-    end else begin
-        assign s = update_step[i-1].snew;
+    end else begin: gen_input_state_unroll
+        assign s = gen_update_step[i-1].snew;
     end
 
     wire [3:1] t;
@@ -94,6 +94,6 @@ for (i=0; i<RND; i=i+1) begin: update_step
     assign snew[288:179] = s[287:178];
 end
 endgenerate
-assign new_state = update_step[RND-1].snew;
+assign new_state = gen_update_step[RND-1].snew;
 
 endmodule
