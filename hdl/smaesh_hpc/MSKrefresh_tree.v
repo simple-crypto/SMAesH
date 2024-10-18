@@ -1,8 +1,8 @@
 module MSKrefresh_tree
 #
 (
-    parameter d = 2,
-    parameter BITS = 16
+    parameter integer d = 2,
+    parameter integer BITS = 16
 )
 (
     input [d*BITS-1:0] sh_in,
@@ -12,7 +12,7 @@ module MSKrefresh_tree
 
 genvar i, j;
 generate
-for(i=0;i<BITS;i=i+1) begin: bit_refresh
+for(i=0;i<BITS;i=i+1) begin: gen_bit_refresh
     // fetch data used in refresh
     wire [d-1:0] bit_used = sh_in[i*d +: d];
     wire [d-2:0] rnd_used = rnd[i*(d-1) +: d-1];

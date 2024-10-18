@@ -76,7 +76,7 @@ always @(posedge clk) begin
 end
 
 // Counter for reseed iteration
-parameter ADDR = $clog2(LAT_INIT+1);
+parameter integer ADDR = $clog2(LAT_INIT+1);
 reg [ADDR-1:0] cnt_fsm;
 reg rst_cnt;
 always @(posedge clk) begin
