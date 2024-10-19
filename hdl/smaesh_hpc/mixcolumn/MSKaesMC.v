@@ -18,7 +18,7 @@
 module MSKaesMC
 #
 (
-    parameter d = 2
+    parameter integer d = 2
 )
 (
     // Input shares (masked GF_256 field elements)
@@ -44,9 +44,9 @@ module MSKaesMC
 
 genvar i, j;
 generate
-for(i=0;i<d;i=i+1) begin: share_mc
+for(i=0;i<d;i=i+1) begin: gen_share_mc
     wire [31:0] cin, cout;
-    for(j=0;j<8;j=j+1) begin: share_bytes
+    for(j=0;j<8;j=j+1) begin: gen_share_bytes
         // Inputs
         assign cin[0+j] = a0[d*j+i];
         assign cin[8+j]= a1[d*j+i];

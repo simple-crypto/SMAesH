@@ -17,7 +17,7 @@
 module MSKaes_rcon
 #
 (
-    parameter d = 2
+    parameter integer d = 2
 )
 (
     input clk,
@@ -30,7 +30,7 @@ module MSKaes_rcon
     input update,
     // Gates the output to 0 if high.
     input mask_rcon,
-    // RCON as a sharing 
+    // RCON as a sharing
     output [8*d-1:0] sh_rcon,
     // Control for the inverse operation
     input inverse
@@ -45,7 +45,7 @@ always @(posedge clk) begin
         rcon <= rst_rcon;
     end else if (update) begin
         rcon <= next_rcon;
-    end 
+    end
 end
 
 // Forward computation

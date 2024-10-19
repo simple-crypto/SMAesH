@@ -21,7 +21,7 @@
 module MSKaes_32bits_core
 #
 (
-    parameter d=`NSHARES
+    parameter integer d=`NSHARES
 )
 (
     clk,
@@ -39,9 +39,9 @@ module MSKaes_32bits_core
     // out_ready are both high, the ciphertext is dropped from the core.
     out_ready,
     // Active high; specifies that the next operation starting must be inverse
-    inverse, 
+    inverse,
     // Active high; specifies that the next operation starting must compute the
-    // key scheduling only 
+    // key scheduling only
     key_schedule_only,
     // Active high; specifies that the data on sh_last_key bus is valid.
     last_key_pre_valid,
@@ -59,7 +59,7 @@ module MSKaes_32bits_core
     sh_key,
     // Masked ciphertext (bit-compact representation). Valid when out_valid is high.
     sh_data_out,
-    // Masked last key used (bit-compact representation). Used only to init the last round key in inverse mode). 
+    // Masked last key used (bit-compact representation). Used only to init the last round key in inverse mode).
     sh_last_key_col,
     // Randomness busses (required for the Sboxes). These busses must contain
     // fresh randomness for every cycle where the core is computing, which is
@@ -107,7 +107,7 @@ input [128*d-1:0] sh_data_in;
 input [256*d-1:0] sh_key;
 (* matchi_type="sharings_dense", matchi_active="matchi_output_active" *)
 output [128*d-1:0] sh_data_out;
-(* matchi_type="sharings_dense", matchi_active="matchi_lcol_valid" *) 
+(* matchi_type="sharings_dense", matchi_active="matchi_lcol_valid" *)
 output [32*d-1:0] sh_last_key_col;
 
 (* matchi_type="random", matchi_active="matchi_rnd_active" *)
@@ -130,7 +130,7 @@ output rnd_bus0_valid_for_rfrsh;
     wire matchi_output_active=out_valid;
     wire matchi_rnd_active=1'b1; // Validate
 
-    // Logic required to have the signal asserting the validity of 
+    // Logic required to have the signal asserting the validity of
     // the key material (used only for inversion configuration)
     wire matchi_lcol_valid = 1;
 `endif
@@ -184,7 +184,7 @@ core_data(
     .init(state_init),
     .en_MC(state_en_MC),
     .en_loop(state_en_loop),
-    .en_loop_r0(state_en_loop_r0), 
+    .en_loop_r0(state_en_loop_r0),
     .en_SB_inverse(state_en_SB_inverse),
     .bypass_MC_inverse(state_bypass_MC_inverse),
     .en_toSB_inverse(state_en_toSB_inverse),
@@ -213,8 +213,8 @@ mux_in_key_holder(
     .out(gated_sh_key)
 );
 
-///// Key handling 
-// Round constant control 
+///// Key handling
+// Round constant control
 wire rcon_rst;
 wire rcon_mode_256;
 wire rcon_mode_192;
@@ -272,7 +272,7 @@ cst_zeros32(
 
 // Muxes enable the key addition in forward and reverse mode
 wire enable_key_add;
-wire enable_key_add_inverse; 
+wire enable_key_add_inverse;
 
 MSKmux #(.d(d),.count(8))
 mux_key_en_b0(
@@ -299,17 +299,17 @@ mux_key_en_inverse(
 );
 
 
-// Sboxes  
-wire [8*d-1:0] bytes_to_SB [3:0];
+// Sboxes
+wire [8*d-1:0] bytes_to_SB [4];
 (* verime = "B_fromSB" *)
-wire [8*d-1:0] bytes_from_SB [3:0];
+wire [8*d-1:0] bytes_from_SB [4];
 
 wire sbox_valid_in;
-wire sbox_inverse; 
+wire sbox_inverse;
 
 genvar i;
 generate
-for(i=0;i<4;i=i+1) begin: sbox_isnt
+for(i=0;i<4;i=i+1) begin: gen_sbox_isnt
     gen_sbox #(.d(d))
     sbox_unit(
         .clk(clk),

@@ -1,24 +1,24 @@
 module MSKdata_holder_low_level
 #(
-    parameter d = 2,
-    parameter BITS = 256,
-    parameter RFRSH_RATE = 16 // MUST divide `BITS` parameter
+    parameter integer d = 2,
+    parameter integer BITS = 256,
+    parameter integer RFRSH_RATE = 16 // MUST divide `BITS` parameter
 )
 (
     // Clock
     clk,
-    // Data 
+    // Data
     shares_data_in,
     sh_data_out,
     // Randomness for refreshing
     rnd_rfrsh_in,
     // Control
-    enable, 
+    enable,
     fetch_in
 );
 
 // Generation parameter
-localparam NSTAGES = (BITS / RFRSH_RATE);
+localparam integer NSTAGES = (BITS / RFRSH_RATE);
 
 input clk;
 input [d*RFRSH_RATE-1:0] shares_data_in;
@@ -36,14 +36,14 @@ encoder_output(
 );
 
 // Generate a circular shift register holding the data.
-wire [RFRSH_RATE-1:0] to_shares_pipeline [d-1:0];
-wire [RFRSH_RATE-1:0] shares_pipeline_refreshed [d-1:0];
-wire [RFRSH_RATE-1:0] out_shares_pipeline [d-1:0];
+wire [RFRSH_RATE-1:0] to_shares_pipeline [d]; // Same as [d-1:0], but follows verible lint rules;
+wire [RFRSH_RATE-1:0] shares_pipeline_refreshed [d];
+wire [RFRSH_RATE-1:0] out_shares_pipeline [d];
 
 genvar i, j;
 generate
-for(i=0;i<d;i=i+1) begin: share_pipeline
-    for(j=NSTAGES-1;j>=0;j=j-1) begin: serial_stage
+for(i=0;i<d;i=i+1) begin: gen_share_pipeline
+    for(j=NSTAGES-1;j>=0;j=j-1) begin: gen_serial_stage
         // Input/output data for this pipeline stage
         wire [RFRSH_RATE-1:0] stage_in, stage_out;
         // MSKreg to store the data
@@ -54,20 +54,20 @@ for(i=0;i<d;i=i+1) begin: share_pipeline
             .in(stage_in),
             .out(stage_out)
         );
-        if(j==NSTAGES-1) begin
+        if(j==NSTAGES-1) begin: gen_j_init
             assign stage_in = to_shares_pipeline[i];
-        end else begin
-            assign stage_in = serial_stage[j+1].stage_out;
+        end else begin: gen_j_others
+            assign stage_in = gen_serial_stage[j+1].stage_out;
         end
         // Encode bus to output
         assign shares_to_out[i*BITS + j*RFRSH_RATE +: RFRSH_RATE] = stage_out;
     end
-    assign out_shares_pipeline[i] = serial_stage[0].stage_out;
+    assign out_shares_pipeline[i] = gen_serial_stage[0].stage_out;
 end
 endgenerate
 
 // Encoding at the input of the refresh logic
-wire [RFRSH_RATE*d-1:0] shares_to_refresh_data; 
+wire [RFRSH_RATE*d-1:0] shares_to_refresh_data;
 wire [RFRSH_RATE*d-1:0] sh_to_refresh_data;
 shares2shbus #(.d(d), .count(RFRSH_RATE))
 encoder_refresh(
@@ -77,7 +77,7 @@ encoder_refresh(
 
 // Encoding at the output of the refresh logic
 wire [RFRSH_RATE*d-1:0] sh_from_refresh_data;
-wire [RFRSH_RATE*d-1:0] shares_from_refresh_data; 
+wire [RFRSH_RATE*d-1:0] shares_from_refresh_data;
 shbus2shares #(.d(d), .count(RFRSH_RATE))
 decoder_refresh(
     .shbus(sh_from_refresh_data),
@@ -95,7 +95,7 @@ logic_refresh(
 
 // Generate the assignation of share pipeline, and MUXes at the input of the pipeline
 generate
-for(i=0;i<d;i=i+1) begin: share_encoding
+for(i=0;i<d;i=i+1) begin: gen_share_encoding
     // Bus encoding
     assign shares_to_refresh_data[i*RFRSH_RATE +: RFRSH_RATE] = out_shares_pipeline[i];
     assign shares_pipeline_refreshed[i] = shares_from_refresh_data[i*RFRSH_RATE +: RFRSH_RATE];

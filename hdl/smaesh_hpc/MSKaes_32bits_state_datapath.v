@@ -16,7 +16,7 @@
 module MSKaes_32bits_state_datapath
 #
 (
-    parameter d=2
+    parameter integer d=2
 )
 (
     // Global
@@ -26,7 +26,7 @@ module MSKaes_32bits_state_datapath
     init,
     en_MC,
     en_loop,
-    en_loop_r0, 
+    en_loop_r0,
     en_SB_inverse,
     bypass_MC_inverse,
     en_toSB_inverse,
@@ -59,15 +59,15 @@ output [32*d-1:0] sh_4bytes_to_SB;
 output [128*d-1:0] sh_data_out;
 
 // Byte matrix representation of the input plaintext
-wire [8*d-1:0] sh_m_plain[15:0];
+wire [8*d-1:0] sh_m_plain[16];
 genvar i;
 generate
-for(i=0;i<16;i=i+1) begin: byte_pt
+for(i=0;i<16;i=i+1) begin: gen_byte_pt
     assign sh_m_plain[i] = sh_data_in[8*d*i +: 8*d];
 end
 endgenerate
 
-// Mixcolumns combinatorial logic bloc dealing with the 32 shared bits 
+// Mixcolumns combinatorial logic bloc dealing with the 32 shared bits
 // coming from the Sbox
 (* verime = "b32_fromMC" *)
 wire [32*d-1:0] sh_4bytes_from_MC;
@@ -99,13 +99,13 @@ MC_unit_inverse(
     .b3(sh_4bytes_from_MC_inverse[24*d +: 8*d])
 );
 
-// Generate the state register + input output signals    
-wire [8*d-1:0] sh_reg_in [15:0];
-wire [8*d-1:0] sh_reg_out [15:0];
+// Generate the state register + input output signals
+wire [8*d-1:0] sh_reg_in [16];
+wire [8*d-1:0] sh_reg_out [16];
 wire [15:0] en_pipe;
 
 generate
-for(i=0;i<16;i=i+1) begin: scanff_state  
+for(i=0;i<16;i=i+1) begin: gen_scanff_state
     MSKscanReg #(.d(d),.count(8))
     sff_byte(
         .clk(clk),
@@ -116,7 +116,7 @@ for(i=0;i<16;i=i+1) begin: scanff_state
         .out_q(sh_reg_out[i])
     );
 end
-endgenerate 
+endgenerate
 
 // ########## Assign the routing for the first row
 assign sh_reg_in[0] = sh_reg_out[4];
@@ -149,7 +149,7 @@ muxr03_1(
     .out(sh_reg_in[12])
 );
 
-assign sh_4bytes_to_MC_inverse[0 +: 8*d] = sh_added_rkey_0;  
+assign sh_4bytes_to_MC_inverse[0 +: 8*d] = sh_added_rkey_0;
 
 // ########## Assign the routing for the second row
 // Xor to add the key in direct and inverse operation
@@ -193,7 +193,7 @@ xor_r10_inv(
     .inb(sh_3bytes_from_key_inverse[0 +: 8*d]),
     .out(sh_added_rkeyinv_1)
 );
-assign sh_4bytes_to_MC_inverse[8*d +: 8*d] = sh_added_rkeyinv_1;  
+assign sh_4bytes_to_MC_inverse[8*d +: 8*d] = sh_added_rkeyinv_1;
 
 // Mux from loop feedback
 wire [8*d-1:0] sh_mux_r13_0;
@@ -230,7 +230,7 @@ mux22_SBinv(
 assign sh_reg_in[6] = sh_fromSB_inverse_22;
 assign sh_reg_in[10] = sh_reg_out[14];
 
-// Mux to select from SB or from MC 
+// Mux to select from SB or from MC
 wire [8*d-1:0] sh_mux_r23_1;
 MSKmux #(.d(d),.count(8))
 muxr23_2(
@@ -249,7 +249,7 @@ xor_r22_inv(
     .out(sh_added_rkeyinv_2)
 );
 
-assign sh_4bytes_to_MC_inverse[16*d +: 8*d] = sh_added_rkeyinv_2;  
+assign sh_4bytes_to_MC_inverse[16*d +: 8*d] = sh_added_rkeyinv_2;
 
 // Mux for loop feedback
 wire [8*d-1:0] sh_mux_r23_0;
@@ -305,7 +305,7 @@ xor_r33_inv(
     .out(sh_added_rkeyinv_3)
 );
 
-assign sh_4bytes_to_MC_inverse[24*d +: 8*d] = sh_added_rkeyinv_3;  
+assign sh_4bytes_to_MC_inverse[24*d +: 8*d] = sh_added_rkeyinv_3;
 
 wire [8*d-1:0] sh_mux_r33_0;
 MSKmux #(.d(d),.count(8))
@@ -318,11 +318,11 @@ muxr33_1(
 
 // Assign the enable signal to the pipe
 generate
-for(i=0;i<4;i=i+1) begin: cols_en_sig
+for(i=0;i<4;i=i+1) begin: gen_cols_en_sig
     assign en_pipe[i*4] = enable;
-    assign en_pipe[i*4+1] = enable; 
-    assign en_pipe[i*4+2] = enable; 
-    assign en_pipe[i*4+3] = enable; 
+    assign en_pipe[i*4+1] = enable;
+    assign en_pipe[i*4+2] = enable;
+    assign en_pipe[i*4+3] = enable;
 end
 endgenerate
 
@@ -353,7 +353,7 @@ mux_selection_to_SB(
 
 // Assign ciphertext
 generate
-for(i=0;i<16;i=i+1) begin: cipher_byte
+for(i=0;i<16;i=i+1) begin: gen_cipher_byte
     assign sh_data_out[8*d*i +: 8*d] = sh_reg_out[i];
 end
 endgenerate

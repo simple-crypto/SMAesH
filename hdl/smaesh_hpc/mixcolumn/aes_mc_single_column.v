@@ -1,18 +1,18 @@
 // Mixcolumn operation for a single column
 module aes_mc_single_column
 (
-    input [31:0] cin, 
+    input [31:0] cin,
     output [31:0] cout
 );
 
 // Intermediate byte values
-wire [7:0] x [3:0];
-wire [7:0] xt2 [3:0];
-wire [7:0] xt3 [3:0];
+wire [7:0] x [4]; // Same as [3:0], but follows verible lint rules
+wire [7:0] xt2 [4];
+wire [7:0] xt3 [4];
 
 genvar i;
 generate
-for(i=0;i<4;i=i+1) begin: product
+for(i=0;i<4;i=i+1) begin: gen_product
     // Fetch X
     assign x[i] = cin[8*i +: 8];
     // Compute x times 02

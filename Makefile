@@ -96,7 +96,7 @@ lint-verilator: $(LINT_VERILATOR)
 VERIBLE?=verible-verilog-lint
 LINT_VERIBLE=$(DIR_HDL)/.lint-verible
 $(LINT_VERIBLE): $(HDL_DONE)
-	verible-verilog-lint $(DIR_HDL)/*.v --rules -parameter-name-style,-always-comb
+	@set e; (verible-verilog-lint $(DIR_HDL)/*.v --rules -parameter-name-style,-always-comb && touch $(LINT_VERIBLE) || exit 1)
 
 lint-verible: $(LINT_VERIBLE)
 # lint all
