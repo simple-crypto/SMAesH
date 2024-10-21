@@ -85,6 +85,26 @@ $(FORMAL_VERIF_DONE): $(VE_INSTALLED) $(HDL_DONE) matchi_configured
 
 formal-tests: $(FORMAL_VERIF_DONE)
 
+### Linting check
+# VERILATOR
+LINT_VERILATOR=$(DIR_HDL)/.lint-verilator
+$(LINT_VERILATOR): $(HDL_DONE)
+	@set e; (cd $(DIR_HDL) && verilator --lint-only smaesh_hpc.v && touch $(LINT_VERILATOR) || exit 1)  
+
+lint-verilator: $(LINT_VERILATOR)
+# VERIBLE
+VERIBLE?=verible-verilog-lint
+LINT_VERIBLE=$(DIR_HDL)/.lint-verible
+$(LINT_VERIBLE): $(HDL_DONE)
+	@set e; ($(VERIBLE) $(DIR_HDL)/*.v --rules -parameter-name-style,-always-comb && touch $(LINT_VERIBLE) || exit 1)
+
+lint-verible: $(LINT_VERIBLE)
+# lint all
+LINT_SUCCESS=$(DIR_HDL)/.lint-success
+$(LINT_SUCCESS): $(LINT_VERILATOR) $(LINT_VERIBLE)
+	touch $(LINT_SUCCESS)
+
+lint: $(LINT_SUCCESS)
 
 clean:
 	if [ -d $(WORKDIR) ]; then rm -r $(WORKDIR); fi

@@ -1,12 +1,12 @@
 module MSKkey_holder
 #(
-    parameter d = 2
+    parameter integer d = 2
 )
 (
     // Clock
     clk,
     rst,
-    // Data in interface (used to set the new key) 
+    // Data in interface (used to set the new key)
     data_in,
     data_in_valid,
     data_in_ready,
@@ -34,8 +34,8 @@ module MSKkey_holder
 `include "smaesh_config.vh"
 
 // Generation param
-localparam BITS = 256;
-localparam RFRSH_RATE = 16;
+localparam integer BITS = 256;
+localparam integer RFRSH_RATE = 16;
 
 // API
 input clk;
@@ -45,7 +45,7 @@ input [31:0] data_in;
 input data_in_valid;
 output reg data_in_ready;
 
-input [32*d-1:0] sh_last_key_col; 
+input [32*d-1:0] sh_last_key_col;
 input sh_last_key_col_pre_valid;
 
 output [d*BITS-1:0] sh_data_out;
@@ -85,7 +85,7 @@ ll_data_holder(
 reg fetch_config_flag;
 reg [1:0] cfg_key_size;
 reg cfg_mode_inverse;
-always@(posedge clk) 
+always@(posedge clk)
 if(rst) begin
     cfg_key_size <= 2'b0;
     cfg_mode_inverse <= 0;
@@ -97,10 +97,10 @@ assign aes_mode_256 = cfg_key_size == KSIZE_256;
 assign aes_mode_192 = cfg_key_size == KSIZE_192;
 assign aes_mode_inverse = cfg_mode_inverse;
 
-// Generation parameter for the amount of round 
-localparam MAX_WORDS_PER_SHARE = BITS/RFRSH_RATE;
-localparam AM_WMAX = MAX_WORDS_PER_SHARE*d;
-parameter SIZE_CNT = $clog2(AM_WMAX);
+// Generation parameter for the amount of round
+localparam integer MAX_WORDS_PER_SHARE = BITS/RFRSH_RATE;
+localparam integer AM_WMAX = MAX_WORDS_PER_SHARE*d;
+parameter integer SIZE_CNT = $clog2(AM_WMAX);
 reg [SIZE_CNT-1:0] words_per_share_bound;
 
 reg rst_count_words;
@@ -109,7 +109,7 @@ wire [SIZE_CNT-1:0] share_idx;
 wire [SIZE_CNT-1:0] word_idx;
 
 serial_shares_words_counter #(
-    .NBITS(SIZE_CNT), 
+    .NBITS(SIZE_CNT),
     .MAX_WORDS_PER_SHARE(MAX_WORDS_PER_SHARE),
     .d(d)
 ) cnt_words (
@@ -122,17 +122,17 @@ serial_shares_words_counter #(
 );
 
 // Some generation parameters
-localparam AMW_256 = 256/RFRSH_RATE;
-localparam AMW_128 = 128/RFRSH_RATE;
-localparam AMW_192 = 192/RFRSH_RATE;
-localparam NW_OFFSET192 = AMW_256 - AMW_192; 
+localparam integer AMW_256 = 256/RFRSH_RATE;
+localparam integer AMW_128 = 128/RFRSH_RATE;
+localparam integer AMW_192 = 192/RFRSH_RATE;
+localparam integer NW_OFFSET192 = AMW_256 - AMW_192;
 
 // Logic to generate the different enable signal for low-level holder
 genvar i;
 wire [d-1:0] llenable_mode_fetch;
 generate
-for(i=0;i<d;i=i+1) begin: bit_llen_fetch
-    assign llenable_mode_fetch[i] = share_idx == i; 
+for(i=0;i<d;i=i+1) begin: gen_bit_llen_fetch
+    assign llenable_mode_fetch[i] = share_idx == i;
 end
 endgenerate
 wire [d-1:0] llenable_mode_ksched = {d{1'b1}};
@@ -179,17 +179,17 @@ decode_last_key_col(
 reg fetch_key_lcol_high;
 wire [d*16-1:0] shares_last_key_col_selected;
 generate
-for(i=0;i<d;i=i+1) begin: str_mux_lkc
+for(i=0;i<d;i=i+1) begin: gen_str_mux_lkc
     assign shares_last_key_col_selected[i*16 +: 16] = fetch_key_lcol_high ?
     shares_last_key_col[32*i+16 +: 16] : shares_last_key_col[32*i +: 16];
 end
 endgenerate
 
 //// Mux at the input of the low level holder
-// Format the shares_data_in: replicated d time the input 
-wire [d*RFRSH_RATE-1:0] shares_data_in; 
+// Format the shares_data_in: replicated d time the input
+wire [d*RFRSH_RATE-1:0] shares_data_in;
 generate
-for(i=0;i<d;i=i+1) begin: replicate
+for(i=0;i<d;i=i+1) begin: gen_replicate
     assign shares_data_in[i*RFRSH_RATE +: RFRSH_RATE] = data_in_selected_gated;
 end
 endgenerate
@@ -198,7 +198,7 @@ reg fetch_from_kschedule;
 assign ll_shares_data_in = fetch_from_kschedule ?
 shares_last_key_col_selected : shares_data_in;
 
-// Register in order to generate a pulse when a new execution of the 
+// Register in order to generate a pulse when a new execution of the
 // core starts
 reg previous_aes_busy;
 always@(posedge clk)
@@ -210,7 +210,8 @@ end
 wire aes_exec_started = aes_busy & ~previous_aes_busy;
 
 // FSM
-localparam 
+localparam integer STATE_BITS = 4;
+localparam integer
 IDLE = 0,
 FETCH_DATA = 1,
 FEED_FROM_BUFFER = 2,
@@ -222,33 +223,34 @@ PAD_ZERO_LAST_KEY = 7,
 IN_REFRESH = 8
 ;
 
-localparam STATE_BITS = 4;
 reg [STATE_BITS-1:0] state, nextstate;
 always@(posedge clk)
 if(rst) begin
-    state <= IDLE;
+    state <= (STATE_BITS'(IDLE));
 end else begin
     state <= nextstate;
 end
 
 // Virtual state used for branching
 reg [STATE_BITS-1:0] branch_compute_last;
-reg in_branch_compute_last, in_padding, in_fetch_new_key, in_fetch_last_key, in_fetch_from_buffer, in_refresh;
+reg in_branch_compute_last, in_padding, in_fetch_new_key, in_fetch_last_key,
+    in_fetch_from_buffer, in_refresh;
 
 
 // Assign the words_per_share_bound
 always@(*) begin
     case(cfg_key_size)
-        KSIZE_192: words_per_share_bound = in_padding ? NW_OFFSET192-1 : AMW_192-1;
-        KSIZE_256: words_per_share_bound = AMW_256-1;
-        default: words_per_share_bound = AMW_128-1;
+        KSIZE_192: words_per_share_bound = in_padding ?
+            (SIZE_CNT'(NW_OFFSET192-1)) : (SIZE_CNT'(AMW_192-1));
+        KSIZE_256: words_per_share_bound = (SIZE_CNT'(AMW_256-1));
+        default: words_per_share_bound = (SIZE_CNT'(AMW_128-1));
     endcase
 end
 
 // fsm internal control
-wire last_word_fetch = (share_idx == d-1) & (word_idx == words_per_share_bound);
-wire last_last_key_word_fetch = (share_idx == 0) & (word_idx == words_per_share_bound); 
-reg last_refresh_word; 
+wire last_word_fetch = (share_idx == (SIZE_CNT'(d-1))) & (word_idx == words_per_share_bound);
+wire last_last_key_word_fetch = (share_idx == 0) & (word_idx == words_per_share_bound);
+reg last_refresh_word;
 reg last_new_pad_word;
 
 always@(*) begin
@@ -259,21 +261,21 @@ always@(*) begin
     // key value is properly encoded at the end of the refresh procedure. In
     // practice, this translates in counter more words than the amount of words
     // required to perform the refresh, enforcing then the shifting of data
-    // through the pipeline. 
+    // through the pipeline.
     case(cfg_key_size)
         KSIZE_192: begin
-            last_refresh_word = (share_idx == 1) & (word_idx == NW_OFFSET192-1);
+            last_refresh_word = (share_idx == 1) & (word_idx == (SIZE_CNT'(NW_OFFSET192-1)));
         end
         KSIZE_256: begin
             last_refresh_word = (share_idx == 0) & (word_idx == words_per_share_bound);
         end
         default: begin
-            last_refresh_word = (share_idx == 1) & (word_idx == words_per_share_bound); 
+            last_refresh_word = (share_idx == 1) & (word_idx == words_per_share_bound);
         end
     endcase
 end
 
-// FSM 
+// FSM
 always@(*) begin
     nextstate = state;
     busy = 1;
@@ -283,7 +285,7 @@ always@(*) begin
 
     // Related to the bus for fetching data from outside the core
     data_in_ready = 0;
-   
+
     // Allows the enable of low loevel key holder
     ll_enable_mask = 0;
 
@@ -300,30 +302,30 @@ always@(*) begin
     in_fetch_from_buffer = 0;
     in_refresh = 0;
 
-    case (state)
+    case ((32'(state)))
         IDLE: begin
             busy = 0;
             rst_count_words = 1;
             // First branch if a new execution started (refresh handling)
             if(aes_exec_started) begin
-                nextstate = IN_REFRESH; 
+                nextstate = (STATE_BITS'(IN_REFRESH));
                 rst_count_words = 1;
-            // Second branch if a new key is loaded 
+            // Second branch if a new key is loaded
             end else if(start_fetch_procedure) begin
-                nextstate = FETCH_DATA;        
+                nextstate = (STATE_BITS'(FETCH_DATA));
                 fetch_config_flag = 1;
-            end 
+            end
         end
         FETCH_DATA: begin
             data_in_ready = 1;
             in_fetch_new_key = 1;
             if(data_in_valid) begin
-                nextstate = FEED_FROM_BUFFER;
+                nextstate = (STATE_BITS'(FEED_FROM_BUFFER));
                 inc_count_words = 1;
                 enable_buffer_api = 1;
                 ll_enable_mask = 1;
             end
-        end 
+        end
         FEED_FROM_BUFFER: begin
             inc_count_words = 1;
             in_fetch_new_key = 1;
@@ -334,11 +336,11 @@ always@(*) begin
                     nextstate = branch_compute_last;
                     in_branch_compute_last = 1;
                 end else begin
-                    nextstate = PAD_ZERO_NEW_KEY; 
+                    nextstate = (STATE_BITS'(PAD_ZERO_NEW_KEY));
                     rst_count_words = 1;
                 end
             end else begin
-                nextstate = FETCH_DATA;
+                nextstate = (STATE_BITS'(FETCH_DATA));
             end
         end
         PAD_ZERO_NEW_KEY: begin
@@ -346,7 +348,7 @@ always@(*) begin
             in_fetch_new_key = 1;
             in_padding = 1;
             ll_enable_mask = 1;
-            if(last_word_fetch) begin 
+            if(last_word_fetch) begin
                 nextstate = branch_compute_last;
                 in_branch_compute_last = 1;
             end
@@ -354,13 +356,13 @@ always@(*) begin
         START_KEY_COMPUTATION: begin
             last_key_computation_required = 1;
             if(aes_exec_started) begin
-                nextstate = WAIT_KEY_COMPUTATION;
+                nextstate = (STATE_BITS'(WAIT_KEY_COMPUTATION));
             end
         end
         WAIT_KEY_COMPUTATION: begin
             if (sh_last_key_col_pre_valid) begin
                 rst_count_words = 1;
-                nextstate = FETCH_KEY_MATERIAL;
+                nextstate = (STATE_BITS'(FETCH_KEY_MATERIAL));
             end
         end
         FETCH_KEY_MATERIAL: begin
@@ -369,12 +371,12 @@ always@(*) begin
             ll_enable_mask = 1;
             if (last_last_key_word_fetch) begin
                 if(cfg_key_size == KSIZE_256) begin
-                    nextstate = IDLE;
+                    nextstate = (STATE_BITS'(IDLE));
                 end else begin
-                    nextstate = PAD_ZERO_LAST_KEY;
+                    nextstate = (STATE_BITS'(PAD_ZERO_LAST_KEY));
                     rst_count_words = 1;
                 end
-            end 
+            end
         end
         PAD_ZERO_LAST_KEY: begin
             inc_count_words = 1;
@@ -382,50 +384,53 @@ always@(*) begin
             in_padding = 1;
             ll_enable_mask = 1;
             if(last_last_key_word_fetch) begin
-                nextstate = IDLE; 
+                nextstate = (STATE_BITS'(IDLE));
             end
         end
         IN_REFRESH: begin
             in_refresh = 1;
             if(rnd_rfrsh_in_valid) begin
                 inc_count_words = 1;
-                ll_enable_mask = 1; 
+                ll_enable_mask = 1;
                 if(last_refresh_word) begin
-                    nextstate = IDLE; 
+                    nextstate = (STATE_BITS'(IDLE));
                 end
             end
         end
+        default: nextstate = (STATE_BITS'(IDLE));
     endcase
 
 end
 
 always@(*) begin
     // Default
-    data_in_from_buffer = 0; 
-    fetch_key_lcol_high = 0; // fetch 16 last bits for the lask col 
+    data_in_from_buffer = 0;
+    fetch_key_lcol_high = 0; // fetch 16 last bits for the lask col
     fetch_from_kschedule = in_fetch_last_key; // Input to ll from kschedule
 
     // LL data holder
-    ll_fetch_in = 0; // Mux taking data from input instead of refresh shift
-    ll_enable_from_ksched = in_fetch_last_key | in_refresh; // data at the input comes from the key scheduling
+    // Mux taking data from input instead of refresh shift
+    ll_fetch_in = 0;
+    // data at the input comes from the key scheduling
+    ll_enable_from_ksched = in_fetch_last_key | in_refresh;
     enforce_data_in_zero = 0;
 
     // Logic for branch_compute_last
     if(cfg_mode_inverse) begin
-        branch_compute_last = START_KEY_COMPUTATION;
+        branch_compute_last = (STATE_BITS'(START_KEY_COMPUTATION));
     end else begin
-        branch_compute_last = IDLE;
+        branch_compute_last = (STATE_BITS'(IDLE));
     end
 
-    data_in_from_buffer = in_fetch_from_buffer; 
+    data_in_from_buffer = in_fetch_from_buffer;
     fetch_key_lcol_high = word_idx[0];
     if (in_padding) begin
         ll_fetch_in = 1;
         enforce_data_in_zero = 1;
     end else if (in_fetch_new_key | in_fetch_last_key) begin
-        ll_fetch_in = 1;  
+        ll_fetch_in = 1;
     end
-    
+
 end
 
 

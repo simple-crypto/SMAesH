@@ -1,29 +1,29 @@
 // Mixcolumn inverse operation for a single column
 module aes_mc_single_column_inverse
 (
-    input [31:0] cin, 
+    input [31:0] cin,
     output [31:0] cout
 );
 
 // Intermediate byte values
-wire [7:0] x [3:0];
-wire [7:0] xt2 [3:0];
-wire [7:0] xt3 [3:0];
-wire [7:0] xt4 [3:0];
-wire [7:0] xt5 [3:0];
-wire [7:0] xt6 [3:0];
-wire [7:0] xt7 [3:0];
-wire [7:0] xt8 [3:0];
-wire [7:0] xt9 [3:0];
-wire [7:0] xta [3:0];
-wire [7:0] xtb [3:0];
-wire [7:0] xtc [3:0];
-wire [7:0] xtd [3:0];
-wire [7:0] xte [3:0];
+wire [7:0] x [4];
+wire [7:0] xt2 [4];
+wire [7:0] xt3 [4];
+wire [7:0] xt4 [4];
+wire [7:0] xt5 [4];
+wire [7:0] xt6 [4];
+wire [7:0] xt7 [4];
+wire [7:0] xt8 [4];
+wire [7:0] xt9 [4];
+wire [7:0] xta [4];
+wire [7:0] xtb [4];
+wire [7:0] xtc [4];
+wire [7:0] xtd [4];
+wire [7:0] xte [4];
 
 genvar i;
 generate
-for(i=0;i<4;i=i+1) begin: product
+for(i=0;i<4;i=i+1) begin: gen_product
     // Fetch X
     assign x[i] = cin[8*i +: 8];
     // x times 02
@@ -50,7 +50,7 @@ for(i=0;i<4;i=i+1) begin: product
     xtime xt_c(.x(xt6[i]), .y(xtc[i]));
     // x times 0d
     assign xtd[i] = xtc[i] ^ x[i];
-    // x times 0e 
+    // x times 0e
     xtime xt_e(.x(xt7[i]), .y(xte[i]));
 end
 endgenerate

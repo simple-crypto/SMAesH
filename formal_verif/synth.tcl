@@ -9,7 +9,7 @@ set LIB_V $LIB.v
 set LIB $LIB.lib
 
 # Read verilog, load sub-modules and build the hierarchy.
-yosys verilog_defaults -add -I$IMPLEM_DIR -DMATCHI=1
+yosys verilog_defaults -add -I$IMPLEM_DIR -DMATCHI=1 -sv
 yosys read_verilog $MAIN_PATH
 yosys hierarchy -check -libdir $IMPLEM_DIR -top $MAIN_MODULE
 

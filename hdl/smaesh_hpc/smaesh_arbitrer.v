@@ -11,7 +11,7 @@ module smaesh_arbitrer
     //// Data related
     input in_data_valid,
     output in_data_ready,
-    //// Internals 
+    //// Internals
     // internal ready
     input KSU_in_ready,
     input aes_in_ready,
@@ -31,7 +31,7 @@ module smaesh_arbitrer
 
 //// Lock wire
 
-//// PRNG drivers 
+//// PRNG drivers
 // Seed has precendence over the rest, so only lock when other are busy
 wire lock_seed_stream = (KSU_busy | aes_busy);
 // Starting a reseed has precedence over all the rest
@@ -42,9 +42,9 @@ assign prng_start_reseed = in_seed_valid & ~lock_seed_stream;
 reg prev_prng_busy;
 always @(posedge clk)
 if (rst) begin
-    prev_prng_busy <= 0; 
+    prev_prng_busy <= 0;
 end else begin
-    prev_prng_busy <= prng_busy; 
+    prev_prng_busy <= prng_busy;
 end
 assign in_seed_ready = ~prev_prng_busy & prng_busy & ~lock_seed_stream;
 
@@ -56,16 +56,17 @@ assign in_key_ready = KSU_in_ready & ~lock_key_stream;
 
 //// AES core driver
 // Data has no precedence over the rest
-wire lock_data_stream = (KSU_busy | prng_busy | prng_start_reseed | KSU_start_fetch_procedure | ~prng_seeded);
+wire lock_data_stream = (
+    KSU_busy | prng_busy | prng_start_reseed | KSU_start_fetch_procedure | ~prng_seeded
+);
+
 // aes_valid_in asserted in two cases:
 // (1) under key configuration, if last round key must be computed and prng is seeded
 // (2) otherwise, if the key stream is not locked and valid is asserted
-assign aes_valid_in = KSU_busy ? (prng_seeded & KSU_last_key_computation_required) : in_data_valid & ~lock_data_stream;
+assign aes_valid_in = KSU_busy ?
+(prng_seeded & KSU_last_key_computation_required) : in_data_valid & ~lock_data_stream;
+
 assign KSU_valid_in = in_key_valid & ~lock_key_stream;
 assign in_data_ready = aes_in_ready & ~lock_data_stream;
-
-
-
-
 
 endmodule
