@@ -134,7 +134,8 @@ jobs:
       - run: sudo apt-get install -y python3.12-venv
       - run: mkdir -p ${{ github.workspace }}/verif-tools
       - run: (curl -L https://github.com/simple-crypto/hw-devtools/releases/download/v241002-5/hw-devtools.tar.gz | tar xz; sudo apt install ./hw-devtools/*.deb)
-      - run: make lint
+      - run: (cd ${{ github.workspace }}/verif-tools; curl -L https://github.com/chipsalliance/verible/releases/download/v0.0-3831-g32b2456e/verible-v0.0-3831-g32b2456e-linux-static-x86_64.tar.gz | tar xz;)
+      - run: make lint VERIBLE=${{ github.workspace }}/verif-tools/verible-v0.0-3831-g32b2456e/bin/verible-verilog-lint
 
   release:
     needs: [build_latex, functest, formal_verif_matchi, lint]
