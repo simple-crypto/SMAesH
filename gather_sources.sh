@@ -16,7 +16,7 @@ mkdir -p $OUT_DIR
 # Iterate over each directory
 for var in "$@"; do
 	dir="$SCRIPT_DIR/$var"
-	files=$(find $dir -name '*.v' -o -name '*.vh')
+	files=$(find $dir -name '*.v' -o -name '*.vh' -o -name '*.sv')
 	for file in $files; do
 		cp $file $OUT_DIR
 		echo "$file copied to $OUT_DIR"
