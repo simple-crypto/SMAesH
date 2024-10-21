@@ -19,7 +19,7 @@ export TOPLEVEL_LANG ?= verilog
 export SIM_BUILD ?= $(WORK_CASE)
 # Sources related
 export VERILOG_INCLUDE_DIRS?= $(RTL_DIR_HDL)
-export VERILOG_SOURCES ?= $(RTL_DIR_HDL)/*.v
+export VERILOG_SOURCES ?= $(RTL_DIR_HDL)/*.v $(RTL_DIR_HDL)/*.sv
 # TOPLEVEL is the name of the toplevel module in your Verilog or VHDL file
 export TOPLEVEL ?= smaesh_hpc
 # MODULE is the basename of the Python test file
