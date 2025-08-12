@@ -173,6 +173,27 @@ The different actions enabled by the core are detailed next. For each, we try to
             - release tag (i.e., queue it to the output buffer) or verify it (update internal status for reading). 
         - branch to `END_OT`
             
+## DMA mapping and permission
+
+- `Busy` (R): the core is currently processing and may result in a blocking access. 
+- `Seeded` (R): the core is seeded, i.e., value of `seeded`
+- `Keyed` (R): the core is readed, i.e., value of `keyed`
+- `Mode` (R/W): 
+    - read: read the current value configured. 
+    - write: configure a new mode. 
+- `InFree` (R): depicts the status of the input buffer. Either acts as a flag specifying the emptiness of the buffer, or is a value representing the place remaining in the input buffer. 
+- `OutAwait` (R): depicts the status of the output buffer. Either acts as a flag specifying the fullness of the buffer, or is a value depicting the amount of read operation that can be performed.
+- `DecError` (R/W):
+    - read: status of the last decryption tag verification. 
+    - write: reset the flag
+- `StateChange` (W): generic command for state switch, i.e., `EndAD`, `EndIT` and `SoftReset`. 
+- `Seed` (W): to write seed material, associated to `WriteSEED`.
+- `Key` (W): to write key material, associated to `WriteKEY`,
+- `IV` (W): to write IV material, associated to `WriteIV`,
+- `InData` (W): to write input text, associated to `WriteIT`,
+- `OutData` (R): to read output text, associated to `ReadOT`
+
+
 
  
 
