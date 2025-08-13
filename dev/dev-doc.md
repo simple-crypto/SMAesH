@@ -96,7 +96,7 @@ The different actions enabled by the core are detailed next. For each, we try to
             - If last payload: 
                 - if `mode=GCM`:
                     - derive Counter0. 
-                    - compute E_k(Counter0) for tag computation and store it.
+                    - compute E_k(Counter0) for tag computation and store it (next refered as J0).
                     - increment Counter0 for IT processing 
                     - reset tag value. 
                     - branches to `WAIT_AD`
@@ -107,7 +107,7 @@ The different actions enabled by the core are detailed next. For each, we try to
         - received from a state other than `IDLE` or `WAIT_IV`
         - received if `mode=ECB`
     - blocking condition:
-        - SC is busy (could be constrained to the last transaction of a new IV). Implementation details: the result of E_k(Counter0) used for tag generation is computed prior to AD/IT processing. 
+        - SC is busy (could be constrained to the last transaction of a new IV). Implementation details: the result of E_k(Counter0) used for tag generation is computed prior to AD/IT processing, as well as H computation. Question: for GCM, we will need to refresh the H=Enc_k(0^128) computed, so recompute it at each execution. 
     - input data: see `WriteSEED`. The following considerations apply depending on the mode configured:
         - The full payload size is 12 bytes for GCM mode (96-bit IV, as per NIST SP800-d 5.2.1.1)
         - The full payload size is 16 bytes for CBC/CTR mode (128-bit IV). 
