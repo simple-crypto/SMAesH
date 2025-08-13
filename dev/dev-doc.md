@@ -194,8 +194,24 @@ The different actions enabled by the core are detailed next. For each, we try to
 - `OutData` (R): to read output text, associated to `ReadOT`
 
 
+## General payload size processing consideration
 
- 
+The implemented core will use the byte granularity: IO interface in internal operation cannot handle finer granularity of word of 8 bits. Write and read operation are organised by performing one or several transaction of 32-bit words containing either 1, 2 or 4 valid bytes. In case of reading operation with misalignement, which may occur for example if a read operation asking for 4 bytes while less than 4 bytes remain in the internal buffer, then the invalid bytes are forced to 0. 
+
+## GCM (and CTR) payload size, padding and Tag handling considerations . 
+A tag manipulation is considered when `mode=GCM`. Under this mode, some technicalities apply: 
+- For encryption: considering a plaintext composed of `m` bytes, `m` ciphertext bytes are produced together with a 16-bytes tag value during an encryption. These are outputted as a single bytestring of `m+16` bytes (i.e.,  without any sort of padding between the last ciphertext byte and the tag). In particular, when executing an encryption, a total of `m` bytes of plaintext payload are expected to be written to the core at the address `InData`, while a total of `m+16` bytes are expected to be read from the address `OutData` in order to recover the `m` bytes of ciphertext together with the 16 bytes of tag (in particular, the last 16 bytes read are the tag). 
+- For decryption: the input considered is a 'full ciphertext' composed of the `m` bytes of ciphertext and 16 bytes of tag (such that the length of the 'full ciphertext' if equal to `m+16`). 
+To perform a decryption, a total of `m+16` bytes of ciphertext payload are expected to be written at the address `InData`. The tag payload will be decoded internally for verification purpose. To recover the `m` bytes of plaintext, a total `m` bytes are expected to be read from the address `OutData`. The tag verification status can be accessed once the decryption execution is over, by performing a read operation at the address `DecError`. 
+
+When `mode=CTR`, the same consideration apply without considering the 16 bytes of tag. 
+
+Padding only occurs internally for AD processing and tag computation. In particular, the padding to compute the tag follows the procedure described in NIST SP800-d 7.1.
+
+## CBC payload size and padding considerations
+When `mode=CBC`, padding is required when the plaintext/ciphertext payload size is not a multiple of the block size of 16 bytes. In particular:
+- For encryption: the plaintext bytes are padded following the ISO/IEC 7816-4 byte padding scheme in order to work internally on full block of data. More into the details, considering a plaintext composed of `m` bytes, `n = ceil(m, 16)` bytes of ciphertext will be produced during an encryption, where `ceil(x, j)` returns the minimal value equal to or bigger than `x` such that `x % j = 0`. The valid length is considered to be known by the user. 
+- For decryption: the ciphertext composed of `n` bytes  is sent to the core, together with the length of valid data (in bytes). Only the corresponding  `n` valid bytes of plaintext are produced by removing the `n-m` padded bytes from the internally decrypted bytestring. 
 
 
 
