@@ -12,12 +12,12 @@ reg rst;
 reg [31:0] in_data;
 reg [2:0] push_nbytes;
 reg push;
-wire [LOG2_NBYTES:0] left_nbytes; 
+wire [LOG2_NBYTES:0] left_nbytes,left_nbytes2; 
 
-wire [255:0] out_data;
+wire [255:0] out_data,out_data2;
 reg [LOG2_NBYTES:0] pop_nbytes;
 reg pop;
-wire [LOG2_NBYTES:0] stored_nbytes; 
+wire [LOG2_NBYTES:0] stored_nbytes,stored_nbytes2; 
 
 // clk 
 always@(*) #Td clk<=~clk;
@@ -35,6 +35,22 @@ dut(
     .pop_nbytes(pop_nbytes),
     .pop(pop),
     .stored_nbytes(stored_nbytes)
+);
+
+buffer_fifo_v2 #(.LOG2_NBYTES(LOG2_NBYTES))
+dut2(
+    .clk(clk),
+    .rst(rst),
+    .in_data(in_data),
+    .push_1(push_nbytes==1),
+    .push_2(push_nbytes==2),
+    .push_4(push_nbytes==4),
+    .push(push),
+    .left_nbytes(left_nbytes2),
+    .out_data(out_data2),
+    .pop_nbytes(pop_nbytes),
+    .pop(pop),
+    .stored_nbytes(stored_nbytes2)
 );
 
 initial begin 
@@ -90,6 +106,9 @@ initial begin
         $display("ERROR OCCURED: ... with first feeding");
         $finish();
     end
+    if (out_data[127:0]!==out_data2[127:0]) begin
+        $display("MISMATCH OCCURED: ... with first feeding");
+    end
 
     // Try to read 
     pop_nbytes = 2;
@@ -103,6 +122,9 @@ initial begin
         $display("ERROR OCCURED: ... poping 2");
         $finish();
     end
+    if (out_data[111:0]!==out_data2[111:0]) begin
+        $display("MISMATCH OCCURED: ... poping 2");
+    end
     pop_nbytes = 4;
     pop = 1;
     #T;
@@ -115,6 +137,9 @@ initial begin
         $display("ERROR OCCURED: ... poping 4");
         $finish();
     end
+    if (out_data[8*10-1:0]!==out_data2[8*10-1:0]) begin
+        $display("MISMATCH OCCURED: ... poping 4");
+    end
     pop_nbytes = 1;
     pop = 1;
     #T;
@@ -125,6 +150,9 @@ initial begin
     ) begin
         $display("ERROR OCCURED: ... poping 1");
         $finish();
+    end
+    if (out_data[8*9-1:0]!==out_data2[8*9-1:0]) begin
+        $display("MISMATCH OCCURED: ... poping 1");
     end
     pop = 0;
 

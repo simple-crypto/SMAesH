@@ -1,0 +1,22 @@
+WORKDIR=work
+
+SYNTH_TOP?=buffer_fifo_v1
+SYNTH_SRCS?=$(SYNTH_TOP).v
+VDEFINES?=
+VINCLUDE?=
+SYNTH_LIB?=nangate45-pdk/stdcells.lib
+RESDIR?=$(WORKDIR)/$(SYNTH_TOP)
+
+$(WORKDIR): 
+	mkdir -p $(WORKDIR)
+
+$(RESDIR): | $(WORKDIR)
+	mkdir -p $(RESDIR)
+
+AREA_REPORT?=$(RESDIR)/area.json 
+$(AREA_REPORT): $(SYNTH_SRCS)| $(RESDIR)
+	set -e; (SYNTH_SRCS=$(SYNTH_SRCS) VDEFINES=$(VDEFINES) VINCLUDE=$(VINCLUDE) SYNTH_TOP=$(SYNTH_TOP) SYNTH_LIB=$(SYNTH_LIB) RESDIR=$(RESDIR) yosys -c synth.tcl) || exit 1
+
+area: $(AREA_REPORT)
+
+

@@ -3,11 +3,12 @@
 // CAUTION: no internal verification are made relative to the amount of bytes
 // stored/that can still be stored. Proper usage MUST be handled at a higher
 // level. 
-module buffer_fifo
+module buffer_fifo_v1
 #(
     // Log2 of the total amount of bytes that can be stored 
     // MUST BE AT LEAST EQUAL TO 5
-    parameter LOG2_NBYTES = 5
+    parameter LOG2_NBYTES = 5,
+    parameter LOG2_NBYTES_OUT = 5
 )
 (
     clk,
@@ -28,6 +29,7 @@ module buffer_fifo
 
 // Architectural paramaters 
 parameter MEM_NBYTES = 1 << LOG2_NBYTES;
+parameter OUT_NBYTES = 1 << LOG2_NBYTES_OUT;
 
 // IOs 
 input clk;
@@ -37,7 +39,7 @@ input [2:0] push_nbytes;
 input push;
 output [LOG2_NBYTES:0] left_nbytes;
 
-output [255:0] out_data;
+output [8*OUT_NBYTES-1:0] out_data;
 input [LOG2_NBYTES:0] pop_nbytes;
 input pop;
 output [LOG2_NBYTES:0] stored_nbytes;
@@ -104,7 +106,7 @@ end
 
 // Assign the output 
 generate 
-    for(i=0;i<32;i=i+1) begin: g_byte_out
+    for(i=0;i<OUT_NBYTES;i=i+1) begin: g_byte_out
         assign out_data[8*i +: 8] = mem[addr_read[i]];
     end
 endgenerate
