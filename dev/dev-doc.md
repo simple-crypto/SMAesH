@@ -172,6 +172,10 @@ The different actions enabled by the core are detailed next. For each, we try to
                 - if u>0, process the last black of IT, made of the last block of AD padded with 0 to reach block size.
             - release tag (i.e., queue it to the output buffer) or verify it (update internal status for reading). 
         - branch to `END_OT`
+    - error condition:
+        - received when "mode=ECB" and len_bits(IT) % 128 != 0 (i.e., only full block are allowed)
+    - blocking condition(s):
+        - None
             
 ## DMA mapping and permission
 
@@ -193,10 +197,12 @@ The different actions enabled by the core are detailed next. For each, we try to
 - `InData` (W): to write input text, associated to `WriteIT`,
 - `OutData` (R): to read output text, associated to `ReadOT`
 
-
 ## General payload size processing consideration
 
 The implemented core will use the byte granularity: IO interface in internal operation cannot handle finer granularity of word of 8 bits. Write and read operation are organised by performing one or several transaction of 32-bit words containing either 1, 2 or 4 valid bytes. In case of reading operation with misalignement, which may occur for example if a read operation asking for 4 bytes while less than 4 bytes remain in the internal buffer, then the invalid bytes are forced to 0. 
+
+## ECB payload size, padding considerations
+In ECB, the payload are expected to be 16 bytes long. If 
 
 ## GCM (and CTR) payload size, padding and Tag handling considerations . 
 A tag manipulation is considered when `mode=GCM`. Under this mode, some technicalities apply: 
