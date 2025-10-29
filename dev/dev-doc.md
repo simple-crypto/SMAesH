@@ -179,6 +179,7 @@ The different actions enabled by the core are detailed next. For each, we try to
             
 ## DMA mapping and permission
 
+- `SoftReset` (W): reset the core
 - `Busy` (R): the core is currently processing and may result in a blocking access. 
 - `Seeded` (R): the core is seeded, i.e., value of `seeded`
 - `Keyed` (R): the core is readed, i.e., value of `keyed`
@@ -221,3 +222,7 @@ When `mode=CBC`, padding is required when the plaintext/ciphertext payload size 
 
 
 
+## considerations about TL-UL integration. 
+For our integration, we will support PutFullData only (with a_size <= physical width, as specified is TL specification), but will not support PutPartialData with arbitrary alignement mask support. The motivation behind it, is that writing/reading of data to/from the core will be performed in order, and using a single (constant) address for each data type, thus not requiring the level of granularity enabled by PutPartialData. On the other hand, the fact that PutFullData enables variable size is useful in order to keep track of the input data size (precise location of the active byte lanes are recovered using mask).   
+
+Status reading for Busy/Keyed/Seeded/Mode/InFree/OutAwait must never block and can be issued from any processing state.
