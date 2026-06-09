@@ -47,7 +47,17 @@ class SMAESHMessage:
             MessageType.DATA: "DATA"
             }
     def int2bytes(v: int, nbytes: int):
-        return bytes([(v>>(8*i))&0xff for i in range(nbytes)])
+        if isinstance(v, int):
+            return bytes([(v>>(8*i))&0xff for i in range(nbytes)])
+        elif isinstance(v, cocotb.handle.LogicArrayObject):
+            return bytes([(v.value>>(8*i))&0xff for i in range(nbytes)])
+        elif isinstance(v, cocotb.handle.LogicObject):
+            return bytes([v.value])
+        elif isinstance(v, cocotb.handle.LogicArray):
+            return bytes([(v.integer>>(8*i))&0xff for i in range(nbytes)])
+        else:
+            return bytes([(v>>(8*i))&0xff for i in range(nbytes)])
+        
 
     def seed_msg(data: bytes):
         if len(data)!=10:
@@ -98,9 +108,9 @@ class SMAESHMessage:
 # An object that allows to deal with a SVRStream
 class SVRStreamBus:
     def __init__(self, 
-            valid_sig: cocotb.handle.ModifiableObject,
-            ready_sig: cocotb.handle.ModifiableObject,
-            data_list: list[cocotb.handle.ModifiableObject]
+            valid_sig,
+            ready_sig,
+            data_list
             ):
         self.valid = valid_sig
         self.ready = ready_sig
@@ -109,8 +119,14 @@ class SVRStreamBus:
 
     # Generate fresh (random) value on the different data signals of the Bus
     def sample_random_data(self):
-        for d in self.data_list:
-            d.value = random.randint(0,(2**d.value.n_bits)-1)
+        for di, d in enumerate(self.data_list):
+            if isinstance(d,cocotb.handle.LogicArrayObject):
+                nbits = (d.left - d.right) + 1 
+                d.value = random.randint(0,(2**nbits)-1)
+            elif isinstance(d, cocotb.handle.LogicObject):
+                d.value = random.randint(0,1)
+            else:
+                raise ValueError(f"type {type(d)} not supported.")
 
     # Generate fresh (random) data and validity signal
     def sample_random(self):
@@ -147,7 +163,7 @@ class DeadlockException(Exception):
 class SVRStreamGeneratorWithRandomDelay:
     def __init__(
             self,
-            clk: cocotb.handle.ModifiableObject,
+            clk,
             stream: SVRStreamBus,
             latency_max_bound: int,
             latency_min_bound = 0,
