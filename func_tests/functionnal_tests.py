@@ -146,7 +146,7 @@ async def svrs_output_data_transaction(dut):
     dut.out_ready.value = 1
     # Wait for falling
     await wait_signal_asserted(dut,dut.out_valid)
-    out_shares_data_int = int(dut.out_shares_data)
+    out_shares_data_int = int(dut.out_shares_data.value)
     # End transaction by waiting till the next Rising edged and clearing
     # input signal
     await RisingEdge(dut.clk)
@@ -243,8 +243,8 @@ async def KSU_features_TEMPLATE(dut, case, inverse:bool, repeat, nshares):
 class SyncMonitor:
     def __init__(self, 
             logger,
-            clk: cocotb.handle.ModifiableObject, 
-            sigs: list[cocotb.handle.ModifiableObject],
+            clk, 
+            sigs,
             description= "Monitor"
             ):
         self.description = description
@@ -271,7 +271,7 @@ class SyncMonitor:
 # Generator of clock, with feature to stop the clock generation
 # and counter for the clock cycle generated
 class ClockGenerator:
-    def __init__(self, clk: cocotb.handle.ModifiableObject, ncycles=None, units="ns", period=2):
+    def __init__(self, clk, ncycles=None, units="ns", period=2):
         self.clk = clk
         self.ncycles = ncycles
         self.units=units

@@ -6,6 +6,7 @@ yosys read_verilog $FILE_IN
 yosys setattr -mod -set keep_hierarchy 1 G4_mul G16_mul 
 yosys proc
 yosys flatten
+yosys opt
 yosys techmap
 yosys opt
-yosys write_json -compat-int $FILE_OUT 
+yosys write_json -noscopeinfo -compat-int $FILE_OUT 

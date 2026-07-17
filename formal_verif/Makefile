@@ -51,9 +51,9 @@ export SIM_BUILD ?= $(WORK_SYNTH)
 export VERILOG_INCLUDE_DIRS?= $(HDL_DIR)
 export VERILOG_SOURCES ?= $(SYNTH_NETLIST_VERILOG) $(HDL_DIR)/smaesh_hpc.sv 
 # TOPLEVEL is the name of the toplevel module in your Verilog or VHDL file
-export TOPLEVEL ?= smaesh_hpc
+export COCOTB_TOPLEVEL ?= smaesh_hpc
 # MODULE is the basename of the Python test file
-export MODULE ?= matchi_simu
+export COCOTB_TEST_MODULES ?= matchi_simu
 # Logging level
 export COCOTB_LOG_LEVEL ?= INFO
 # Results
@@ -90,7 +90,7 @@ $(MATCHI_SUCCESS): $(BEH_SIMU_VCD)
 	$(MATCHI_BIN) \
 	    --json $(SYNTH_NETLIST_JSON) \
 	    --vcd $(BEH_SIMU_VCD) \
-	    --dut top.smaesh_hpc.aes_core \
+	    --dut smaesh_hpc.aes_core \
 	    --gname $(SYNTH_MAIN_MODULE) \
 	    --output-vcd $(MATCHI_VCD) > $(MATCHI_LOG) 2> $(MATCHI_LOG).error && touch $(MATCHI_SUCCESS) || exit 1
 

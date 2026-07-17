@@ -1,13 +1,15 @@
 # Use in order to use the compress-optimized sbox. 
 NSHARES?=2
-WORK?=work/d$(NSHARES)
+PYTHON_VERSION?=3.13
+UV_EXEC?=uv
+WORK?=work-python$(PYTHON_VERSION)/d$(NSHARES)
 WORKDIR=$(abspath $(WORK))
 
 # Python Venv
 SHELL=/bin/bash
-VE=$(abspath $(WORKDIR)/ve)
+VE=$(abspath $(WORKDIR)/ve-$(PYTHON_VERSION))
 VE_INSTALLED=$(VE)/installed
-PYTHON_VE=source $(VE)/bin/activate
+ACTIVATE_VE=$(VE)/bin/activate
 
 ### HDL configuration
 # Directory created containing all the HDL files
@@ -28,15 +30,13 @@ DIR_SMAESH_HDL=hdl/smaesh_hpc
 
 ## Python venv setting
 $(VE)/pyvenv.cfg:
-	mkdir -p $(WORKDIR)
-	python3 -m venv $(VE)
+	set -e; (mkdir -p $(WORKDIR) && $(UV_EXEC) venv $(VE) -p $(PYTHON_VERSION)) || exit 1
 
-$(VE_INSTALLED): $(VE)/pyvenv.cfg
-	${PYTHON_VE}; python -m pip install -r func_tests/requirements.txt
-	touch $(VE_INSTALLED)
+$(VE_INSTALLED): | $(VE)/pyvenv.cfg
+	set -e; (source ${ACTIVATE_VE} && $(UV_EXEC) pip install -r func_tests/requirements.txt) || exit 1
 
 $(SBOX_FILE): sboxes-compress/canright_aes_sbox_dual.v
-	cd sboxes-compress; SBOX_FILE=$(SBOX_FILE) WORK=$(COMPRESS_WORKDIR) NSHARES=$(NSHARES) ./compress.sh
+	cd sboxes-compress; UV_EXEC=$(UV_EXEC) PYTHON_VERSION=$(PYTHON_VERSION) SBOX_FILE=$(SBOX_FILE) WORK=$(COMPRESS_WORKDIR) NSHARES=$(NSHARES) ./compress.sh
 
 sbox: $(SBOX_FILE)
 
@@ -51,9 +51,9 @@ hdl: $(HDL_DONE)
 ## Functionnal testing
 FUNC_LOG=$(WORKDIR)/functests/simu.log
 FUNC_SUCCESS=$(WORKDIR)/functests/success
-$(FUNC_LOG): $(VE_INSTALLED) $(HDL_DONE)
+$(FUNC_LOG): $(HDL_DONE) | $(VE_INSTALLED) 
 	mkdir -p $(dir $(FUNC_LOG))
-	$(PYTHON_VE); make -C func_tests NSHARES=$(NSHARES) WORK_CASE=$(WORKDIR)/functests RTL_DIR_HDL=$(DIR_HDL) simu | tee $@
+	source $(ACTIVATE_VE) && make -C func_tests NSHARES=$(NSHARES) WORK_CASE=$(WORKDIR)/functests RTL_DIR_HDL=$(DIR_HDL) simu | tee $@
 
 # Mark simulation success (simulation always return a zero exit code).
 %/success: %/simu.log
@@ -76,11 +76,11 @@ matchi_configured:
 	@set e; if [ -z $${DIR_MATCHI_ROOT+x} ]; then echo "DIR_MATCHI_ROOT must be set for formal verification" && exit 1; else echo "DIR_MATCHI_ROOT=${DIR_MATCHI_ROOT}"; fi
 
 FORMAL_VERIF_DONE=$(DIR_FORMAL_VERIF)/.formal_verif
-$(FORMAL_VERIF_DONE): $(VE_INSTALLED) $(HDL_DONE) matchi_configured
+$(FORMAL_VERIF_DONE): $(HDL_DONE) matchi_configured | $(VE_INSTALLED)  
 	# Verify encryption
-	$(foreach ksize,$(KEY_SIZE),$(PYTHON_VE); make -C ./formal_verif NSHARES=$(NSHARES) KEY_SIZE=$(ksize) INVERSE=0 MATCHI_CELLS=$(MATCHI_CELLS) MATCHI_BIN=$(MATCHI_BIN) WORKDIR=$(DIR_FORMAL_VERIF) HDL_DIR=$(DIR_HDL) matchi-run || exit 1;)
+	$(foreach ksize,$(KEY_SIZE),source $(ACTIVATE_VE); make -C ./formal_verif NSHARES=$(NSHARES) KEY_SIZE=$(ksize) INVERSE=0 MATCHI_CELLS=$(MATCHI_CELLS) MATCHI_BIN=$(MATCHI_BIN) WORKDIR=$(DIR_FORMAL_VERIF) HDL_DIR=$(DIR_HDL) matchi-run || exit 1;)
 	# Verify decryption
-	$(foreach ksize,$(KEY_SIZE),$(PYTHON_VE); make -C ./formal_verif NSHARES=$(NSHARES) KEY_SIZE=$(ksize) INVERSE=1 MATCHI_CELLS=$(MATCHI_CELLS) MATCHI_BIN=$(MATCHI_BIN) WORKDIR=$(DIR_FORMAL_VERIF) HDL_DIR=$(DIR_HDL) matchi-run || exit 1;)
+	$(foreach ksize,$(KEY_SIZE),source $(ACTIVATE_VE); make -C ./formal_verif NSHARES=$(NSHARES) KEY_SIZE=$(ksize) INVERSE=1 MATCHI_CELLS=$(MATCHI_CELLS) MATCHI_BIN=$(MATCHI_BIN) WORKDIR=$(DIR_FORMAL_VERIF) HDL_DIR=$(DIR_HDL) matchi-run || exit 1;)
 	touch $(FORMAL_VERIF_DONE)
 
 formal-tests: $(FORMAL_VERIF_DONE)

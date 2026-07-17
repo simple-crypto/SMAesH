@@ -1,3 +1,4 @@
 cocotb
 numpy
 cryptography
+pytest

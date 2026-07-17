@@ -15,6 +15,8 @@ yosys hierarchy -check -libdir $IMPLEM_DIR -top $MAIN_MODULE
 
 # Remove verilog high-level constructs, in favor of netlists
 yosys proc;
+# 
+yosys pmuxtree 
 # Map yosys RTL library to yosys Gate library.
 yosys techmap
 # Map gates to our "matchi_cells" library.
@@ -30,7 +32,7 @@ yosys proc
 yosys hierarchy -check -top $MAIN_MODULE
 
 # Output the result in verilog (for simulation) and json (for analysis).
-yosys write_json $OUT_DIR/${MAIN_MODULE}_synth.json
+yosys write_json -noscopeinfo $OUT_DIR/${MAIN_MODULE}_synth.json
 
 yosys write_verilog -norename $OUT_DIR/${MAIN_MODULE}_synth.v;
 yosys write_verilog -noattr -norename $OUT_DIR/${MAIN_MODULE}_synth_noattr.v;

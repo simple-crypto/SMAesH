@@ -1,5 +1,6 @@
 
 formal_verif/work
+formal_verif/dump.vcd
 beh_simu/work
 beh_simu/tvs/generated
 
