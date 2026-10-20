@@ -11,7 +11,7 @@ LAT ?= 4
 NSHARES ?= 2
 
 # Python Venv
-SHELL=/bin/bash
+SHELL=/bin/sh
 VE=$(abspath $(WORK)/ve)
 VE_INSTALLED=$(VE)/installed
 ACTIVATE_VE=$(VE)/bin/activate

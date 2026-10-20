@@ -6,7 +6,7 @@ WORK?=work-python$(PYTHON_VERSION)/d$(NSHARES)
 WORKDIR=$(abspath $(WORK))
 
 # Python Venv
-SHELL=/bin/bash
+SHELL=/bin/sh
 VE=$(abspath $(WORKDIR)/ve-$(PYTHON_VERSION))
 VE_INSTALLED=$(VE)/installed
 ACTIVATE_VE=$(VE)/bin/activate
